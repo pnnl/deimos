@@ -1,0 +1,40 @@
+from os.path import *
+import spextractor as spx
+import numpy as np
+
+
+# infer wildcards from inputs
+IDS, = glob_wildcards(join('input', '{id}.d'))
+
+
+rule all:
+    input:
+        expand(join('output', 'npy', '{id}.npy'), id=IDS),
+        expand(join('output', 'gzip', '{id}.tar.gz'), id=IDS)
+
+
+rule agilent2mzml:
+    input:
+        join('input', '{id}.d')
+    output:
+        temp(join('output', 'mzml', '{id}.mzML'))
+    shell:
+        'msconvert.exe {input}'
+
+
+rule mzml2tar:
+    input:
+        rules.agilent2mzml.output
+    output:
+        join('output', 'gzip', '{id}.tar.gz')
+    shell:
+        '7z.exe a {output} {input}'
+
+
+rule mzml2npy:
+    input:
+        rules.agilent2mzml.output
+    output:
+        join('output', 'npy', '{id}.npy')
+    run:
+        np.save(output[0], spx.process.spectra(input[0]))
