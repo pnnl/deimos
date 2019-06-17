@@ -1,6 +1,7 @@
 from os.path import *
 import spextractor as spx
 import numpy as np
+from os.path import *
 
 
 # infer wildcards from inputs
@@ -17,8 +18,9 @@ rule agilent2mzml:
         join('input', '{id}.d')
     output:
         join('output', 'mzml', '{id}.mzML.gz')
-    shell:
-        'msconvert.exe {input} --outfile {output} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-”'
+    run:
+        outdir = dirname(output[0])
+        shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-”')
 
 
 rule mzml2npy:
