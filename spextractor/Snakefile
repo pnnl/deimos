@@ -16,9 +16,9 @@ rule agilent2mzml:
     input:
         join('input', '{id}.d')
     output:
-        join('output', 'mzml', '{id}.tar.gz')
+        join('output', 'mzml', '{id}.mzML.gz')
     shell:
-        'msconvert.exe {input} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-”'
+        'msconvert.exe {input} --outfile {output} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-”'
 
 
 rule mzml2npy:
