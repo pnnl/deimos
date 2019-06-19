@@ -10,7 +10,7 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 
 rule all:
     input:
-        expand(join('output', 'npy', '{id}.npy'), id=IDS),
+        expand(join('output', 'aligned', '{id}.npy'), id=IDS)
 
 
 rule agilent2mzml:
@@ -25,10 +25,19 @@ rule agilent2mzml:
         shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-” > {log} 2>&1')
 
 
-rule mzml2npy:
+rule mzml2h5:
     input:
         rules.agilent2mzml.output
     output:
-        join('output', 'npy', '{id}.npy')
+        join('output', 'h5', '{id}.h5')
     run:
-        np.save(output[0], spx.process.spectra(input[0]))
+        spx.process.mzML(input[0], output[0])
+
+
+rule align:
+    input:
+        rules.mzml2h5.output
+    output:
+        join('output', 'aligned', '{id}.npy')
+    run:
+        spx.process.align(input[0], output[0])
