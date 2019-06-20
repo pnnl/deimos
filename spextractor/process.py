@@ -1,10 +1,8 @@
 from pyteomics import mzml
 import gzip
 from os.path import *
-import numpy as np
 import pandas as pd
 import multiprocessing as mp
-from functools import partial
 
 
 def _parse(d):
@@ -30,73 +28,50 @@ def mzML(path, output):
     if close:
         f.close()
 
-    # parse contents
-    # parsed = []
-    # for d in data:
-    #     dt = [x['ion mobility drift time'] for x in d['scanList']['scan']]
-    #     if len(dt) < 2:
-    #             dt = dt[0]
-    #     parsed.append([d['ms level'], dt, d['m/z array'], d['intensity array']])
-
     with mp.Pool(mp.cpu_count()) as p:
         parsed = p.map(_parse, data)
 
     # generate dataframe
-    df = pd.DataFrame(parsed, columns=['ms level', 'drift time', 'm/z', 'intensity'])
+    df = pd.DataFrame(parsed, columns=['ms_level', 'drift_time', 'm/z', 'intensity'])
 
     # explode m/z
-    a = df.set_index(['ms level', 'drift time'])['m/z'].apply(pd.Series).stack()
+    a = df.set_index(['ms_level', 'drift_time'])['m/z'].apply(pd.Series).stack()
     a = a.reset_index()
-    a.columns = ['ms level', 'drift time', 'sample', 'm/z']
+    a.columns = ['ms_level', 'drift_time', 'sample', 'm/z']
 
     # explode intensity
-    b = df.set_index(['ms level', 'drift time'])['intensity'].apply(pd.Series).stack()
+    b = df.set_index(['ms_level', 'drift_time'])['intensity'].apply(pd.Series).stack()
     b = b.reset_index()
-    b.columns = ['ms level', 'drift time', 'sample', 'intensity']
+    b.columns = ['ms_level', 'drift_time', 'sample', 'intensity']
 
     # combine
     a['intensity'] = b['intensity'].values
     a.drop('sample', axis=1, inplace=True)
 
-    # clean variables
-    df = None
-    b = None
-
     # filter zero intensity out
     a = a.loc[a['intensity'] > 0, :]
 
     # group
-    a = a.groupby(by=['drift time', 'm/z']).sum().reset_index()
+    a = a.groupby(by=['drift_time', 'm/z', 'ms_level'], sort=False).sum().reset_index()
 
     # save
-    a.to_hdf(output, key='msms', mode='w', complevel=9)
+    a.to_hdf(output, key='reduced', mode='w', complevel=9)
 
 
-def _feature_mapper(row, ms2):
-    index, row = row
-    feature = {}
-    feature['drift time'] = row['drift time']
-    feature['m/z'] = row['m/z']
-    feature['intensity'] = row['intensity']
-    feature['fragments'] = ms2.loc[ms2['drift time'] == row['drift time'], ['m/z', 'intensity']]
-    return feature
-
-
-def align(path, output, stdev=[3, 0]):
+def merge(path, output, stdev=[4, 3]):
     # read input
-    df = pd.read_hdf(path, 'msms')
+    df = pd.read_hdf(path, 'reduced')
 
     # separate ms levels
-    ms1 = df.loc[df['ms level'] == 1, :].sort_values(by='intensity', ascending=False).reset_index()
-    ms2 = df.loc[df['ms level'] == 2, :].sort_values(by=['drift time', 'm/z', 'intensity'], ascending=[True, True, False]).reset_index()
+    ms1 = df.loc[df['ms_level'] == 1, :].drop('ms_level', axis=1).reset_index(drop=True)
+    ms2 = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
     # top ms
     if stdev[0] > 0:
-        ms1 = ms1.loc[ms1['intensity'] > ms1['intensity'].mean() + stdev[0] * ms1['intensity'].std(), :].reset_index()
+        ms1 = ms1.loc[ms1['intensity'] > ms1['intensity'].mean() + stdev[0] * ms1['intensity'].std(), :].reset_index(drop=True)
     if stdev[1] > 0:
-        ms2 = ms2.loc[ms2['intensity'] > ms2['intensity'].mean() + stdev[1] * ms2['intensity'].std(), :].reset_index()
+        ms2 = ms2.loc[ms2['intensity'] > ms2['intensity'].mean() + stdev[1] * ms2['intensity'].std(), :].reset_index(drop=True)
 
-    with mp.Pool(mp.cpu_count()) as p:
-        features = p.map(partial(_feature_mapper, ms2=ms2), ms1.iterrows())
+    features = ms1.merge(ms2, on='drift_time', suffixes=['_ms1', '_ms2']).sort_values(by=['intensity_ms1', 'drift_time', 'm/z_ms1', 'm/z_ms2'], ascending=[False, True, True, True])
 
-    np.save(output, features)
+    features.to_hdf(output, key='merged', mode='w', complevel=9)

@@ -10,14 +10,14 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 
 rule all:
     input:
-        expand(join('output', 'aligned', '{id}.npy'), id=IDS)
+        expand(join('output', 'merged', '{id}.h5'), id=IDS)
 
 
 rule agilent2mzml:
     input:
         join('input', '{id}.d')
     output:
-        join('output', 'mzml', '{id}.mzML.gz')
+        join('output', 'raw', '{id}.mzML.gz')
     log:
         join('output', 'logs', 'agilent2mzml', '{id}.log')
     run:
@@ -29,15 +29,15 @@ rule mzml2h5:
     input:
         rules.agilent2mzml.output
     output:
-        join('output', 'h5', '{id}.h5')
+        join('output', 'reduced', '{id}.h5')
     run:
         spx.process.mzML(input[0], output[0])
 
 
-rule align:
+rule merge:
     input:
         rules.mzml2h5.output
     output:
-        join('output', 'aligned', '{id}.npy')
+        join('output', 'merged', '{id}.h5')
     run:
-        spx.process.align(input[0], output[0])
+        spx.process.merge(input[0], output[0])
