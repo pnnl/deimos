@@ -25,7 +25,7 @@ rule agilent2mzml:
         shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g --filter “defaultArrayLength 20-” > {log} 2>&1')
 
 
-rule mzml2h5:
+rule mzml2hdf:
     input:
         rules.agilent2mzml.output
     output:
@@ -36,7 +36,7 @@ rule mzml2h5:
 
 rule merge:
     input:
-        rules.mzml2h5.output
+        rules.mzml2hdf.output
     output:
         join('output', 'merged', '{id}.h5')
     run:

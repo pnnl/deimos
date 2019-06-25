@@ -3,6 +3,7 @@ import gzip
 from os.path import *
 import pandas as pd
 import multiprocessing as mp
+import spextractor as spx
 
 
 def _parse(d):
@@ -16,28 +17,28 @@ def mzML(path, output):
     # check for zip
     if splitext(path)[-1].lower() == 'mzml':
         f = path
-        close = False
+
+        # process mzml
+        data = [x for x in mzml.read(f)]
     else:
         f = gzip.open(path, 'rb')
-        close = True
 
-    # process mzml
-    data = [x for x in mzml.read(f)]
+        # process mzml
+        data = [x for x in mzml.read(f)]
 
-    # close gzip file
-    if close:
+        # close file
         f.close()
 
     with mp.Pool(mp.cpu_count()) as p:
         parsed = p.map(_parse, data)
 
     # generate dataframe
-    df = pd.DataFrame(parsed, columns=['ms_level', 'drift_time', 'm/z', 'intensity'])
+    df = pd.DataFrame(parsed, columns=['ms_level', 'drift_time', 'mz', 'intensity'])
 
     # explode m/z
-    a = df.set_index(['ms_level', 'drift_time'])['m/z'].apply(pd.Series).stack()
+    a = df.set_index(['ms_level', 'drift_time'])['mz'].apply(pd.Series).stack()
     a = a.reset_index()
-    a.columns = ['ms_level', 'drift_time', 'sample', 'm/z']
+    a.columns = ['ms_level', 'drift_time', 'sample', 'mz']
 
     # explode intensity
     b = df.set_index(['ms_level', 'drift_time'])['intensity'].apply(pd.Series).stack()
@@ -52,15 +53,15 @@ def mzML(path, output):
     a = a.loc[a['intensity'] > 0, :]
 
     # group
-    a = a.groupby(by=['drift_time', 'm/z', 'ms_level'], sort=False).sum().reset_index()
+    a = a.groupby(by=['drift_time', 'mz', 'ms_level'], sort=False).sum().reset_index()
 
     # save
-    a.to_hdf(output, key='reduced', mode='w', complevel=9)
+    spx.utils.save_hdf(a, output)
 
 
 def merge(path, output, stdev=[4, 3]):
     # read input
-    df = pd.read_hdf(path, 'reduced')
+    df = spx.utils.load_hdf(path)
 
     # separate ms levels
     ms1 = df.loc[df['ms_level'] == 1, :].drop('ms_level', axis=1).reset_index(drop=True)
@@ -72,6 +73,7 @@ def merge(path, output, stdev=[4, 3]):
     if stdev[1] > 0:
         ms2 = ms2.loc[ms2['intensity'] > ms2['intensity'].mean() + stdev[1] * ms2['intensity'].std(), :].reset_index(drop=True)
 
-    features = ms1.merge(ms2, on='drift_time', suffixes=['_ms1', '_ms2']).sort_values(by=['intensity_ms1', 'drift_time', 'm/z_ms1', 'm/z_ms2'], ascending=[False, True, True, True])
+    features = ms1.merge(ms2, on='drift_time', suffixes=['_ms1', '_ms2']).sort_values(by=['intensity_ms1', 'drift_time', 'mz_ms1', 'mz_ms2'], ascending=[False, True, True, True])
 
-    features.to_hdf(output, key='merged', mode='w', complevel=9)
+    # save
+    spx.utils.save_hdf(features, output)
