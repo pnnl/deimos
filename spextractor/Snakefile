@@ -40,4 +40,4 @@ rule merge:
     output:
         join('output', 'merged', '{id}.h5')
     run:
-        spx.process.merge(input[0], output[0], stdev=[None, None])
+        spx.process.merge(input[0], output[0], thresh=25, grid=True, xbins=50000, ybins='auto')

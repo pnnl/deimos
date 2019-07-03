@@ -3,6 +3,8 @@ import gzip
 from os.path import *
 import pandas as pd
 import multiprocessing as mp
+from scipy import stats
+import numpy as np
 import spextractor as spx
 import warnings
 
@@ -60,7 +62,7 @@ def mzML(path, output):
     spx.utils.save_hdf(a, output)
 
 
-def merge(path, output, stdev=[None, None]):
+def merge(path, output, thresh=25, grid=True, xbins=50000, ybins='auto'):
     # read input
     df = spx.utils.load_hdf(path)
 
@@ -68,11 +70,17 @@ def merge(path, output, stdev=[None, None]):
     ms1 = df.loc[df['ms_level'] == 1, :].drop('ms_level', axis=1).reset_index(drop=True)
     ms2 = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
-    # top ms
-    if stdev[0] is not None:
-        ms1 = ms1.loc[ms1['intensity'] > ms1['intensity'].mean() + stdev[0] * ms1['intensity'].std(), :].reset_index(drop=True)
-    if stdev[1] is not None:
-        ms2 = ms2.loc[ms2['intensity'] > ms2['intensity'].mean() + stdev[1] * ms2['intensity'].std(), :].reset_index(drop=True)
+    # grid reduction
+    if grid is True:
+        loginf = {'ms1': len(ms1.index), 'ms2': len(ms2.index)}
+        ms1 = grid_reduce(ms1, xbins=xbins, ybins=ybins)
+        print('ms1 grid compression ratio:\t%.2f' % (loginf['ms1'] / len(ms1.index)))
+        ms2 = grid_reduce(ms2, xbins=xbins, ybins=ybins)
+        print('ms2 grid compression ratio:\t%.2f' % (loginf['ms2'] / len(ms2.index)))
+
+    # threshold
+    ms1 = ms1.loc[ms1['intensity'] > thresh, :]
+    ms2 = ms2.loc[ms2['intensity'] > thresh, :]
 
     # merge ms levels
     features = ms1.merge(ms2, on='drift_time', how='left', suffixes=['_ms1', '_ms2'])
@@ -97,3 +105,25 @@ def group(df):
 
     # sort
     return g.sort_values(by=['intensity_ms1', 'drift_time', 'mz_ms1'], ascending=[False, True, True])
+
+
+def grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins=50000, ybins='auto'):
+    if ybins.lower() == 'auto':
+        ybins = (df[y].max() - df[y].min()) / np.mean(np.diff(np.sort(df[y].unique())))
+
+    H, xe, ye, bn = stats.binned_statistic_2d(df[x], df[y], df[z],
+                                              statistic='sum',
+                                              bins=(xbins, ybins))
+    H = np.nan_to_num(H)
+    XX, YY = np.meshgrid(xe, ye, indexing='ij')
+
+    # bin centers
+    XX = (XX[1:, 1:] + XX[:-1, :-1]) / 2
+    YY = (YY[1:, 1:] + YY[:-1, :-1]) / 2
+
+    # construct data frame
+    res = np.hstack((XX.reshape(-1, 1), YY.reshape(-1, 1), H.reshape(-1, 1)))
+    res = pd.DataFrame(res, columns=['mz', 'drift_time', 'intensity'])
+    res = res.loc[res['intensity'] > 0, :]
+
+    return res
