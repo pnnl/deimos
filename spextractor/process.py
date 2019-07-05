@@ -6,7 +6,6 @@ import multiprocessing as mp
 from scipy import stats
 import numpy as np
 import spextractor as spx
-import warnings
 
 
 def mzML(path, output):
@@ -65,11 +64,11 @@ def merge(path, output, thresh=0, grid=True, xbins='auto', ybins='auto'):
 
     # grid reduction
     if grid is True:
-        # loginf = {'ms1': len(ms1.index), 'ms2': len(ms2.index)}
+        loginf = {'ms1': len(ms1.index), 'ms2': len(ms2.index)}
         ms1 = _grid_reduce(ms1, xbins=xbins, ybins=ybins)
-        # print('ms1 grid compression ratio:\t%.2f' % (loginf['ms1'] / len(ms1.index)))
+        print('ms1 grid compression ratio:\t%.2f' % (loginf['ms1'] / len(ms1.index)))
         ms2 = _grid_reduce(ms2, xbins=xbins, ybins=ybins)
-        # print('ms2 grid compression ratio:\t%.2f' % (loginf['ms2'] / len(ms2.index)))
+        print('ms2 grid compression ratio:\t%.2f' % (loginf['ms2'] / len(ms2.index)))
 
     # threshold
     ms1 = ms1.loc[ms1['intensity'] > thresh, :]
@@ -107,7 +106,7 @@ def _grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins='auto', ybins=
 
     # construct data frame
     res = np.hstack((XX.reshape(-1, 1), YY.reshape(-1, 1), H.reshape(-1, 1)))
-    res = pd.DataFrame(res, columns=['mz', 'drift_time', 'intensity'])
+    res = pd.DataFrame(res, columns=['mz', 'drift_time', 'intensity']).astype(spx.utils.types(['mz', 'drift_time', 'intensity']))
     res = res.loc[res['intensity'] > 0, :]
 
     return res
@@ -115,25 +114,21 @@ def _grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins='auto', ybins=
 
 def _chunkmerge(df1, df2, chunksize=1000):
     res = []
-    for i in range(0, int(np.ceil(len(df2.index) / chunksize))):
+    chunks = int(np.ceil(len(df2.index) / chunksize))
+    print('merging...')
+    for i in range(0, chunks):
+        print('\t%.2f%%' % (i / chunks))
         res.append(df1.merge(df2.loc[i * chunksize:(i + 1) * chunksize, :], on='drift_time', how='inner', suffixes=['_ms1', '_ms2']))
 
+    print('concatenating...')
     return pd.concat(res, axis=0, ignore_index=True)
 
 
-def _group(df):
-    # check all keys present
-    for key in ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']:
-        if key not in df.columns:
-            warnings.warn("This function requires a pandas data frame with columns \
-                          ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']")
-            raise KeyError(key)
+def _merge2(df1, df2):
+    def f(row, df):
+        res = df.loc[df['drift_time'] == row['drift_time'], ['mz', 'intensity']]
+        row['mz_ms2'] = res['mz'].values.flatten().astype(np.float32)
+        row['intensity_ms2'] = res['intensity'].values.flatten().astype(np.int8)
+        return row
 
-    # group
-    g = df.groupby(by=['drift_time',
-                       'mz_ms1',
-                       'intensity_ms1']).agg({'mz_ms2': lambda x: list(x),
-                                              'intensity_ms2': lambda x: list(x)}).reset_index()
-
-    # sort
-    return g.sort_values(by=['intensity_ms1', 'drift_time', 'mz_ms1'], ascending=[False, True, True])
+    return df1.apply(f, args=(df2), axis=1)
