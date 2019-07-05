@@ -12,10 +12,9 @@ def save_hdf(df, path):
 
 def load_hdf(path, group=False):
     with h5py.File(path, 'r') as f:
-        df = pd.DataFrame({k: np.array(f[k]) for k in list(f.keys())})
-        if group is True:
-            return spx.process.group(df)
-        elif group is False:
-            return df
+        if group is False:
+            return pd.DataFrame({k: np.array(f[k]) for k in list(f.keys())})
+        elif group is True:
+            return spx.process._group(pd.DataFrame({k: np.array(f[k]) for k in list(f.keys())}))
         else:
             raise KeyError(group)

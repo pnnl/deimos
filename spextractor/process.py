@@ -9,13 +9,6 @@ import spextractor as spx
 import warnings
 
 
-def _parse(d):
-    dt = [x['ion mobility drift time'] for x in d['scanList']['scan']]
-    if len(dt) < 2:
-        dt = dt[0]
-    return [d['ms level'], dt, d['m/z array'], d['intensity array']]
-
-
 def mzML(path, output):
     # check for zip
     if splitext(path)[-1].lower() == 'mzml':
@@ -62,7 +55,7 @@ def mzML(path, output):
     spx.utils.save_hdf(a, output)
 
 
-def merge(path, output, thresh=25, grid=True, xbins=50000, ybins='auto'):
+def merge(path, output, thresh=0, grid=True, xbins='auto', ybins='auto'):
     # read input
     df = spx.utils.load_hdf(path)
 
@@ -72,42 +65,33 @@ def merge(path, output, thresh=25, grid=True, xbins=50000, ybins='auto'):
 
     # grid reduction
     if grid is True:
-        loginf = {'ms1': len(ms1.index), 'ms2': len(ms2.index)}
-        ms1 = grid_reduce(ms1, xbins=xbins, ybins=ybins)
-        print('ms1 grid compression ratio:\t%.2f' % (loginf['ms1'] / len(ms1.index)))
-        ms2 = grid_reduce(ms2, xbins=xbins, ybins=ybins)
-        print('ms2 grid compression ratio:\t%.2f' % (loginf['ms2'] / len(ms2.index)))
+        # loginf = {'ms1': len(ms1.index), 'ms2': len(ms2.index)}
+        ms1 = _grid_reduce(ms1, xbins=xbins, ybins=ybins)
+        # print('ms1 grid compression ratio:\t%.2f' % (loginf['ms1'] / len(ms1.index)))
+        ms2 = _grid_reduce(ms2, xbins=xbins, ybins=ybins)
+        # print('ms2 grid compression ratio:\t%.2f' % (loginf['ms2'] / len(ms2.index)))
 
     # threshold
     ms1 = ms1.loc[ms1['intensity'] > thresh, :]
     ms2 = ms2.loc[ms2['intensity'] > thresh, :]
 
     # merge ms levels
-    features = ms1.merge(ms2, on='drift_time', how='left', suffixes=['_ms1', '_ms2'])
+    features = _chunkmerge(ms1, ms2, chunksize=1000)
 
     # save
     spx.utils.save_hdf(features, output)
 
 
-def group(df):
-    # check all keys present
-    for key in ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']:
-        if key not in df.columns:
-            warnings.warn("This function requires a pandas data frame with columns \
-                          ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']")
-            raise KeyError(key)
-
-    # group
-    g = df.groupby(by=['drift_time',
-                       'mz_ms1',
-                       'intensity_ms1']).agg({'mz_ms2': lambda x: list(x),
-                                              'intensity_ms2': lambda x: list(x)}).reset_index()
-
-    # sort
-    return g.sort_values(by=['intensity_ms1', 'drift_time', 'mz_ms1'], ascending=[False, True, True])
+def _parse(d):
+    dt = [x['ion mobility drift time'] for x in d['scanList']['scan']]
+    if len(dt) < 2:
+        dt = dt[0]
+    return [d['ms level'], dt, d['m/z array'], d['intensity array']]
 
 
-def grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins=50000, ybins='auto'):
+def _grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins='auto', ybins='auto'):
+    if xbins.lower() == 'auto':
+        xbins = (df[x].max() - df[x].min()) / np.mean(np.diff(np.sort(df[x].unique())))
     if ybins.lower() == 'auto':
         ybins = (df[y].max() - df[y].min()) / np.mean(np.diff(np.sort(df[y].unique())))
 
@@ -127,3 +111,29 @@ def grid_reduce(df, x='mz', y='drift_time', z='intensity', xbins=50000, ybins='a
     res = res.loc[res['intensity'] > 0, :]
 
     return res
+
+
+def _chunkmerge(df1, df2, chunksize=1000):
+    res = []
+    for i in range(0, int(np.ceil(len(df2.index) / chunksize))):
+        res.append(df1.merge(df2.loc[i * chunksize:(i + 1) * chunksize, :], on='drift_time', how='inner', suffixes=['_ms1', '_ms2']))
+
+    return pd.concat(res, axis=0, ignore_index=True)
+
+
+def _group(df):
+    # check all keys present
+    for key in ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']:
+        if key not in df.columns:
+            warnings.warn("This function requires a pandas data frame with columns \
+                          ['drift_time', 'mz_ms1', 'intensity_ms1', 'mz_ms2', 'intensity_ms2']")
+            raise KeyError(key)
+
+    # group
+    g = df.groupby(by=['drift_time',
+                       'mz_ms1',
+                       'intensity_ms1']).agg({'mz_ms2': lambda x: list(x),
+                                              'intensity_ms2': lambda x: list(x)}).reset_index()
+
+    # sort
+    return g.sort_values(by=['intensity_ms1', 'drift_time', 'mz_ms1'], ascending=[False, True, True])

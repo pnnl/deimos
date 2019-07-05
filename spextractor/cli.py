@@ -19,6 +19,12 @@ def main():
     parser.add_argument('--start', metavar='IDX', type=int, default=0,
                         help='starting file index (for use with --count)')
 
+    # cluster-specific options
+    clust = parser.add_argument_group('cluster arguments')
+    clust.add_argument('--cluster', metavar='PATH', help='path to cluster execution yaml configuration file')
+    clust.add_argument('--jobs', metavar='N', type=int, default=1000,
+                       help='number of simultaneous jobs to submit to a slurm queue')
+
     # parse args
     args = parser.parse_args()
 
@@ -28,11 +34,20 @@ def main():
     else:
         config = {}
 
+    # cluster config
+    if args.cluster is not None:
+        cluster = "sbatch -A {cluster.account} -N {cluster.nodes} -t {cluster.time} -J {cluster.name} --ntasks-per-node {cluster.ntasks}"
+    else:
+        cluster = None
+
     snakemake(resource_filename('spextractor', 'Snakefile'),
               config=config,
+              cluster_config=args.cluster,
+              cluster=cluster,
               keepgoing=True,
               force_incomplete=True,
               cores=args.cores,
+              nodes=args.jobs,
               dryrun=args.dryrun,
               unlock=args.unlock,
               touch=args.touch,
