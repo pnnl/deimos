@@ -10,7 +10,7 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 
 rule all:
     input:
-        expand(join('output', 'merged', '{id}.h5'), id=IDS)
+        expand(join('output', 'peaks', '{id}_ms{level}.h5'), id=IDS, level=[1, 2])
 
 
 rule agilent2mzml:
@@ -29,15 +29,21 @@ rule mzml2hdf:
     input:
         rules.agilent2mzml.output
     output:
-        join('output', 'reduced', '{id}.h5')
+        join('output', 'parsed', '{id}.h5')
     run:
-        spx.process.mzML(input[0], output[0])
+        spx.process.mzml2hdf(input[0], output[0])
 
 
-rule merge:
+rule peakpicking:
     input:
         rules.mzml2hdf.output
     output:
-        join('output', 'merged', '{id}.h5')
+        join('output', 'peaks', '{id}_ms1.h5'),
+        join('output', 'peaks', '{id}_ms2.h5')
     run:
-        spx.process.merge(input[0], output[0], grid=True, xbins='auto', ybins='auto')
+        data = spx.utils.load_hdf(input[0])
+        for i in [1, 2]:
+            msn = data.loc[data['ms_level'] == i, :].drop('ms_level', axis=1).reset_index(drop=True)
+            grid = spx.peakpicking.nonmaximumsuppression(msn, xbins='auto', ybins='auto', fwhm=3, sum_peaks=True)
+            peaks = spx.peakpicking.grid2df(**grid, top=None)
+            spx.utils.save_hdf(peaks, output[i - 1])
