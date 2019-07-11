@@ -1,4 +1,4 @@
-import skimage.ndimage as ndi
+import scipy.ndimage as ndi
 
 
 def median(ndarray, selem):
