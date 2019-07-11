@@ -4,6 +4,7 @@ from os.path import *
 import pandas as pd
 import multiprocessing as mp
 import spextractor as spx
+import numpy as np
 
 
 def mzml2hdf(path, output):
