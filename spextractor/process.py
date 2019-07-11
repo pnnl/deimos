@@ -17,7 +17,8 @@ def mzml2hdf(path, output):
         f = gzip.open(path, 'rb')
 
         # process mzml
-        data = [x for x in mzml.read(f)]
+        data = [x for x in mzml.read(f, dtype={'m/z array': np.float32,
+                                               'intensity array': np.float32})]
 
         # close file
         f.close()
