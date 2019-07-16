@@ -4,7 +4,6 @@ from os.path import *
 import pandas as pd
 import multiprocessing as mp
 import spextractor as spx
-import numpy as np
 
 
 def mzml2hdf(path, output):
@@ -18,8 +17,7 @@ def mzml2hdf(path, output):
         f = gzip.open(path, 'rb')
 
         # process mzml
-        data = [x for x in mzml.read(f, dtype={'m/z array': np.float32,
-                                               'intensity array': np.float32})]
+        data = [x for x in mzml.read(f)]
 
         # close file
         f.close()

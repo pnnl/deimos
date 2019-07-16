@@ -11,7 +11,7 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 rule all:
     input:
         # expand(join('output', 'peaks', '{id}_ms{level}.h5'), id=IDS, level=[1, 2])
-        join('output', 'parsed', '{id}.h5')
+        expand(join('output', 'parsed', '{id}.h5'), id=IDS)
 
 
 rule agilent2mzml:

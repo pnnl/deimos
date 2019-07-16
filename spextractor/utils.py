@@ -6,11 +6,11 @@ import warnings
 
 dtype_dict = {'drift_time': np.float32,
               'mz_ms1': np.float32,
-              'intensity_ms1': np.uint8,
+              'intensity_ms1': np.float32,
               'mz_ms2': np.float32,
-              'intensity_ms2': np.uint8,
+              'intensity_ms2': np.float32,
               'mz': np.float32,
-              'intensity': np.uint8,
+              'intensity': np.float32,
               'ms_level': np.uint8}
 
 
