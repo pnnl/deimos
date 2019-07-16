@@ -25,7 +25,9 @@ def nonmaximumsuppression(df, x='mz', y='drift_time', z='intensity',
     XX, YY = np.meshgrid(xe, ye, indexing='ij')
 
     # denoise block
-    if denoise.lower() == 'gaussian':
+    if denoise is None:
+        pass
+    elif denoise.lower() == 'gaussian':
         H = spx.denoise.gaussian(H, (sigma, sigma))
     elif denoise.lower() == 'median':
         H = spx.denoise.median(H, struct)
