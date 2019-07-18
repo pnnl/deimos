@@ -1,6 +1,6 @@
 
 
-def find_feature(ms1, ms2, mz=None, dt=None, mz_tol=1E-6, dt_tol=0.12):
+def find_feature(ms1, ms2, mz=None, dt=None, mz_tol=6E-6, dt_tol=0.12):
     ms1_f = ms1.loc[(ms1['mz'] <= mz + mz_tol) &
                     (ms1['mz'] >= mz - mz_tol) &
                     (ms1['drift_time'] <= dt + dt_tol) &
