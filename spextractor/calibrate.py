@@ -46,7 +46,7 @@ def tunemix(path, mz, ccs, q, mz_tol=0.01, verbosity=0):
             mz_exp = (peak['mz'] * peak['intensity'] / peak['intensity'].sum()).sum()
 
             # dt peak
-            ta_exp = peak['drift_time'][peak['intensity'].idxmax()]
+            ta_exp = (peak['drift_time'] * peak['intensity'] / peak['intensity'].sum()).sum()
 
             measurements['mz'].append(mz_exp)
             measurements['ccs'].append(ccs_i)
