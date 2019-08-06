@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 import numpy as np
 from scipy import stats
+import pandas as pd
 
 
 def _ceil(value):
@@ -18,6 +19,12 @@ def drift_time(dt, intensity,
     idx = np.argsort(dt)
     dt = dt[idx]
     intensity = intensity[idx]
+
+    df = pd.DataFrame({'drift_time': dt, 'intensity': intensity})
+    df = df.groupby(by='drift_time', as_index=False).sum()
+
+    dt = df['drift_time'].values
+    intensity = df['intensity'].values
 
     # initialize figure
     if ax is None:
@@ -64,7 +71,7 @@ def frag_pattern(mz, intensity,
     return ax
 
 
-def features(mz, dt, intensity, mz_bins='auto', dt_bins='auto',
+def features(mz, dt, intensity, mz_bins='auto', dt_bins='auto', log=False,
              ax=None, dpi=600):
     # determine bin counts
     if mz_bins == 'auto':
@@ -80,12 +87,15 @@ def features(mz, dt, intensity, mz_bins='auto', dt_bins='auto',
     H = np.nan_to_num(H)
     XX, YY = np.meshgrid(xe, ye, indexing='ij')
 
+    if log is True:
+        H = np.log(H + 1)
+
     # initialize figure
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
     # plot
-    ax.pcolormesh(XX, YY, np.log(H + 1), zorder=1, cmap='viridis')
+    ax.pcolormesh(XX, YY, H, zorder=1, cmap='viridis')
 
     # axis labels
     ax.set_xlabel('m/z', fontweight='bold')
