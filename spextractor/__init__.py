@@ -1,5 +1,4 @@
 from . import calibrate
-from . import denoise
 from . import peakpick
 from . import plot
 from . import process
