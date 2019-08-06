@@ -3,11 +3,14 @@ import numpy as np
 import pandas as pd
 
 
-def data2grid(mz, dt, intensity, mz_bins='auto', dt_bins='auto'):
-    if mz_bins.lower() == 'auto':
-        mz_bins = (mz.max() - mz.min()) / np.min(np.diff(np.sort(mz.unique())))
-    if dt_bins.lower() == 'auto':
-        dt_bins = (dt.max() - dt.min()) / np.min(np.diff(np.sort(dt.unique())))
+def data2grid(mz, dt, intensity, mz_res='auto', dt_res='auto'):
+    if mz_res == 'auto':
+        mz_res = np.min(np.diff(np.sort(mz.unique())))
+    if dt_res == 'auto':
+        dt_res = np.min(np.diff(np.sort(dt.unique())))
+
+    mz_bins = (mz.max() - mz.min()) / mz_res
+    dt_bins = (mz.max() - mz.min()) / dt_res
 
     H, xe, ye, bn = stats.binned_statistic_2d(mz, dt, intensity,
                                               statistic='sum',
