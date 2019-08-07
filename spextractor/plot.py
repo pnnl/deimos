@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 import numpy as np
-from scipy import stats
+import spextractor as spx
 import pandas as pd
 
 
@@ -13,79 +13,71 @@ def _ceil(value):
     return upper
 
 
-def drift_time(dt, intensity,
-               ax=None, ticks=5, dpi=600):
+def fill_between(x, y, xlabel='drift time (ms)', ylabel='intensity',
+                 ax=None, ticks=5, dpi=600):
     # sort
-    idx = np.argsort(dt)
-    dt = dt[idx]
-    intensity = intensity[idx]
+    idx = np.argsort(x)
+    x = x[idx]
+    y = y[idx]
 
-    df = pd.DataFrame({'drift_time': dt, 'intensity': intensity})
-    df = df.groupby(by='drift_time', as_index=False).sum()
+    df = pd.DataFrame({'x': x, 'y': y})
+    df = df.groupby(by='x', as_index=False).sum()
 
-    dt = df['drift_time'].values
-    intensity = df['intensity'].values
+    x = df['x'].values
+    y = df['y'].values
 
     # initialize figure
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
     # plot
-    ax.plot(dt, intensity, color='black')
-    ax.fill_between(dt, intensity, alpha=0.1, color='black')
+    ax.plot(x, y, color='black')
+    ax.fill_between(x, y, alpha=0.1, color='black')
 
     # axis setup
-    ax.set_ylim(0, _ceil(intensity.max()))
+    ax.set_ylim(0, _ceil(y.max()))
     ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
 
     # axis labels
-    ax.set_xlabel('drift time (ms)', fontweight='bold')
-    ax.set_ylabel('intensity', fontweight='bold')
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
 
     return ax
 
 
-def frag_pattern(mz, intensity,
-                 ax=None, ticks=4, dpi=600):
+def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
+         width=0.1, ax=None, ticks=4, dpi=600):
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
     # plot
-    _, stemlines, _ = ax.stem(mz, intensity,
+    _, stemlines, _ = ax.stem(x, y,
                               markerfmt=" ",
                               basefmt=" ",
                               linefmt="k-",
                               use_line_collection=True)
-    plt.setp(stemlines, 'linewidth', 0.1)
+    plt.setp(stemlines, 'linewidth', width)
+    if points is True:
+        ax.scatter(x, y, s=1, c='k')
 
     # axis setup
-    ax.set_ylim(0, _ceil(intensity.max()))
+    ax.set_ylim(0, _ceil(y.max()))
     ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
 
     # axis labels
-    ax.set_xlabel('m/z', fontweight='bold')
-    ax.set_ylabel('intensity', fontweight='bold')
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
 
     return ax
 
 
-def features(mz, dt, intensity, mz_bins='auto', dt_bins='auto', log=False,
-             ax=None, dpi=600):
-    # determine bin counts
-    if mz_bins == 'auto':
-        mz_bins = (mz.max() - mz.min()) / np.min(np.diff(np.sort(np.unique(mz))))
+def grid(x, y, z, x_res='auto', y_res='auto', log=False,
+         xlabel='m/z', ylabel='drift time (ms)', ax=None, dpi=600):
 
-    if dt_bins == 'auto':
-        dt_bins = (dt.max() - dt.min()) / np.min(np.diff(np.sort(np.unique(dt))))
-
-    # binned statistic
-    H, xe, ye, bn = stats.binned_statistic_2d(mz, dt, intensity,
-                                              statistic='sum',
-                                              bins=(mz_bins, dt_bins))
-    H = np.nan_to_num(H)
-    XX, YY = np.meshgrid(xe, ye, indexing='ij')
+    xx, yy, H = spx.grid.data2grid(x, y, z, x_res=x_res, y_res=y_res)
 
     if log is True:
         H = np.log(H + 1)
@@ -95,10 +87,13 @@ def features(mz, dt, intensity, mz_bins='auto', dt_bins='auto', log=False,
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
     # plot
-    ax.pcolormesh(XX, YY, H, zorder=1, cmap='viridis')
+    ax.pcolormesh(xx, yy, H, zorder=1, cmap='gray_r')
+
+    # axis format
+    ax.xaxis.set_major_locator(tick.MaxNLocator(integer=True))
 
     # axis labels
-    ax.set_xlabel('m/z', fontweight='bold')
-    ax.set_ylabel('drift time (ms)', fontweight='bold')
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
 
     return ax

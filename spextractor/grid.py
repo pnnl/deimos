@@ -3,18 +3,18 @@ import numpy as np
 import pandas as pd
 
 
-def data2grid(mz, dt, intensity, mz_res='auto', dt_res='auto'):
-    if mz_res == 'auto':
-        mz_res = np.min(np.diff(np.sort(mz.unique())))
-    if dt_res == 'auto':
-        dt_res = np.min(np.diff(np.sort(dt.unique())))
+def data2grid(x, y, z, x_res='auto', y_res='auto'):
+    if x_res == 'auto':
+        x_res = np.min(np.diff(np.sort(x.unique())))
+    if y_res == 'auto':
+        y_res = np.min(np.diff(np.sort(y.unique())))
 
-    mz_bins = (mz.max() - mz.min()) / mz_res
-    dt_bins = (mz.max() - mz.min()) / dt_res
+    x_bins = (x.max() - x.min()) / x_res
+    y_bins = (x.max() - x.min()) / y_res
 
-    H, xe, ye, bn = stats.binned_statistic_2d(mz, dt, intensity,
+    H, xe, ye, bn = stats.binned_statistic_2d(x, y, z,
                                               statistic='sum',
-                                              bins=(mz_bins, dt_bins))
+                                              bins=(x_bins, y_bins))
     H = np.nan_to_num(H)
     XX, YY = np.meshgrid(xe, ye, indexing='ij')
 
