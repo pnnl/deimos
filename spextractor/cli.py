@@ -8,6 +8,7 @@ from pkg_resources import resource_filename
 def main():
     parser = argparse.ArgumentParser(description='spectrum extractor')
     parser.add_argument('-v', '--version', action='version', version=__version__, help='print version and exit')
+    parser.add_argument('--config', metavar='PATH', default='config.yaml', help='path to yaml configuration file')
     parser.add_argument('--dryrun', action='store_true', help='perform a dry run')
     parser.add_argument('--unlock', action='store_true', help='unlock directory')
     parser.add_argument('--touch', action='store_true', help='touch output files only')
@@ -41,6 +42,7 @@ def main():
         cluster = None
 
     snakemake(resource_filename('spextractor', 'Snakefile'),
+              configfile=args.config,
               config=config,
               cluster_config=args.cluster,
               cluster=cluster,

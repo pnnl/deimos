@@ -4,35 +4,21 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import argparse
 
 
-# global
-exp_path = '/Users/colb804/workspace/data/ms_decon/funtimes/70960_1012101_181022_Fixed-10_19Mar19_Aspen_Infuse.h5'
-output_path = '/Users/colb804/Desktop/output/'
-targets_path = '/Users/colb804/workspace/data/ms_decon/funtimes/Library_InSilico.xlsx'
-
-# run one from agilent
-beta = 0.12087601109118155
-tfix = 1.9817908554141468
-
-# how far to search?
-# how much to sum across?
-# fwhm for now
-mz_res = 0.005
-mz_frames = 20
-
-dt_res = 0.12
-dt_frames = 5
-dt_frames_plot = 30
-
-adducts = {'+H': 1.00784,
-           '-H': -1.00784,
-           '+Na': 22.989769}
-
-if __name__ == '__main__':
+def main(exp_path, output_path, targets_path, mode,
+         beta, tfix, mz_res, mz_frames, dt_res, dt_frames, dt_frames_plot=30):
     # output directory
     if not exists(output_path):
         os.makedirs(output_path)
+
+    # adducts
+    if mode == 'pos':
+        adducts = {'+H': 1.00784,
+                   '+Na': 22.989769}
+    elif mode == 'neg':
+        adducts = {'-H': -1.00784}
 
     # load data
     df = spx.utils.load_hdf(exp_path)
@@ -117,9 +103,6 @@ if __name__ == '__main__':
                 ms1_mz = None
                 ms1_dt = None
 
-            print(row['Name'])
-            print('\tintensity:', mz_int)
-
             if ms2 is not None:
                 ms2_mz = ms2.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
 
@@ -192,8 +175,8 @@ if __name__ == '__main__':
             # frag pattern
             if ms2 is not None:
                 if ms2_mz['intensity'].max() > 10000:
-                    spx.plot.stem(ms2_mz.loc[ms2_mz['intensity'] > 1000, 'mz'],
-                                  ms2_mz.loc[ms2_mz['intensity'] > 1000, 'intensity'],
+                    spx.plot.stem(ms2_mz.loc[ms2_mz['intensity'] > 0, 'mz'],
+                                  ms2_mz.loc[ms2_mz['intensity'] > 0, 'intensity'],
                                   width=1, xlabel='m/z', ylabel='intensity', ticks=4, ax=ax5)
                 elif ms2_mz['intensity'].max() > 100:
                     spx.plot.stem(ms2_mz['mz'], ms2_mz['intensity'], width=1,
@@ -209,4 +192,40 @@ if __name__ == '__main__':
             plt.close()
 
     ms1_res = pd.DataFrame(ms1_res)
-    ms1_res.to_csv(join(output_path, '%s.tsv' % basename(exp_path)), sep='\t', index=False)
+    ms1_res.to_csv(join(output_path, '%s.tsv' % splitext(basename(exp_path))[0]), sep='\t', index=False)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='SpExtractor: target MS2 extraction script.')
+    parser.add_argument('-v', '--version', action='version', version=spx.__version__, help='print version and exit')
+    parser.add_argument('data', type=str, help='path to input .h5 file containing spectral data (str)')
+    parser.add_argument('output', type=str, help='path to output folder (str)')
+    parser.add_argument('targets', type=str, help='path to input .xlsx spreadsheet containing targets (str)')
+    parser.add_argument('--mode', choices=['pos', 'neg'], help='experiment acquisition mode')
+    # parser.add_argument('--beta', type=float, default=0.12087601109118155,
+    #                     help='ccs calibration parameter beta (float, default=0.1208)')
+    # parser.add_argument('--tfix', type=float, default=1.9817908554141468,
+    #                     help='ccs calibration parameter tfix (float, default=1.9818)')
+    parser.add_argument('--mzres', type=float, default=0.005,
+                        help='m/z resolution (float, default=0.005)')
+    parser.add_argument('--dtres', type=float, default=0.12,
+                        help='drift time resolution (float, default=0.12)')
+    parser.add_argument('--mzframes', type=int, default=20,
+                        help='m/z frames search window (int, default=20)')
+    parser.add_argument('--dtframes', type=int, default=5,
+                        help='drift time frames search window (int, default=5)')
+
+    # parse arguments
+    args = parser.parse_args()
+
+    # for now, hard code
+    if args.mode == 'pos':
+        beta = 0.12087601109118155
+        tfix = 1.9817908554141468
+    elif args.mode == 'neg':
+        beta = 0.13228105974417567
+        tfix = 0.40169687139721333
+
+    # run
+    main(args.data, args.output, args.targets, args.mode, beta, tfix,
+         args.mzres, args.mzframes, args.dtres, args.dtframes, dt_frames_plot=30)

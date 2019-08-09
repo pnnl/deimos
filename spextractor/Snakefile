@@ -10,7 +10,7 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 
 rule all:
     input:
-        expand(join('output', 'parsed', '{id}.h5'), id=IDS)
+        expand(join('output', 'targeted', '{id}', '{id}.tsv'), id=IDS)
 
 
 rule agilent2mzml:
@@ -32,3 +32,19 @@ rule mzml2hdf:
         join('output', 'parsed', '{id}.h5')
     run:
         spx.process.mzml2hdf(input[0], output[0])
+
+
+rule targeted:
+    input:
+        rules.mzml2hdf.output
+    output:
+        join('output', 'targeted', '{id}', '{id}.tsv')
+    run:
+        outdir = dirname(output[0])
+
+        if 'neg' in outdir.lower():
+            mode = 'neg'
+        else:
+            mode = 'pos'
+
+        shell('python {config[targeted][script]} {input} {outdir} {config[targeted][targets]} --mode {mode}')
