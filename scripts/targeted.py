@@ -224,7 +224,7 @@ if __name__ == '__main__':
         tfix = 1.9817908554141468
     elif args.mode == 'neg':
         beta = 0.13228105974417567
-        tfix = 0.40169687139721333
+        tfix = -0.40169687139721333
 
     # run
     main(args.data, args.output, args.targets, args.mode, beta, tfix,
