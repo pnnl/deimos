@@ -36,7 +36,7 @@ def main(exp_path, output_path, targets_path, mode,
     data['ms2'] = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
     # find features
-    ms1_res = {'ikey': [], 'adduct': [], 'mz': [], 'drift_time': [], 'intensity': []}
+    ms1_res = {'name': [], 'adduct': [], 'mz': [], 'drift_time': [], 'intensity': []}
     for idx, row in targets.iterrows():
         for adduct, adduct_mass in adducts.items():
             # feature
@@ -112,7 +112,7 @@ def main(exp_path, output_path, targets_path, mode,
                 ms2_mz = None
 
             # append
-            ms1_res['ikey'].append(row['InChI Key'])
+            ms1_res['name'].append(row['Name'])
             ms1_res['adduct'].append(adduct)
             ms1_res['mz'].append(mz_exp)
             ms1_res['drift_time'].append(dt_exp)
