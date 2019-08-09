@@ -7,6 +7,9 @@ import numpy as np
 import argparse
 
 
+plt.switch_backend('agg')
+
+
 def main(exp_path, output_path, targets_path, mode,
          beta, tfix, mz_res, mz_frames, dt_res, dt_frames, dt_frames_plot=30):
     # output directory
@@ -36,7 +39,8 @@ def main(exp_path, output_path, targets_path, mode,
     data['ms2'] = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
     # find features
-    ms1_res = {'name': [], 'adduct': [], 'mz': [], 'drift_time': [], 'intensity': []}
+    ms1_res = {'name': [], 'adduct': [], 'library_mz': [], 'library_drift_time': [],
+               'exp_mz': [], 'exp_drift_time': [], 'exp_intensity': []}
     for idx, row in targets.iterrows():
         for adduct, adduct_mass in adducts.items():
             # feature
@@ -114,13 +118,15 @@ def main(exp_path, output_path, targets_path, mode,
             # append
             ms1_res['name'].append(row['Name'])
             ms1_res['adduct'].append(adduct)
-            ms1_res['mz'].append(mz_exp)
-            ms1_res['drift_time'].append(dt_exp)
-            ms1_res['intensity'].append(mz_int)
+            ms1_res['library_mz'].append(mz_i)
+            ms1_res['library_drift_time'].append(dt_i)
+            ms1_res['exp_mz'].append(mz_exp)
+            ms1_res['exp_drift_time'].append(dt_exp)
+            ms1_res['exp_intensity'].append(mz_int)
 
             # overall plot
             fig = plt.figure(figsize=(7.5, 7.5), dpi=900)
-            fig.suptitle('%s [M%s]\nm/z: %.2f, dt: %.2f, intensity: %.2E' % (row['Name'], adduct, mz_exp, dt_exp, mz_int))
+            fig.suptitle('%s [M%s]\nlibrary m/z: %.2f, dt: %.2f,\nexp m/z: %.2f, dt: %.2f, intensity: %.2E' % (row['Name'], adduct, mz_i, dt_i, mz_exp, dt_exp, mz_int))
 
             gs = fig.add_gridspec(3, 2)
             ax1 = fig.add_subplot(gs[0, 0])
@@ -187,7 +193,7 @@ def main(exp_path, output_path, targets_path, mode,
                     ax5.set_ylim(0, 100)
                 ax5.set_xlim(0, mz_i + 10)
 
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            plt.tight_layout(rect=[0, 0.03, 1, 0.90])
             plt.savefig(join(feature_path, 'figures.png'))
             plt.close()
 
