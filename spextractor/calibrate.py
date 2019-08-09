@@ -43,12 +43,14 @@ def tunemix(path, mz, ccs, q, mz_tol=0.01, verbosity=0):
 
         if peak is not None:
             # experimental mz
-            mz_exp = (peak['mz'] * peak['intensity'] / peak['intensity'].sum()).sum()
+            peak_mz = peak.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
+            mz_exp = peak_mz.loc[peak_mz['intensity'].idxmax(), 'mz']
 
             # dt peak
-            ta_exp = (peak['drift_time'] * peak['intensity'] / peak['intensity'].sum()).sum()
+            peak_dt = peak.groupby(by='drift_time', as_index=False).agg({'intensity': np.sum})
+            ta_exp = peak_dt.loc[peak_dt['intensity'].idxmax(), 'drift_time']
 
-            measurements['mz'].append(mz_exp)
+            measurements['mz'].append(mz_i)
             measurements['ccs'].append(ccs_i)
             measurements['q'].append(q_i)
             measurements['ta'].append(ta_exp)
