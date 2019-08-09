@@ -57,7 +57,7 @@ def main(exp_path, output_path, targets_path, mode,
                                             mz=mz_i,
                                             dt=dt_i,
                                             dt_tol=dt_res * dt_frames,
-                                            mz_tol=mz_res * mz_frames)
+                                            mz_tol=[mz_res * mz_frames, mz_res * mz_frames * 2])
 
             ms2 = spx.targeted.find_feature(data['ms2'],
                                             dt=dt_i,
@@ -68,20 +68,20 @@ def main(exp_path, output_path, targets_path, mode,
                                                  mz=mz_i,
                                                  dt=dt_i,
                                                  dt_tol=dt_res * dt_frames_plot,
-                                                 mz_tol=3.5)
+                                                 mz_tol=[1.5, 3.5])
             # wide in mz
             ms1_plot_mz = spx.targeted.find_feature(data['ms1'],
                                                     mz=mz_i,
                                                     dt=dt_i,
                                                     dt_tol=dt_res * dt_frames,
-                                                    mz_tol=3.5)
+                                                    mz_tol=[1.5, 3.5])
 
             # wide in dt
             ms1_plot_dt = spx.targeted.find_feature(data['ms1'],
                                                     mz=mz_i,
                                                     dt=dt_i,
                                                     dt_tol=dt_res * dt_frames_plot,
-                                                    mz_tol=mz_res * mz_frames)
+                                                    mz_tol=[mz_res * mz_frames, mz_res * mz_frames * 2])
 
             if ms1 is not None:
                 # sum
@@ -141,7 +141,7 @@ def main(exp_path, output_path, targets_path, mode,
                 spx.plot.grid(ms1_plot['mz'], ms1_plot['drift_time'], ms1_plot['intensity'],
                               log=True, x_res=mz_res, y_res=dt_res,
                               xlabel='m/z', ylabel='drift time (ms)', ax=ax2)
-                ax2.plot((mz_i + mz_res * mz_frames, mz_i - mz_res * mz_frames),
+                ax2.plot((mz_i + mz_res * mz_frames * 2, mz_i - mz_res * mz_frames),
                          (dt_i, dt_i),
                          linewidth=1.5, color='red')
                 ax2.plot((mz_i, mz_i),
@@ -155,7 +155,7 @@ def main(exp_path, output_path, targets_path, mode,
 
                 spx.plot.stem(ms1_plot_mz['mz'], ms1_plot_mz['intensity'],
                               width=0.5, xlabel='m/z', ylabel='intensity', ticks=4, ax=ax3)
-                ax3.plot((mz_i + mz_res * mz_frames, mz_i - mz_res * mz_frames),
+                ax3.plot((mz_i + mz_res * mz_frames * 2, mz_i - mz_res * mz_frames),
                          (0, 0),
                          linewidth=5, color='red')
                 ax3.set_xlim(mz_i - 1.5, mz_i + 3.5)
