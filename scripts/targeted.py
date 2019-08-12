@@ -39,8 +39,7 @@ def main(exp_path, output_path, targets_path, mode,
     data['ms2'] = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
     # find features
-    ms1_res = {'name': [], 'adduct': [], 'library_mz': [], 'library_drift_time': [],
-               'exp_mz': [], 'exp_drift_time': [], 'exp_intensity': []}
+    dfs = []
     for idx, row in targets.iterrows():
         for adduct, adduct_mass in adducts.items():
             # feature
@@ -51,10 +50,10 @@ def main(exp_path, output_path, targets_path, mode,
             if pd.isna(dt_i):
                 break
 
-            # output path
-            feature_path = join(output_path, '%s_%s' % (row['Name'], adduct))
-            if not exists(feature_path):
-                os.makedirs(feature_path)
+            # # output path
+            # feature_path = join(output_path, '%s_%s' % (row['InChI Key'], adduct))
+            # if not exists(feature_path):
+            #     os.makedirs(feature_path)
 
             # targeted search
             ms1 = spx.targeted.find_feature(data['ms1'],
@@ -101,32 +100,40 @@ def main(exp_path, output_path, targets_path, mode,
                 # ms1 intensity
                 mz_int = ms1_mz['intensity'].sum()
             else:
-                mz_exp = mz_i
-                dt_exp = dt_i
-                mz_int = 0
+                mz_exp = np.nan
+                dt_exp = np.nan
+                mz_int = np.nan
                 ms1_mz = None
                 ms1_dt = None
 
             if ms2 is not None:
                 ms2_mz = ms2.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
 
-                # save ms2
-                spx.utils.save_hdf(ms2_mz, join(feature_path, 'ms2.h5'))
+                # # save ms2
+                # spx.utils.save_hdf(ms2_mz, join(feature_path, 'ms2.h5'))
+
+                # sort
+                ms2_out = ms2_mz.loc[(ms2_mz['intensity']) > 100 & (ms2_mz['mz'] <= mz_i + 10), :].sort_values(by='mz')
+                ms2_out = ''.join(['%s %s;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
             else:
-                ms2_mz = None
+                ms2_out = np.nan
 
             # append
-            ms1_res['name'].append(row['Name'])
-            ms1_res['adduct'].append(adduct)
-            ms1_res['library_mz'].append(mz_i)
-            ms1_res['library_drift_time'].append(dt_i)
-            ms1_res['exp_mz'].append(mz_exp)
-            ms1_res['exp_drift_time'].append(dt_exp)
-            ms1_res['exp_intensity'].append(mz_int)
+            res = {}
+            res['ikey'] = row['InChI Key']
+            res['adduct'] = adduct
+            res['ms1_mz_lib'] = mz_i
+            res['dt_lib'] = dt_i
+            res['ms1_mz_exp'] = mz_exp
+            res['dt_exp'] = dt_exp
+            res['ms1_intensity'] = mz_int
+            res['ms2'] = ms2_out
+
+            dfs.append(pd.DataFrame(res, index=[0]))
 
             # overall plot
             fig = plt.figure(figsize=(7.5, 7.5), dpi=900)
-            fig.suptitle('%s [M%s]\nlibrary m/z: %.2f, dt: %.2f,\nexp m/z: %.2f, dt: %.2f, intensity: %.2E' % (row['Name'], adduct, mz_i, dt_i, mz_exp, dt_exp, mz_int))
+            fig.suptitle('%s [M%s]\nlibrary m/z: %.2f, dt: %.2f,\nexp m/z: %.2f, dt: %.2f, intensity: %.2E' % (row['InChI Key'], adduct, mz_i, dt_i, mz_exp, dt_exp, mz_int))
 
             gs = fig.add_gridspec(3, 2)
             ax1 = fig.add_subplot(gs[0, 0])
@@ -194,11 +201,13 @@ def main(exp_path, output_path, targets_path, mode,
                 ax5.set_xlim(0, mz_i + 10)
 
             plt.tight_layout(rect=[0, 0.03, 1, 0.90])
-            plt.savefig(join(feature_path, 'figures.png'))
+            # plt.savefig(join(feature_path, 'figures.png'))
+            plt.savefig(join(output_path, '%s_%s.png' % (row['InChI Key'], adduct)))
             plt.close()
 
-    ms1_res = pd.DataFrame(ms1_res)
-    ms1_res.to_csv(join(output_path, '%s.tsv' % splitext(basename(exp_path))[0]), sep='\t', index=False)
+    df = pd.concat(dfs, axis=0, ignore_index=True)
+    df = df.sort_values(by='ms1_intensity', ascending=False)
+    df.to_csv(join(output_path, '%s.tsv' % splitext(basename(exp_path))[0]), sep='\t', index=False)
 
 
 if __name__ == '__main__':
