@@ -113,7 +113,7 @@ def main(exp_path, output_path, targets_path, mode,
                 # spx.utils.save_hdf(ms2_mz, join(feature_path, 'ms2.h5'))
 
                 # sort
-                ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 100) & (ms2_mz['mz'] <= mz_i + 10), :].sort_values(by='mz')
+                ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 1000) & (ms2_mz['mz'] <= mz_i + 10), :].sort_values(by='mz')
                 ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
             else:
                 ms2_out = np.nan
