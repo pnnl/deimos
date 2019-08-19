@@ -74,7 +74,7 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
     return ax
 
 
-def grid(x, y, z, x_res='auto', y_res='auto', log=False,
+def grid(x, y, z, x_res='auto', y_res='auto', log=False, cmap='gray_r',
          xlabel='m/z', ylabel='drift time (ms)', ax=None, dpi=600):
 
     xx, yy, H = spx.grid.data2grid(x, y, z, x_res=x_res, y_res=y_res)
@@ -87,7 +87,7 @@ def grid(x, y, z, x_res='auto', y_res='auto', log=False,
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
     # plot
-    ax.pcolormesh(xx, yy, H, zorder=1, cmap='gray_r')
+    ax.pcolormesh(xx, yy, H, zorder=1, cmap=cmap)
 
     # axis format
     ax.xaxis.set_major_locator(tick.MaxNLocator(integer=True))
