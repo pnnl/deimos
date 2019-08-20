@@ -44,7 +44,8 @@ def main(exp_path, output_path, targets_path, mode,
         for adduct, adduct_mass in adducts.items():
             # feature
             mz_i = row['Exact Mass'] + adduct_mass
-            dt_i = c.ccs2arrival(mz_i, row['[M%s] CCS' % adduct])
+            ccs_i = row['[M%s] CCS' % adduct]
+            dt_i = c.ccs2arrival(mz_i, ccs_i)
 
             # check if CCS present
             if pd.isna(dt_i):
@@ -92,16 +93,19 @@ def main(exp_path, output_path, targets_path, mode,
                 ms1_dt = ms1.groupby(by='drift_time', as_index=False).agg({'intensity': np.sum})
 
                 # experimental mz
-                mz_exp = (ms1_mz['mz'] * ms1_mz['intensity'] / ms1_mz['intensity'].sum()).sum()
+                mz_exp = ms1_mz.loc[ms1_mz['intensity'].idxmax(), 'mz']
 
                 # experimental dt
-                dt_exp = (ms1_dt['drift_time'] * ms1_dt['intensity'] / ms1_dt['intensity'].sum()).sum()
+                dt_exp = ms1_dt.loc[ms1_dt['intensity'].idxmax(), 'drift_time']
+                ccs_exp = c.arrival2ccs(mz_exp, dt_exp)
 
                 # ms1 intensity
-                mz_int = ms1_mz['intensity'].sum()
+                mz_int = ms1_mz['intensity'].max()
+
             else:
                 mz_exp = np.nan
                 dt_exp = np.nan
+                ccs_exp = np.nan
                 mz_int = np.nan
                 ms1_mz = None
                 ms1_dt = None
@@ -124,8 +128,10 @@ def main(exp_path, output_path, targets_path, mode,
             res['adduct'] = adduct
             res['ms1_mz_lib'] = mz_i
             res['dt_lib'] = dt_i
+            res['ccs_lib'] = ccs_i
             res['ms1_mz_exp'] = mz_exp
             res['dt_exp'] = dt_exp
+            res['ccs_exp'] = ccs_exp
             res['ms1_intensity'] = mz_int
             res['ms2'] = ms2_out
 
