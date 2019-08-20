@@ -10,7 +10,7 @@ def data2grid(x, y, z, x_res='auto', y_res='auto'):
         y_res = np.min(np.diff(np.sort(y.unique())))
 
     x_bins = (x.max() - x.min()) / x_res
-    y_bins = (x.max() - x.min()) / y_res
+    y_bins = (y.max() - y.min()) / y_res
 
     H, xe, ye, bn = stats.binned_statistic_2d(x, y, z,
                                               statistic='sum',
