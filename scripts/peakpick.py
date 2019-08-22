@@ -39,7 +39,7 @@ def main(exp_path, output_path, targets_path, mode,
     data['ms2'] = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
 
     # find features
-    d = {'ikey': [], 'mz_lib': [], 'mz_exp': [], 'dt_exp': [], 'ccs_exp': [], 'intensity': [], 'ms2': []}
+    d = {'ikey': [], 'adduct': [], 'mz_lib': [], 'mz_exp': [], 'dt_exp': [], 'ccs_exp': [], 'intensity': [], 'ms2': []}
     for idx, row in targets.iterrows():
         for adduct, adduct_mass in adducts.items():
             # feature
@@ -54,7 +54,7 @@ def main(exp_path, output_path, targets_path, mode,
             # ms1 guided peakpicking
             ms1_peaks = spx.peakpick.guided(data['ms1'],
                                             mz=mz_i,
-                                            mz_tol=2 * mz_res,
+                                            mz_tol=4 * mz_res,
                                             threshold=threshold)
 
             # iterate through peaks
@@ -66,7 +66,14 @@ def main(exp_path, output_path, targets_path, mode,
                     ccs_exp = c.arrival2ccs(mz_exp, dt_exp)
 
                     # extract ms2
-                    ms2 = spx.targeted.find_feature(data['ms2'], dt=dt_exp, dt_tol=dt_tol)
+                    # ms2 = spx.targeted.find_feature(data['ms2'], dt=dt_exp, dt_tol=dt_tol)
+
+                    # peakpick variant
+                    ms2 = spx.peakpick.guided(data['ms2'],
+                                              dt=dt_exp,
+                                              dt_tol=dt_tol,
+                                              sigma=[0.03, 0.3],
+                                              threshold=threshold)
 
                     if ms2 is not None:
                         ms2_mz = ms2.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
@@ -79,6 +86,7 @@ def main(exp_path, output_path, targets_path, mode,
 
                     # append to dict
                     d['ikey'].append(row['InChI Key'])
+                    d['adduct'].append(adduct)
                     d['mz_lib'].append(mz_i)
                     d['mz_exp'].append(mz_exp)
                     d['dt_exp'].append(dt_exp)
@@ -88,6 +96,7 @@ def main(exp_path, output_path, targets_path, mode,
             else:
                 # append to dict
                     d['ikey'].append(row['InChI Key'])
+                    d['adduct'].append(adduct)
                     d['mz_lib'].append(mz_i)
                     d['mz_exp'].append(np.nan)
                     d['dt_exp'].append(np.nan)

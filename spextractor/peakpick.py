@@ -4,7 +4,7 @@ import spextractor as spx
 import pandas as pd
 
 
-def auto(ms, res=[0.01, 0.12], sigma=[0.06, 0.3], truncate=4, threshold=1000):
+def auto(ms, res=[0.005, 0.12], sigma=[0.06, 0.3], truncate=4, threshold=1000):
     # grid data
     xe, ye, H = spx.grid.data2grid(ms['mz'], ms['drift_time'], ms['intensity'],
                                    x_res=res[0], y_res=res[1])
