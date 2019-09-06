@@ -4,7 +4,7 @@ import spextractor as spx
 import matplotlib.pyplot as plt
 
 
-def tunemix(path, mz, ccs, q, mz_tol=0.01, verbosity=0):
+def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1000, verbosity=0):
     """
     Calibrate using Agilent TuneMix.
 
@@ -39,18 +39,16 @@ def tunemix(path, mz, ccs, q, mz_tol=0.01, verbosity=0):
                     'ta': []}
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
         # find peak by mz
-        peak = spx.targeted.find_feature(data, mz=mz_i, mz_tol=mz_tol)
+        peaks = spx.peakpick.guided(data,
+                                    mz=mz_i,
+                                    mz_tol=mz_tol,
+                                    threshold=threshold)
 
-        if peak is not None:
-            # experimental mz
-            peak_mz = peak.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
-            mz_exp = peak_mz.loc[peak_mz['intensity'].idxmax(), 'mz']
-
-            # dt peak
-            peak_dt = peak.groupby(by='drift_time', as_index=False).agg({'intensity': np.sum})
-            ta_exp = peak_dt.loc[peak_dt['intensity'].idxmax(), 'drift_time']
-
-            measurements['mz'].append(mz_i)
+        if peaks is not None:
+            peak = peaks.loc[0, :]
+            mz_exp = peak['mz']
+            ta_exp = peak['drift_time']
+            measurements['mz'].append(mz_exp)
             measurements['ccs'].append(ccs_i)
             measurements['q'].append(q_i)
             measurements['ta'].append(ta_exp)
@@ -61,13 +59,14 @@ def tunemix(path, mz, ccs, q, mz_tol=0.01, verbosity=0):
                 print('experimental mass:\t', mz_exp)
                 print('mass error (ppm):\t', error)
                 print('experimental ta:\t', ta_exp)
+                print()
             if verbosity > 1:
-                spx.plot.drift_time(peak['drift_time'], peak['intensity'])
+                spx.plot.fill_between(peak['drift_time'], peak['intensity'])
                 plt.show()
         else:
-            if verbosity > 1:
+            if verbosity > 0:
                 print('reference mass:\t\t', mz_i)
-                print('peak not found.')
+                print('peak not found.\n')
 
     # calibration
     c = ArrivalTimeCalibration()

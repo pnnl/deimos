@@ -70,4 +70,6 @@ def guided(ms, mz=None, dt=None, mz_tol=6E-6, dt_tol=0.12,
         return subset
 
     peaks = auto(subset, res=res, sigma=sigma, truncate=truncate, threshold=threshold)
+    if len(peaks.index) == 0:
+        return None
     return peaks
