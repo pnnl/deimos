@@ -44,12 +44,6 @@ def main(exp_path, output_path, targets_path, mode,
         for adduct, adduct_mass in adducts.items():
             # feature
             mz_i = row['Exact Mass'] + adduct_mass
-            ccs_i = row['[M%s] CCS' % adduct]
-            dt_i = c.ccs2arrival(mz_i, ccs_i)
-
-            # check if CCS present
-            if pd.isna(dt_i):
-                break
 
             # ms1 guided peakpicking
             ms1_peaks = spx.peakpick.guided(data['ms1'],
