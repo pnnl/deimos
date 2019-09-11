@@ -9,7 +9,7 @@ import spextractor as spx
 def mzml2hdf(path, output):
     print('reading')
     # check for zip
-    if splitext(path)[-1].lower() == 'mzml':
+    if splitext(path)[-1].lower() == '.mzml':
         f = path
 
         # process mzml
