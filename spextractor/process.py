@@ -26,13 +26,14 @@ def mzml2hdf(path, output):
     # parse
     print('parsing with {} threads'.format(mp.cpu_count()))
     with mp.Pool(mp.cpu_count()) as p:
-        parsed = p.map(_parse, data)
+        parsed = [x for x in p.imap(_parse, data)]
 
     # generate dataframe
     print('concatenating dataframes')
-    df = pd.concat(parsed)
+    df = pd.concat(parsed, ignore_index=True)
 
     # group
+    print('grouping')
     df = df.groupby(by=['drift_time', 'mz', 'ms_level'], sort=False).sum().reset_index()
 
     # save
@@ -47,27 +48,15 @@ def _parse(d):
     if len(dt) < 2:
         dt = dt[0]
 
-    df = pd.DataFrame([d['ms level'], dt, d['m/z array'], d['intensity array']],
-                      columns=['ms_level', 'drift_time', 'mz', 'intensity'])
+    df = pd.DataFrame(data={'mz': d['m/z array'], 'intensity': d['intensity array']})
 
-    # explode m/z
-    a = df.set_index(['ms_level', 'drift_time'])['mz'].apply(pd.Series).stack()
-    a = a.reset_index()
-    a.columns = ['ms_level', 'drift_time', 'sample', 'mz']
-
-    # explode intensity
-    b = df.set_index(['ms_level', 'drift_time'])['intensity'].apply(pd.Series).stack()
-    b = b.reset_index()
-    b.columns = ['ms_level', 'drift_time', 'sample', 'intensity']
-
-    # combine
-    a['intensity'] = b['intensity'].values
-    a.drop('sample', axis=1, inplace=True)
+    df['ms_level'] = d['ms level']
+    df['drift_time'] = dt
 
     # group
-    a = a.groupby(by=['drift_time', 'mz', 'ms_level'], sort=False).sum().reset_index()
+    df = df.groupby(by=['drift_time', 'mz', 'ms_level'], sort=False).sum().reset_index()
 
     # filter zero intensity out
-    a = a.loc[a['intensity'] > 0, :]
+    df = df.loc[df['intensity'] > 0, :]
 
-    return a
+    return df
