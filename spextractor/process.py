@@ -7,7 +7,6 @@ import spextractor as spx
 
 
 def mzml2hdf(path, output):
-    print('reading')
     # check for zip
     if splitext(path)[-1].lower() == '.mzml':
         f = path
@@ -24,23 +23,17 @@ def mzml2hdf(path, output):
         f.close()
 
     # parse
-    print('parsing with {} threads'.format(mp.cpu_count()))
     with mp.Pool(mp.cpu_count()) as p:
         parsed = [x for x in p.imap(_parse, data)]
 
     # generate dataframe
-    print('concatenating dataframes')
     df = pd.concat(parsed, ignore_index=True)
 
     # group
-    print('grouping')
     df = df.groupby(by=['drift_time', 'mz', 'ms_level'], sort=False).sum().reset_index()
 
     # save
-    print('saving')
     spx.utils.save_hdf(df, output)
-
-    print('done')
 
 
 def _parse(d):
