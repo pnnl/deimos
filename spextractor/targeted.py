@@ -1,30 +1,13 @@
 
 
-def find_feature(ms, mz=None, dt=None, mz_tol=6E-6, dt_tol=0.12):
-    if not isinstance(mz_tol, list):
-        mz_tol = [mz_tol, mz_tol]
+def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
+                 loc=[0, 0, 0], tol=[0, 0, 0]):
 
-    if not isinstance(dt_tol, list):
-        dt_tol = [dt_tol, dt_tol]
+    for feature, x, dx in zip(by, loc, tol):
+        data = data.loc[(data[feature] <= x + dx) &
+                        (data[feature] >= x - dx), :].reset_index(drop=True)
 
-    if (mz is not None) and (dt is not None):
-        feature = ms.loc[(ms['mz'] <= mz + mz_tol[1]) &
-                         (ms['mz'] >= mz - mz_tol[0]) &
-                         (ms['drift_time'] <= dt + dt_tol[1]) &
-                         (ms['drift_time'] >= dt - dt_tol[0]), :].reset_index(drop=True)
-
-    elif mz is not None:
-        feature = ms.loc[(ms['mz'] <= mz + mz_tol[1]) &
-                         (ms['mz'] >= mz - mz_tol[0]), :].reset_index(drop=True)
-
-    elif dt is not None:
-        feature = ms.loc[(ms['drift_time'] <= dt + dt_tol[1]) &
-                         (ms['drift_time'] >= dt - dt_tol[0]), :].reset_index(drop=True)
-
-    else:
-        raise ValueError('Either mz or dt must not be None.')
-
-    if len(feature.index) > 0:
-        return feature
+    if len(data.index) > 0:
+        return data
     else:
         return None

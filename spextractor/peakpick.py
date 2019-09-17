@@ -4,10 +4,17 @@ import spextractor as spx
 import pandas as pd
 
 
-def auto(ms, res=[0.005, 0.12], sigma=[0.06, 0.3], truncate=4, threshold=1000):
+def auto(data, features=['mz', 'drift_time', 'retention_time'], intensity='intensity',
+         res=[0.01, 0.12, 1], sigma=[0.06, 0.3, 1], truncate=4, threshold=1000):
+
+    if (len(features) != len(res)) or (len(features) != len(sigma)):
+        raise ValueError('features, res, and sigma must have same dimension')
+
+    f = data[features].values
+    i = data[intensity].values
+
     # grid data
-    xe, ye, H = spx.grid.data2grid(ms['mz'], ms['drift_time'], ms['intensity'],
-                                   x_res=res[0], y_res=res[1])
+    grid, H = spx.grid.data2grid(f, i, resolution=res)
 
     points = [int(s / r) for s, r in zip(sigma, res)]
 
@@ -17,35 +24,34 @@ def auto(ms, res=[0.005, 0.12], sigma=[0.06, 0.3], truncate=4, threshold=1000):
     # peaks
     footprint = [(truncate * x) + 1 if (truncate * x) % 2 == 0 else truncate * x for x in points]
     peaks = non_maximum_suppression(corr, footprint)
-    peaks = spx.grid.grid2df(xe, ye, peaks)
+    peaks = spx.grid.grid2df(grid, peaks, columns=features)
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
 
     # reconcile with original data
-    peaks = reconcile(peaks, ms, sigma=sigma, truncate=truncate)
+    peaks = reconcile(peaks, data, features=features, intensity=intensity,
+                      sigma=sigma, truncate=truncate)
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
 
     return peaks
 
 
-def reconcile(peaks, data, sigma=[0.06, 0.3], truncate=4):
-    res = {'mz': [], 'drift_time': [], 'intensity': []}
+def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'], intensity='intensity',
+              sigma=[0.06, 0.3, 1], truncate=4):
+    res = {k: [] for k in features}
+    res[intensity] = []
     for idx, row in peaks.iterrows():
-        mz_i = row['mz']
-        dt_i = row['drift_time']
         subset = spx.targeted.find_feature(data,
-                                           mz=mz_i,
-                                           dt=dt_i,
-                                           mz_tol=sigma[0] * truncate,
-                                           dt_tol=sigma[1] * truncate)
+                                           by=features,
+                                           loc=row[features].values,
+                                           tol=sigma * truncate)
 
-        # sum
-        subset_mz = subset.groupby(by='mz', as_index=False).agg({'intensity': np.sum})
-        subset_dt = subset.groupby(by='drift_time', as_index=False).agg({'intensity': np.sum})
+        for f in features:
+            # sum
+            subset_f = subset.groupby(by=f, as_index=False).agg({intensity: np.sum})
+            res[f].append(subset_f.loc[subset_f[intensity].idxmax(), f])
 
-        # store
-        res['mz'].append(subset_mz.loc[subset_mz['intensity'].idxmax(), 'mz'])
-        res['drift_time'].append(subset_dt.loc[subset_dt['intensity'].idxmax(), 'drift_time'])
-        res['intensity'].append(subset_mz['intensity'].max())
+            if f == 'mz':
+                res[intensity].append(subset_f[intensity].max())
 
     return pd.DataFrame(res)
 
@@ -62,14 +68,18 @@ def matched_filter(ndarray, size):
     return np.square(ndi.gaussian_filter(ndarray, size, mode='constant', cval=0))
 
 
-def guided(ms, mz=None, dt=None, mz_tol=6E-6, dt_tol=0.12,
-           res=[0.005, 0.12], sigma=[0.06, 0.3], truncate=4, threshold=1000):
-    subset = spx.targeted.find_feature(ms, mz=mz, dt=dt, mz_tol=mz_tol, dt_tol=dt_tol)
+def guided(data, by=['mz', 'drift_time', 'retention_time'],
+           res=[0.01, 0.12, 1], loc=[0, 0, 0], sigma=[0.06, 0.3, 1], truncate=4, threshold=1000):
+    subset = spx.targeted.find_feature(data,
+                                       by=by,
+                                       loc=loc,
+                                       tol=sigma * truncate)
 
     if subset is None:
         return subset
 
     peaks = auto(subset, res=res, sigma=sigma, truncate=truncate, threshold=threshold)
+
     if len(peaks.index) == 0:
         return None
     return peaks

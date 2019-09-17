@@ -3,17 +3,21 @@ import numpy as np
 import pandas as pd
 
 
-def data2grid(features, intensity, resolution='auto'):
+def data2grid(data, features=['mz', 'drift_time', 'retention_time'], intensity='intensity',
+              resolution='auto'):
     if resolution == 'auto':
         res = np.min(np.diff(np.sort(np.unique(features, axis=0), axis=0), axis=0), axis=0)
-    elif len(resolution) == features.shape[-1]:
+    elif len(resolution) == len(features):
         res = np.array(resolution)
     else:
         raise ValueError('dimension mismatch between features and resolution')
 
-    bins = (features.max(axis=0) - features.min(axis=0)) / res
+    f = data[features].values
+    i = data[intensity].values
 
-    H, edges, bn = stats.binned_statistic_dd(features, intensity,
+    bins = (f.max(axis=0) - f.min(axis=0)) / res
+
+    H, edges, bn = stats.binned_statistic_dd(f, i,
                                              statistic='sum',
                                              bins=bins)
     H = np.nan_to_num(H)
