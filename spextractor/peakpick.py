@@ -33,6 +33,8 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # threshold
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
 
+    return peaks
+
     # reconcile with original data
     peaks = reconcile(peaks, data, features=features,
                       sigma=sigma, truncate=truncate)
@@ -52,6 +54,14 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
     # check dims
     spx.utils.check_length([features, sigma])
 
+    # apex selection
+    if len(features) == 1:
+        apex = features[0]
+    elif 'mz' in features:
+        apex = 'mz'
+    else:
+        raise ValueError('multi dimension peak detection should include mz')
+
     # build containers
     res = {k: [] for k in features}
     res['intensity'] = []
@@ -62,19 +72,19 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
         subset = spx.targeted.find_feature(data,
                                            by=features,
                                            loc=row[features].values,
-                                           tol=sigma * np.array(truncate))
+                                           tol=np.array(sigma) * truncate)
 
         # combine by each feature
         for f in features:
             # sum
-            subset_f = subset.groupby(by=f, as_index=False).agg({'intensity': np.sum})
+            subset_f = subset.groupby(by=f, as_index=False, sort=False).agg({'intensity': np.sum})
             res[f].append(subset_f.loc[subset_f['intensity'].idxmax(), f])
 
             # get peak intensity from mz dim
-            if f == 'mz':
+            if f == apex:
                 res['intensity'].append(subset_f['intensity'].max())
 
-    return pd.DataFrame(res)
+    return pd.DataFrame(res).drop_duplicates()
 
 
 def non_maximum_suppression(ndarray, size):
@@ -104,7 +114,7 @@ def guided(data, by=['mz', 'drift_time', 'retention_time'],
     subset = spx.targeted.find_feature(data,
                                        by=by,
                                        loc=loc,
-                                       tol=sigma * np.array(truncate))
+                                       tol=np.array(sigma) * truncate)
 
     # if no data found
     if subset is None:
