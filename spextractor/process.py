@@ -34,6 +34,8 @@ def mzml2hdf(path, output):
     df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level'],
                     sort=False).sum().reset_index()
 
+    df.dropna(index=1, how='all', inplace=True)
+
     # save
     spx.utils.save_hdf(df, output)
 
