@@ -46,7 +46,7 @@ def grid2df(edges, intensity, features=['mz', 'drift_time', 'retention_time'], t
 
     # create dataframe
     data = pd.DataFrame(grid, columns=features)
-    data['intensity'] = intensity
+    data['intensity'] = intensity.flatten()
 
     # threshold and sort
     data = data.loc[data['intensity'] > 0, :].sort_values(by='intensity', ascending=False).reset_index(drop=True)
@@ -60,16 +60,25 @@ def grid2df(edges, intensity, features=['mz', 'drift_time', 'retention_time'], t
 
 
 def edges2grid(edges):
-    # mesh edges
-    grid = np.meshgrid(*edges)
 
-    # flatten
-    grid = [x.flatten() for x in grid]
+    dim = len(edges)
 
-    # center bins
-    grid = [(x[1:] + x[:-1]) / 2 for x in grid]
-
-    # stack and transpose
-    grid = np.stack(grid).T
-
-    return grid
+    if dim == 3:
+        # mesh edges
+        x, y, z = np.meshgrid(*edges, indexing='ij')
+        x = (x[1:, 1:, 1:] + x[:-1, :-1, :-1]) / 2
+        y = (y[1:, 1:, 1:] + y[:-1, :-1, :-1]) / 2
+        z = (z[1:, 1:, 1:] + z[:-1, :-1, :-1]) / 2
+        return np.hstack((x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)))
+    elif dim == 2:
+        # mesh edges
+        x, y = np.meshgrid(*edges, indexing='ij')
+        x = (x[1:, 1:] + x[:-1, :-1]) / 2
+        y = (y[1:, 1:] + y[:-1, :-1]) / 2
+        return np.hstack((x.reshape(-1, 1), y.reshape(-1, 1)))
+    elif dim == 1:
+        x = edges[0]
+        x = (x[1:] + x[:-1]) / 2
+        return x.reshape(-1, 1)
+    else:
+        raise ValueError('only 3 dimensions currently supported')

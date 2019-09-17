@@ -16,8 +16,9 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
         data = data.loc[(data[feature] <= x + dx) &
                         (data[feature] >= x - dx), :].reset_index(drop=True)
 
-    # if no data found
+    # data found
     if len(data.index) > 0:
         return data
 
+    # no data
     return None

@@ -17,8 +17,8 @@ def load_hdf(path):
 
 
 def safelist(x):
-    if not isinstance(x, list):
-        return list(x)
+    if not isinstance(x, (list, pd.core.series.Series, np.ndarray)):
+        return [x]
     return x
 
 

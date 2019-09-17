@@ -15,7 +15,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'], intensity='inten
     spx.utils.check_length([features, res, sigma])
 
     # grid data
-    edges, H = spx.grid.data2grid(data, features=features, intensity=intensity, resolution=res)
+    edges, H = spx.grid.data2grid(data, features=features, intensity=intensity, res=res)
 
     # sigma in terms of n points
     points = [int(s / r) for s, r in zip(sigma, res)]
@@ -28,7 +28,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'], intensity='inten
     peaks = non_maximum_suppression(corr, footprint)
 
     # convert to dataframe
-    peaks = spx.grid.grid2df(edges, peaks, columns=features)
+    peaks = spx.grid.grid2df(edges, peaks, features=features)
 
     # threshold
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
@@ -38,7 +38,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'], intensity='inten
                       sigma=sigma, truncate=truncate)
 
     # threshold
-    peaks = peaks.loc[peaks['intensity'] > threshold, :]
+    peaks = peaks.loc[peaks['intensity'] > threshold, :].reset_index(drop=True)
 
     return peaks
 
@@ -62,7 +62,7 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'], inte
         subset = spx.targeted.find_feature(data,
                                            by=features,
                                            loc=row[features].values,
-                                           tol=sigma * truncate)
+                                           tol=sigma * np.array(truncate))
 
         # combine by each feature
         for f in features:
@@ -104,7 +104,7 @@ def guided(data, by=['mz', 'drift_time', 'retention_time'], intensity='intensity
     subset = spx.targeted.find_feature(data,
                                        by=by,
                                        loc=loc,
-                                       tol=sigma * truncate)
+                                       tol=sigma * np.array(truncate))
 
     # if no data found
     if subset is None:
