@@ -1,4 +1,4 @@
-from spx.utils import safelist, check_length
+from spextractor.utils import safelist, check_length
 
 
 def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
