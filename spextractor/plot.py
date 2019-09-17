@@ -74,10 +74,25 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
     return ax
 
 
-def grid(x, y, z, x_res='auto', y_res='auto', log=False, cmap='gray_r',
-         xlabel='m/z', ylabel='drift time (ms)', ax=None, dpi=600):
+def grid(data, features=['mz', 'drift_time'], res='auto', log=False, cmap='gray_r',
+         ax=None, dpi=600):
+    # safely cast to list
+    features = spx.utils.safelist(features)
 
-    xx, yy, H = spx.grid.data2grid(x, y, z, x_res=x_res, y_res=y_res)
+    # check dims
+    if len(features) != 2:
+        raise ValueError('grid plots only support in 2 dimensions')
+
+    # check resolution
+    if res is not 'auto':
+        # safely cast to list
+        res = spx.utils.safelist(res)
+
+        # check dims
+        spx.utils.check_length([features, res])
+
+    (xe, ye), H = spx.grid.data2grid(data, features=features, res=res)
+    xx, yy = np.meshgrid(xe, ye, indexing='ij')
 
     if log is True:
         H = np.log(H + 1)
@@ -93,7 +108,7 @@ def grid(x, y, z, x_res='auto', y_res='auto', log=False, cmap='gray_r',
     ax.xaxis.set_major_locator(tick.MaxNLocator(integer=True))
 
     # axis labels
-    ax.set_xlabel(xlabel, fontweight='bold')
-    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_xlabel(features[0], fontweight='bold')
+    ax.set_ylabel(features[1], fontweight='bold')
 
     return ax

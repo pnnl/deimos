@@ -9,7 +9,7 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time'],
     # safely cast to list
     features = safelist(features)
 
-    # auto detect res
+    # check resolution
     if res == 'auto':
         res = np.min(np.diff(np.sort(np.unique(features, axis=0), axis=0), axis=0), axis=0)
     else:
@@ -60,7 +60,6 @@ def grid2df(edges, intensity, features=['mz', 'drift_time', 'retention_time'], t
 
 
 def edges2grid(edges):
-
     dim = len(edges)
 
     if dim == 3:
