@@ -4,7 +4,7 @@ import pandas as pd
 from spextractor.utils import safelist, check_length
 
 
-def data2grid(data, features=['mz', 'drift_time', 'retention_time'], intensity='intensity',
+def data2grid(data, features=['mz', 'drift_time', 'retention_time'],
               res='auto'):
     # safely cast to list
     features = safelist(features)
@@ -21,7 +21,7 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time'], intensity='
 
     # separate features, intensity
     f = data[features].values
-    i = data[intensity].values
+    i = data['intensity'].values
 
     # calculate bin counts
     bins = (f.max(axis=0) - f.min(axis=0)) / res
