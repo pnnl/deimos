@@ -3,31 +3,30 @@ import numpy as np
 import pandas as pd
 
 
-def data2grid(x, y, z, x_res='auto', y_res='auto'):
-    if x_res == 'auto':
-        x_res = np.min(np.diff(np.sort(x.unique())))
-    if y_res == 'auto':
-        y_res = np.min(np.diff(np.sort(y.unique())))
+def data2grid(features, intensity, resolution='auto'):
+    if resolution == 'auto':
+        res = np.min(np.diff(np.sort(np.unique(features, axis=0), axis=0), axis=0), axis=0)
+    elif len(resolution) == features.shape[-1]:
+        res = np.array(resolution)
+    else:
+        raise ValueError('dimension mismatch between features and resolution')
 
-    x_bins = (x.max() - x.min()) / x_res
-    y_bins = (y.max() - y.min()) / y_res
+    bins = (features.max(axis=0) - features.min(axis=0)) / res
 
-    H, xe, ye, bn = stats.binned_statistic_2d(x, y, z,
-                                              statistic='sum',
-                                              bins=(x_bins, y_bins))
+    H, edges, bn = stats.binned_statistic_dd(features, intensity,
+                                             statistic='sum',
+                                             bins=bins)
     H = np.nan_to_num(H)
-    XX, YY = np.meshgrid(xe, ye, indexing='ij')
+    grid = [x.flatten() for x in np.meshgrid(*edges)]
+    grid = [(x[1:] + x[:-1]) / 2 for x in grid]
+    grid = np.stack(grid).T
 
-    return XX, YY, H
+    return grid, H
 
 
-def grid2df(x, y, z, top=None):
-    # bin centers
-    x = (x[1:, 1:] + x[:-1, :-1]) / 2
-    y = (y[1:, 1:] + y[:-1, :-1]) / 2
-
-    data = np.hstack((x.reshape(-1, 1), y.reshape(-1, 1), z.reshape(-1, 1)))
-    data = pd.DataFrame(data, columns=['mz', 'drift_time', 'intensity'])
+def grid2df(grid, intensity, columns=['mz', 'drift_time', 'retention_time'], top=None):
+    data = pd.DataFrame(grid, columns=columns)
+    data['intensity'] = intensity
     data = data.loc[data['intensity'] > 0, :].sort_values(by='intensity', ascending=False).reset_index(drop=True)
 
     if top is not None:

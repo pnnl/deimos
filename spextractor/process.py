@@ -8,23 +8,24 @@ import spextractor as spx
 
 def mzml2hdf(path, output):
     # check for zip
-    if splitext(path)[-1].lower() == '.mzml':
+    ext = splitext(path)[-1].lower()
+    if ext == '.gz':
+        zipped = True
+        f = gzip.open(path, 'rb')
+    else:
+        zipped = False
         f = path
 
-        # process mzml
-        data = mzml.read(f)
-    else:
-        f = gzip.open(path, 'rb')
-
-        # process mzml
-        data = mzml.read(f)
-
-        # close file
-        f.close()
+    # process mzml
+    data = mzml.read(f)
 
     # parse
     with mp.Pool(mp.cpu_count()) as p:
-        parsed = [x for x in p.imap(_parse, data)]
+        parsed = [x for x in p.imap(_parse, data, chunksize=100)]
+
+    # close zip file
+    if zipped:
+        f.close()
 
     # generate dataframe
     df = pd.concat(parsed, ignore_index=True)
