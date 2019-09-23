@@ -27,3 +27,7 @@ def check_length(lists):
     length = len(next(it))
     if not all(len(x) == length for x in it):
         raise ValueError('per-dimension inputs must have same dimension')
+
+
+def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
+    return data.groupby(by=keep, as_index=False, sort=False).agg({'intensity': how})
