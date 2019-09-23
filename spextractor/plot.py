@@ -3,6 +3,7 @@ import matplotlib.ticker as tick
 import numpy as np
 import spextractor as spx
 import pandas as pd
+from scipy.interpolate import griddata
 
 
 def _ceil(value):
@@ -74,8 +75,8 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
     return ax
 
 
-def grid(data, features=['mz', 'drift_time'], res='auto', log=False, cmap='gray_r',
-         ax=None, dpi=600):
+def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, log=False, cmap='gray_r',
+         ticks=4, ax=None, dpi=600):
     # safely cast to list
     features = spx.utils.safelist(features)
 
@@ -83,32 +84,37 @@ def grid(data, features=['mz', 'drift_time'], res='auto', log=False, cmap='gray_
     if len(features) != 2:
         raise ValueError('grid plots only support in 2 dimensions')
 
-    # check resolution
-    if res is not 'auto':
-        # safely cast to list
-        res = spx.utils.safelist(res)
-
-        # check dims
-        spx.utils.check_length([features, res])
-
-    (xe, ye), H = spx.grid.data2grid(data, features=features, res=res)
-    xx, yy = np.meshgrid(xe, ye, indexing='ij')
-
-    if log is True:
-        H = np.log(H + 1)
-
     # initialize figure
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
 
+    # split features and values
+    points = data.loc[:, features].values
+    values = data.loc[:, ['intensity']].values.flatten()
+
+    # interpolation grid
+    grid_x, grid_y = np.mgrid[data[features[0]].min():data[features[0]].max():gridsize,
+                              data[features[1]].min():data[features[1]].max():gridsize]
+
+    # grid data
+    gridded = np.nan_to_num(griddata(points, values, (grid_x, grid_y), method=method))
+
     # plot
-    ax.pcolormesh(xx, yy, H, zorder=1, cmap=cmap)
+    ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap)
 
     # axis format
-    ax.xaxis.set_major_locator(tick.MaxNLocator(integer=True))
+    ax.xaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
 
     # axis labels
-    ax.set_xlabel(features[0], fontweight='bold')
-    ax.set_ylabel(features[1], fontweight='bold')
+    names = _rename(features)
+    ax.set_xlabel(names[0], fontweight='bold')
+    ax.set_ylabel(names[1], fontweight='bold')
 
     return ax
+
+
+def _rename(features):
+    names = ['m/z' if x == 'mz' else x for x in features]
+    names = ['retention time (min)' if x == 'retention_time' else x for x in names]
+    names = ['drift time (ms)' if x == 'drift_time' else x for x in names]
+    return names
