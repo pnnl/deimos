@@ -33,8 +33,6 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # threshold
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
 
-    return peaks
-
     # reconcile with original data
     peaks = reconcile(peaks, data, features=features,
                       sigma=sigma, truncate=truncate)
@@ -42,7 +40,8 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # threshold
     peaks = peaks.loc[peaks['intensity'] > threshold, :].reset_index(drop=True)
 
-    return peaks
+    # resolve case of peaks mapping to same point
+    return spx.utils.collapse(peaks, keep=features, how=np.max)
 
 
 def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
@@ -53,14 +52,6 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
 
     # check dims
     spx.utils.check_length([features, sigma])
-
-    # apex selection
-    if len(features) == 1:
-        apex = features[0]
-    elif 'mz' in features:
-        apex = 'mz'
-    else:
-        raise ValueError('multi dimension peak detection should include mz')
 
     # build containers
     res = {k: [] for k in features}
@@ -74,17 +65,12 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
                                            loc=row[features].values,
                                            tol=np.array(sigma) * truncate)
 
-        # combine by each feature
-        for f in features:
-            # sum
-            subset_f = subset.groupby(by=f, as_index=False, sort=False).agg({'intensity': np.sum})
-            res[f].append(subset_f.loc[subset_f['intensity'].idxmax(), f])
+        # pull features
+        [res[f].append(subset.loc[subset['intensity'].idxmax(), f]) for f in features]
+        res['intensity'].append(subset['intensity'].max())
 
-            # get peak intensity from mz dim
-            if f == apex:
-                res['intensity'].append(subset_f['intensity'].max())
-
-    return pd.DataFrame(res).drop_duplicates()
+    # resolve case of peaks mapping to same point
+    return spx.utils.collapse(pd.DataFrame(res), keep=features, how=np.max)
 
 
 def non_maximum_suppression(ndarray, size):
