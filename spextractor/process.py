@@ -21,7 +21,7 @@ def mzml2hdf(path, output):
 
     # parse
     with mp.Pool(mp.cpu_count()) as p:
-        parsed = [x for x in p.imap(_parse, data, chunksize=100)]
+        parsed = [x for x in p.imap(_parse, data)]
 
     # close zip file
     if zipped:
