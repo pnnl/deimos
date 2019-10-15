@@ -12,9 +12,8 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
     check_length([by, loc, tol])
 
     # subset by each dim
-    for feature, x, dx in zip(by, loc, tol):
-        data = data.loc[(data[feature] <= x + dx) &
-                        (data[feature] >= x - dx), :].reset_index(drop=True)
+    q = ' and '.join(['{} <= {} <= {}'.format(x - dx, feature, x + dx) for feature, x, dx in zip(by, loc, tol)])
+    data = data.query(q)
 
     # data found
     if len(data.index) > 0:
