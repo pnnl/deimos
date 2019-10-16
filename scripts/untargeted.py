@@ -18,8 +18,8 @@ def main(exp_path, output_path, beta, tfix, threshold):
     # calibrate
     c = spx.calibrate.ArrivalTimeCalibration()
     c.calibrate(tfix=tfix, beta=beta)
-	
-	# load
+
+    # load
     data = spx.utils.load_hdf(exp_path)
 
     # split by ms level
@@ -53,7 +53,7 @@ def main(exp_path, output_path, beta, tfix, threshold):
             # sort
             ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 1000) & (ms2_mz['mz'] <= mz_exp + 10), :].sort_values(by='mz')
             # ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
-			
+
             ms2_centroid = spx.peakpick.auto(ms2_out, features='mz',
                                              res=0.01, sigma=0.03, truncate=4, threshold=1000).sort_values(by='mz')
 

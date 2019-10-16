@@ -41,13 +41,13 @@ rule ms2_untargeted:
         join('output', 'untargeted', '{id}.tsv')
     run:
         outdir = dirname(output[0])
-		
+
         if 'neg' in output[0].lower():
             mode = 'neg'
         else:
             mode = 'pos'
 
-	    tfix = config['calibration'][mode]['tfix']
+        tfix = config['calibration'][mode]['tfix']
         beta = config['calibration'][mode]['beta']
 
         shell('python {config[untargeted][script]} {input} {outdir} --tfix {tfix} --beta {beta}')
