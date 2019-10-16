@@ -18,11 +18,13 @@ def main(exp_path, output_path, beta, tfix, threshold):
     # calibrate
     c = spx.calibrate.ArrivalTimeCalibration()
     c.calibrate(tfix=tfix, beta=beta)
+	
+	# load
+    data = spx.utils.load_hdf(exp_path)
 
     # split by ms level
-    data = {}
-    data['ms1'] = df.loc[df['ms_level'] == 1, :].drop('ms_level', axis=1).reset_index(drop=True)
-    data['ms2'] = df.loc[df['ms_level'] == 2, :].drop('ms_level', axis=1).reset_index(drop=True)
+    ms1 = data.loc[data['ms_level'] == 1, :].drop('ms_level', axis=1)
+    ms2 = data.loc[data['ms_level'] == 2, :].drop('ms_level', axis=1)
 
     # find features
     ms1_peaks = spx.peakpick.auto(ms1, features=['mz', 'drift_time'],
@@ -51,6 +53,9 @@ def main(exp_path, output_path, beta, tfix, threshold):
             # sort
             ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 1000) & (ms2_mz['mz'] <= mz_exp + 10), :].sort_values(by='mz')
             # ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
+			
+            ms2_centroid = spx.peakpick.auto(ms2_out, features='mz',
+                                             res=0.01, sigma=0.03, truncate=4, threshold=1000).sort_values(by='mz')
 
             # append
             d['mz'].append(mz_exp)
