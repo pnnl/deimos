@@ -10,7 +10,7 @@ IDS, = glob_wildcards(join('input', '{id}.d'))
 
 rule all:
     input:
-        expand(join('output', 'ms2', '{id}.tsv'), id=IDS)
+        expand(join('output', 'untargeted', '{id}.tsv'), id=IDS)
 
 
 rule agilent2mzml:
@@ -34,11 +34,25 @@ rule mzml2hdf:
         spx.process.mzml2hdf(input[0], output[0])
 
 
-rule ms2:
+rule ms2_untargeted:
     input:
         rules.mzml2hdf.output
     output:
-        join('output', 'ms2', '{id}.tsv')
+        join('output', 'untargeted', '{id}.tsv')
+    run:
+        outdir = dirname(output[0])
+
+        tfix = config['calibration'][mode]['tfix']
+        beta = config['calibration'][mode]['beta']
+
+        shell('python {config[untargeted][script]} {input} {outdir} --tfix {tfix} --beta {beta}')
+
+
+rule ms2_targeted:
+    input:
+        rules.mzml2hdf.output
+    output:
+        join('output', 'targeted', '{id}.tsv')
     run:
         outdir = dirname(output[0])
 
