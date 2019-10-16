@@ -30,6 +30,7 @@ def main(exp_path, output_path, beta, tfix, threshold):
 
     # container
     d = {'mz': [], 'dt': [], 'ccs': [], 'intensity': [], 'ms2_mz': [], 'ms2_intensity': []}
+    d_centroid = {'mz': [], 'dt': [], 'intensity': [], 'ms2_mz': [], 'ms2_intensity': []}
 
     # iterate through peaks
     for idx, peak in ms1_peaks.iterrows():
@@ -59,9 +60,21 @@ def main(exp_path, output_path, beta, tfix, threshold):
             d['ms2_mz'].append(ms2_out['mz'].values)
             d['ms2_intensity'].append(ms2_out['intensity'].values)
 
+            # append
+            d_centroid['mz'].append(mz_exp)
+            d_centroid['dt'].append(dt_exp)
+            d_centroid['intensity'].append(int_exp)
+            d_centroid['ms2_mz'].append(ms2_centroid['mz'].values)
+            d_centroid['ms2_intensity'].append(ms2_centroid['intensity'].values)
+
+        # save
         df = pd.DataFrame(d)
         df = df.sort_values(by='intensity', ascending=False)
         df.to_csv(join(output_path, '%s.tsv' % splitext(basename(exp_path))[0]), sep='\t', index=False)
+
+        df_centroid = pd.DataFrame(d_centroid)
+        df_centroid = df_centroid.sort_values(by='intensity', ascending=False)
+        df_centroid.to_csv(join(output_path, '%s_centroid.tsv' % splitext(basename(exp_path))[0]), sep='\t', index=False)
 
 
 if __name__ == '__main__':
