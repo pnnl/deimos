@@ -31,3 +31,20 @@ def check_length(lists):
 
 def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
     return data.groupby(by=keep, as_index=False, sort=False).agg({'intensity': how})
+
+
+def save_mgf(data, path, charge='1+'):
+    template = ('BEGIN IONS\n'
+                'PEPMASS={} {}\n'
+                'CHARGE={}\n'
+                'TITLE=Spectrum {}\n'
+                '{}\n'
+                'END IONS\n')
+
+    with open(path, 'w') as f:
+        for i, row in data.iterrows():
+            precursor_mz = row['mz']
+            precursor_int = row['intensity']
+            ms2 = row['ms2']
+
+            f.write(template.format(precursor_mz, precursor_int, charge, i, ms2.replace(';', '\n')))
