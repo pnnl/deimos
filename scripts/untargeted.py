@@ -32,7 +32,7 @@ def main(exp_path, output_path, beta, tfix, threshold):
 
     # container
     d = {'mz': [], 'dt': [], 'ccs': [], 'intensity': [], 'ms2': []}
-    d_centroid = {'mz': [], 'dt': [], 'intensity': [], 'ms2': []}
+    d_centroid = {'mz': [], 'dt': [], 'ccs': [], 'intensity': [], 'ms2': []}
 
     # iterate through peaks
     for idx, peak in ms1_peaks.iterrows():
@@ -50,12 +50,15 @@ def main(exp_path, output_path, beta, tfix, threshold):
         if ms2_subset is not None:
             ms2_mz = spx.utils.collapse(ms2_subset, keep='mz', how=np.sum)
 
-            # sort
+            # raw
             ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 1000) & (ms2_mz['mz'] <= mz_exp + 10), :].sort_values(by='mz')
 
-            ms2_centroid = spx.peakpick.auto(ms2_out, features='mz',
-                                             res=0.01, sigma=0.03, truncate=4, threshold=1000).sort_values(by='mz')
+            # centroided
+            ms2_centroid = spx.peakpick.auto(ms2_mz, features='mz',
+                                             res=0.01, sigma=0.03, truncate=4, threshold=1000)
+            ms2_centroid = ms2_centroid.loc[ms2_centroid['mz'] <= mz_exp + 10, :].sort_values(by='mz')
 
+            # string
             ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
             ms2_centroid = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_centroid['mz'].values, ms2_centroid['intensity'].values)])
 
@@ -69,6 +72,7 @@ def main(exp_path, output_path, beta, tfix, threshold):
             # append
             d_centroid['mz'].append(mz_exp)
             d_centroid['dt'].append(dt_exp)
+            d_centroid['ccs'].append(ccs_exp)
             d_centroid['intensity'].append(int_exp)
             d_centroid['ms2'].append(ms2_centroid)
 
