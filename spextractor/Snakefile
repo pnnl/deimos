@@ -82,9 +82,9 @@ rule ms2mgf:
         join('output', 'untargeted', '{id}_centroid.mgf')
     run:
         if 'neg' in output[0].lower():
-            charge = '1+'
-        else:
             charge = '1-'
+        else:
+            charge = '1+'
 
         data = pd.read_csv(input[0], sep='\t')
         spx.utils.save_mgf(data, output[0], charge=charge)
