@@ -28,11 +28,11 @@ def main(exp_path, output_path, beta, tfix, threshold):
 
     # find features
     ms1_peaks = spx.peakpick.auto(ms1, features=['mz', 'drift_time'],
-                                  res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=1000)
+                                  res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=1E4)
 
     # container
-    d = {'mz': [], 'dt': [], 'ccs': [], 'intensity': [], 'ms2_mz': [], 'ms2_intensity': []}
-    d_centroid = {'mz': [], 'dt': [], 'intensity': [], 'ms2_mz': [], 'ms2_intensity': []}
+    d = {'mz': [], 'dt': [], 'ccs': [], 'intensity': [], 'ms2': []}
+    d_centroid = {'mz': [], 'dt': [], 'intensity': [], 'ms2': []}
 
     # iterate through peaks
     for idx, peak in ms1_peaks.iterrows():
@@ -52,25 +52,25 @@ def main(exp_path, output_path, beta, tfix, threshold):
 
             # sort
             ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > 1000) & (ms2_mz['mz'] <= mz_exp + 10), :].sort_values(by='mz')
-            # ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
 
             ms2_centroid = spx.peakpick.auto(ms2_out, features='mz',
                                              res=0.01, sigma=0.03, truncate=4, threshold=1000).sort_values(by='mz')
+
+            ms2_out = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_out['mz'].values, ms2_out['intensity'].values)])
+            ms2_centroid = ''.join(['%.4f %i;' % (mz, i) for mz, i in zip(ms2_centroid['mz'].values, ms2_centroid['intensity'].values)])
 
             # append
             d['mz'].append(mz_exp)
             d['dt'].append(dt_exp)
             d['ccs'].append(ccs_exp)
             d['intensity'].append(int_exp)
-            d['ms2_mz'].append(ms2_out['mz'].values)
-            d['ms2_intensity'].append(ms2_out['intensity'].values)
+            d['ms2'].append(ms2_out)
 
             # append
             d_centroid['mz'].append(mz_exp)
             d_centroid['dt'].append(dt_exp)
             d_centroid['intensity'].append(int_exp)
-            d_centroid['ms2_mz'].append(ms2_centroid['mz'].values)
-            d_centroid['ms2_intensity'].append(ms2_centroid['intensity'].values)
+            d_centroid['ms2'].append(ms2_centroid)
 
         # save
         df = pd.DataFrame(d)
