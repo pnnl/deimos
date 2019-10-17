@@ -26,6 +26,10 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
     ms1 = data.loc[data['ms_level'] == 1, :].drop('ms_level', axis=1)
     ms2 = data.loc[data['ms_level'] == 2, :].drop('ms_level', axis=1)
 
+    # collapse
+    ms1 = spx.utils.collapse(ms1, keep=['mz', 'drift_time'], how=np.sum)
+    ms2 = spx.utils.collapse(ms2, keep=['mz', 'drift_time'], how=np.sum)
+
     # find features
     ms1_peaks = spx.peakpick.auto(ms1, features=['mz', 'drift_time'],
                                   res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=ms1_threshold)
@@ -95,8 +99,8 @@ if __name__ == '__main__':
                         help='ccs calibration parameter beta (float, default=0.1208)')
     parser.add_argument('--tfix', type=float, default=1.9817908554141468,
                         help='ccs calibration parameter tfix (float, default=1.9818)')
-    parser.add_argument('--ms1-thresh', type=float, default=1E4,
-                        help='intensity threshold (float, default=1E4)')
+    parser.add_argument('--ms1-thresh', type=float, default=1E3,
+                        help='intensity threshold (float, default=1E3)')
     parser.add_argument('--ms2-thresh', type=float, default=1E3,
                         help='intensity threshold (float, default=1E3)')
 
