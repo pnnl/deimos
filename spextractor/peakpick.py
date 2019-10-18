@@ -54,10 +54,14 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
     res = {k: [] for k in features}
     res['intensity'] = []
 
+    # downselect data
+    data_ = data.loc[data['intensity'] > threshold, :]
+
     # iterate peaks
+    count = 0
     for idx, row in peaks.iterrows():
         # targeted search
-        subset = spx.targeted.find_feature(data,
+        subset = spx.targeted.find_feature(data_,
                                            by=features,
                                            loc=row[features].values,
                                            tol=np.array(sigma) * truncate)
@@ -68,6 +72,17 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
             imax = subset['intensity'].idxmax()
             [res[f].append(subset.loc[imax, f]) for f in features]
             res['intensity'].append(intensity)
+
+            # reset count
+            count = 0
+
+        # count low intensity feature
+        else:
+            count += 1
+
+        # too many successive low intensity features found
+        if count > 10:
+            break
 
     # resolve case of peaks mapping to same point
     return spx.utils.collapse(pd.DataFrame(res), keep=features, how=np.max)
