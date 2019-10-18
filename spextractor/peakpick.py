@@ -5,7 +5,7 @@ import pandas as pd
 
 
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
-         res=[0.01, 0.12, 0.05], sigma=[0.03, 0.3, 0.04], truncate=4, threshold=1000):
+         res=[0.01, 0.12, 0.05], sigma=[0.03, 0.3, 0.04], truncate=4, threshold=1E3):
     # safely cast to list
     features = spx.utils.safelist(features)
     res = spx.utils.safelist(res)
@@ -85,7 +85,7 @@ def matched_filter(ndarray, size):
 
 
 def guided(data, by=['mz', 'drift_time', 'retention_time'],
-           res=[0.01, 0.12, 1], loc=[0, 0, 0], sigma=[0.06, 0.3, 1], truncate=4, threshold=1000):
+           res=[0.01, 0.12, 1], loc=[0, 0, 0], sigma=[0.06, 0.3, 1], truncate=4, threshold=1E3):
     # safely cast to list
     by = spx.utils.safelist(by)
     res = spx.utils.safelist(res)

@@ -4,7 +4,7 @@ import spextractor as spx
 import matplotlib.pyplot as plt
 
 
-def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1000, verbosity=0):
+def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1E3, verbosity=0):
     """
     Calibrate using Agilent TuneMix.
 
