@@ -67,7 +67,6 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
                                            tol=np.array(sigma) * truncate)
 
         if subset is not None:
-
             # pull features
             intensity = subset['intensity'].max()
             if intensity > threshold:
