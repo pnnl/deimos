@@ -35,17 +35,14 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
     # reconcile with original data
     peaks = reconcile(peaks, data, features=features,
-                      sigma=sigma, truncate=truncate)
-
-    # threshold
-    peaks = peaks.loc[peaks['intensity'] > threshold, :].reset_index(drop=True)
+                      sigma=sigma, truncate=truncate, threshold=threshold)
 
     # resolve case of peaks mapping to same point
     return spx.utils.collapse(peaks, keep=features, how=np.max)
 
 
 def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
-              sigma=[0.03, 0.3, 0.04], truncate=4):
+              sigma=[0.03, 0.3, 0.04], truncate=4, threshold=1E3):
     # safely cast to list
     features = spx.utils.safelist(features)
     sigma = spx.utils.safelist(sigma)
@@ -66,8 +63,10 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
                                            tol=np.array(sigma) * truncate)
 
         # pull features
-        [res[f].append(subset.loc[subset['intensity'].idxmax(), f]) for f in features]
-        res['intensity'].append(subset['intensity'].max())
+        intensity = subset['intensity'].max()
+        if intensity > threshold:
+            [res[f].append(subset.loc[subset['intensity'].idxmax(), f]) for f in features]
+            res['intensity'].append(intensity)
 
     # resolve case of peaks mapping to same point
     return spx.utils.collapse(pd.DataFrame(res), keep=features, how=np.max)
