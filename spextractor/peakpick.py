@@ -65,7 +65,8 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
         # pull features
         intensity = subset['intensity'].max()
         if intensity > threshold:
-            [res[f].append(subset.loc[subset['intensity'].idxmax(), f]) for f in features]
+            imax = subset['intensity'].idxmax()
+            [res[f].append(subset.loc[imax, f]) for f in features]
             res['intensity'].append(intensity)
 
     # resolve case of peaks mapping to same point
