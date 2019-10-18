@@ -66,22 +66,29 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
                                            loc=row[features].values,
                                            tol=np.array(sigma) * truncate)
 
-        # pull features
-        intensity = subset['intensity'].max()
-        if intensity > threshold:
-            imax = subset['intensity'].idxmax()
-            [res[f].append(subset.loc[imax, f]) for f in features]
-            res['intensity'].append(intensity)
+        if subset is not None:
 
-            # reset count
-            count = 0
+            # pull features
+            intensity = subset['intensity'].max()
+            if intensity > threshold:
+                imax = subset['intensity'].idxmax()
+                [res[f].append(subset.loc[imax, f]) for f in features]
+                res['intensity'].append(intensity)
+
+                # reset count
+                count = 0
+
+            # count low intensity feature
+            else:
+                count += 1
 
         # count low intensity feature
         else:
             count += 1
 
         # too many successive low intensity features found
-        if count > 10:
+        if count > 100:
+            # resolve case of peaks mapping to same point
             break
 
     # resolve case of peaks mapping to same point
