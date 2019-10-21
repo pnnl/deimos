@@ -47,4 +47,6 @@ def save_mgf(data, path, charge='1+'):
             precursor_int = row['intensity']
             ms2 = row['ms2']
 
-            f.write(template.format(precursor_mz, precursor_int, charge, i, ms2.replace(';', '\n')))
+            # check for ms2 spectra
+            if not np.isnan(ms2):
+                f.write(template.format(precursor_mz, precursor_int, charge, i, ms2.replace(';', '\n')))
