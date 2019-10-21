@@ -100,7 +100,7 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
             # append
             d_centroid['ms2'].append(ms2_peaks_out)
         else:
-            d['ms2'].append(np.nan)
+            d_centroid['ms2'].append(np.nan)
 
         # save
         df = pd.DataFrame(d)
