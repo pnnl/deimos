@@ -43,6 +43,8 @@ rule ms2_untargeted:
     output:
         join('output', 'untargeted', '{id}.tsv'),
         join('output', 'untargeted', '{id}_centroid.tsv')
+    log:
+        join('output', 'logs', 'untargeted', '{id}.log')
     run:
         outdir = dirname(output[0])
 
@@ -54,7 +56,7 @@ rule ms2_untargeted:
         tfix = config['calibration'][mode]['tfix']
         beta = config['calibration'][mode]['beta']
 
-        shell('python {config[untargeted][script]} {input} {outdir} --tfix {tfix} --beta {beta}')
+        shell('python {config[untargeted][script]} {input} {outdir} --tfix {tfix} --beta {beta} > {log} 2>&1')
 
 
 rule ms2_targeted:
