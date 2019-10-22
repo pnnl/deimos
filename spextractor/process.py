@@ -4,6 +4,9 @@ from os.path import *
 import pandas as pd
 import multiprocessing as mp
 import spextractor as spx
+import time
+import numpy as np
+import dask.dataframe as dd
 
 
 def mzml2hdf(path, output):
@@ -16,26 +19,25 @@ def mzml2hdf(path, output):
         zipped = False
         f = path
 
-    # process mzml
+    # mzml file handle
     data = mzml.read(f)
 
-    # parse
+    # parse in parallel
     with mp.Pool(mp.cpu_count()) as p:
-        parsed = [x for x in p.imap(_parse, data, chunksize=5000)]
-    # parsed = [_parse(x) for x in data]
+        # df = pd.DataFrame(np.concatenate([x for x in p.imap_unordered(_parse, data, chunksize=100)]),
+        #                   columns=['retention_time', 'drift_time', 'mz', 'ms_level', 'intensity'])
+        df = pd.concat([x for x in p.imap_unordered(_parse, data, chunksize=100)], ignore_index=True)
 
     # close zip file
     if zipped:
         f.close()
 
-    # generate dataframe
-    df = pd.concat(parsed, ignore_index=True)
+    # groupby
+    df = dd.from_pandas(df, npartitions=mp.cpu_count())
+    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level']).sum().reset_index().compute()
 
-    # group
-    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level'],
-                    sort=False).sum().reset_index()
-
-    df.dropna(axis=1, how='all', inplace=True)
+    # drop missing axes
+    df = df.dropna(axis=1, how='all')
 
     # save
     spx.utils.save_hdf(df, output)
@@ -65,4 +67,20 @@ def _parse(d):
     # filter zero intensity out
     df = df.loc[df['intensity'] > 0, :]
 
+    # return df.values
     return df
+
+
+class HDFConcat:
+    def __init__(self, path):
+        self.path = path
+        self.store = pd.HDFStore(self.path)
+
+    def append(self, df):
+        self.store.append('data', df, data_columns=True)
+
+    def get(self):
+        df = self.store.select('data')
+        self.store.close()
+        os.remove(self.path)
+        return df
