@@ -48,5 +48,5 @@ def save_mgf(data, path, charge='1+'):
             ms2 = row['ms2']
 
             # check for ms2 spectra
-            if not np.isnan(ms2):
+            if ms2 is not np.nan:
                 f.write(template.format(precursor_mz, precursor_int, charge, i, ms2.replace(';', '\n')))
