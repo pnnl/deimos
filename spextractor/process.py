@@ -33,7 +33,7 @@ def mzml2hdf(path, output):
         f.close()
 
     # groupby
-    df = dd.from_pandas(df, npartitions=mp.cpu_count())
+    df = dd.from_pandas(df, npartitions=1000)
     df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level']).sum().reset_index().compute()
 
     # drop missing axes
