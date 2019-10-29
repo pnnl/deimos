@@ -8,10 +8,7 @@ import pandas as pd
 localrules: ms2mgf
 
 # infer wildcards from inputs
-AGILENT, = glob_wildcards(abspath(join('input', '{id}.d')))
-RAW, = glob_wildcards(abspath(join('input', '{id}.raw')))
-IDS = AGILENT + RAW
-IDS.sort()
+IDS, EXTS = glob_wildcards(abspath(join('input', '{id}.{ext}')))
 
 
 rule all:
@@ -19,25 +16,13 @@ rule all:
         expand(join('output', 'untargeted', '{id}_centroid.mgf'), id=IDS)
 
 
-rule agilent2mzml:
+rule msconvert:
     input:
-        join('input', '{id}.d')
+        [join('input', '{id}.{ext}').format(id=id, ext=ext) for id, ext in zip(IDS, EXTS)]
     output:
-        join('output', 'raw', '{id}.mzML.gz')
+        join('output', 'msconvert', '{id}.mzML.gz')
     log:
-        join('output', 'logs', 'agilent2mzml', '{id}.log')
-    run:
-        outdir = dirname(output[0])
-        shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g > {log} 2>&1')
-
-
-rule raw2mzml:
-    input:
-        join('input', '{id}.raw')
-    output:
-        join('output', 'raw', '{id}.mzML.gz')
-    log:
-        join('output', 'logs', 'raw2mzml', '{id}.log')
+        join('output', 'logs', 'msconvert', '{id}.log')
     run:
         outdir = dirname(output[0])
         shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g > {log} 2>&1')
@@ -45,7 +30,7 @@ rule raw2mzml:
 
 rule mzml2hdf:
     input:
-        rules.agilent2mzml.output
+        rules.msconvert.output
     output:
         join('output', 'parsed', '{id}.h5')
     run:
