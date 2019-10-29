@@ -4,7 +4,6 @@ from os.path import *
 import pandas as pd
 import multiprocessing as mp
 import spextractor as spx
-import time
 import numpy as np
 import dask.dataframe as dd
 
@@ -33,7 +32,7 @@ def mzml2hdf(path, output):
         f.close()
 
     # groupby
-    df = dd.from_pandas(df, npartitions=1000)
+    df = dd.from_pandas(df, npartitions=mp.cpu_count())
     df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level']).sum().reset_index().compute()
 
     # drop missing axes
