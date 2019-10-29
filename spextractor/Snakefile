@@ -3,12 +3,15 @@ import spextractor as spx
 import numpy as np
 from os.path import *
 import pandas as pd
+import glob
 
 
 localrules: ms2mgf
 
 # infer wildcards from inputs
-IDS, EXTS = glob_wildcards(abspath(join('input', '{id}.{ext}')))
+fns = [basename(x) for x in glob.glob(join('input', '*.*'))]
+IDS = [splitext(x)[0] for x in fns]
+lookup = {k: v for k, v in zip(IDS, fns)}
 
 
 rule all:
@@ -18,7 +21,7 @@ rule all:
 
 rule msconvert:
     input:
-        [join('input', '{id}.{ext}').format(id=id, ext=ext) for id, ext in zip(IDS, EXTS)]
+        lambda wildcards: join('input', lookup[wildcards.id])
     output:
         join('output', 'msconvert', '{id}.mzML.gz')
     log:
