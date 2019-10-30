@@ -35,6 +35,9 @@ def mzml2hdf(path, output):
     df = dd.from_pandas(df, npartitions=mp.cpu_count())
     df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level']).sum().reset_index().compute()
 
+    # replace with nan
+    df = df.replace(-1, np.nan)
+
     # drop missing axes
     df = df.dropna(axis=1, how='all')
 
@@ -46,12 +49,12 @@ def _parse(d):
     try:
         dt = [x['ion mobility drift time'] for x in d['scanList']['scan']][0]
     except:
-        dt = np.nan
+        dt = -1
 
     try:
         rt = [x['scan start time'] for x in d['scanList']['scan']][0]
     except:
-        rt = np.nan
+        rt = -1
 
     df = pd.DataFrame(data={'mz': d['m/z array'], 'intensity': d['intensity array']})
 
