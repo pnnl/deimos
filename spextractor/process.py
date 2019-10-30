@@ -61,8 +61,8 @@ def _parse(d):
     # precursor info
     try:
         precursor = d['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]
-        pre_int = precursor['selected ion m/z']
-        pre_mz = precursor['peak intensity']
+        pre_mz = precursor['selected ion m/z']
+        pre_int = precursor['peak intensity']
     except:
         pre_mz = -1
         pre_int = -1
