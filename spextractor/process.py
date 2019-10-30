@@ -25,7 +25,7 @@ def mzml2hdf(path, output):
     with mp.Pool(mp.cpu_count()) as p:
         # df = pd.DataFrame(np.concatenate([x for x in p.imap_unordered(_parse, data, chunksize=100)]),
         #                   columns=['retention_time', 'drift_time', 'mz', 'ms_level', 'intensity'])
-        df = pd.concat([x for x in p.imap_unordered(_parse, data, chunksize=100)], ignore_index=True)
+        df = pd.concat([x for x in p.imap_unordered(_parse, data, chunksize=1000)], ignore_index=True)
 
     # close zip file
     if zipped:
@@ -33,7 +33,7 @@ def mzml2hdf(path, output):
 
     # groupby
     df = dd.from_pandas(df, npartitions=mp.cpu_count())
-    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level']).sum().reset_index().compute()
+    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level', 'precursor_mz']).sum().reset_index().compute()
 
     # replace with nan
     df = df.replace(-1, np.nan)
@@ -46,24 +46,37 @@ def mzml2hdf(path, output):
 
 
 def _parse(d):
+    # drift time
     try:
-        dt = [x['ion mobility drift time'] for x in d['scanList']['scan']][0]
+        dt =  d['scanList']['scan'][0]['ion mobility drift time']
     except:
         dt = -1
 
+    # retention time
     try:
-        rt = [x['scan start time'] for x in d['scanList']['scan']][0]
+        rt = d['scanList']['scan'][0]['scan start time']
     except:
         rt = -1
+
+    # precursor info
+    try:
+        precursor = d['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]
+        pre_int = precursor['selected ion m/z']
+        pre_mz = precursor['peak intensity']
+    except:
+        pre_mz = -1
+        pre_int = -1
 
     df = pd.DataFrame(data={'mz': d['m/z array'], 'intensity': d['intensity array']})
 
     df['ms_level'] = d['ms level']
     df['drift_time'] = dt
     df['retention_time'] = rt
+    df['mz_precursor'] = pre_mz
+    df['intensity_precursor'] = pre_int
 
     # group
-    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level'],
+    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level', 'mz_precursor'],
                     sort=False).sum().reset_index()
 
     # filter zero intensity out
