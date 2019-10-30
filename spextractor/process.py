@@ -33,7 +33,7 @@ def mzml2hdf(path, output):
 
     # groupby
     df = dd.from_pandas(df, npartitions=mp.cpu_count())
-    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level', 'precursor_mz']).sum().reset_index().compute()
+    df = df.groupby(by=['retention_time', 'drift_time', 'mz', 'ms_level', 'mz_precursor']).sum().reset_index().compute()
 
     # replace with nan
     df = df.replace(-1, np.nan)
