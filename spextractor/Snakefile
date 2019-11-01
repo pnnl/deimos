@@ -59,7 +59,7 @@ rule ms2_untargeted:
         tfix = config['calibration'][mode]['tfix']
         beta = config['calibration'][mode]['beta']
 
-        shell('python {config[untargeted][script]} {input} {outdir} --tfix {tfix} --beta {beta} > {log} 2>&1')
+        shell('python {config[untargeted][script]} {input} {outdir} --ms2-thresh 0 --tfix {tfix} --beta {beta} > {log} 2>&1')
 
 
 rule ms2_targeted:
