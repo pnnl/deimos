@@ -3,17 +3,44 @@ import pandas as pd
 import numpy as np
 
 
+dtypes = {'mz': np.float32,
+          'intensity': np.uint32,
+          'retention_time': np.float32,
+          'drift_time': np.float32,
+          'ms_level': np.uint8}
+
+
+def dtype(k):
+    if k in dtypes.keys():
+        return dtypes[k]
+    else:
+        return np.float32
+
+
 def save_hdf(df, path, compression_level=5):
+    idx = np.array(df['ms_level'] == 1)
     with h5py.File(path, 'w') as f:
+        for level in ['ms1', 'ms2']:
+            f.create_group(level)
+
         for c in df.columns:
-            f.create_dataset(c, data=df[c].values,
-                             compression="gzip",
-                             compression_opts=compression_level)
+            if c == 'ms_level':
+                pass
+            else:
+                f['ms1'].create_dataset(c, data=df.loc[idx, c].values,
+                                        dtype=dtype(c),
+                                        compression="gzip",
+                                        compression_opts=compression_level)
+                f['ms2'].create_dataset(c, data=df.loc[~idx, c].values,
+                                        dtype=dtype(c),
+                                        compression="gzip",
+                                        compression_opts=compression_level)
 
 
-def load_hdf(path):
+def load_hdf(path, level='ms1'):
     with h5py.File(path, 'r') as f:
-        return pd.DataFrame({k: np.array(f[k]) for k in list(f.keys())})
+        g = f[level]
+        return pd.DataFrame({k: g[k] for k in list(g.keys())})
 
 
 def safelist(x):
