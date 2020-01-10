@@ -27,19 +27,3 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
 
     # no data
     return None
-
-
-if __name__ == '__main__':
-    import numpy as np
-    import time
-
-    data = pd.DataFrame(np.random.rand(10000, 4), columns=['mz', 'drift_time', 'retention_time', 'intensity'])
-    loc = [0.5, 0.5, 0.5]
-    tol = [0.1, 0.1, 0.1]
-
-    start = time.time()
-
-    find_feature(data, loc=loc, tol=tol)
-
-    stop = time.time()
-    print(stop - start)
