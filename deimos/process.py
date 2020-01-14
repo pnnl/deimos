@@ -3,7 +3,7 @@ import gzip
 from os.path import *
 import pandas as pd
 import multiprocessing as mp
-import spextractor as spx
+import deimos
 import numpy as np
 
 
@@ -35,13 +35,13 @@ def mzml2hdf(path, output):
     df = df.dropna(axis=1, how='all')
 
     # save
-    spx.utils.save_hdf(df, output)
+    deimos.utils.save_hdf(df, output)
 
 
 def _parse(d):
     # drift time
     try:
-        dt =  d['scanList']['scan'][0]['ion mobility drift time']
+        dt = d['scanList']['scan'][0]['ion mobility drift time']
     except:
         dt = -1
 

@@ -1,21 +1,21 @@
 import numpy as np
 import scipy.ndimage as ndi
-import spextractor as spx
+import deimos
 import pandas as pd
 
 
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.01, 0.12, 0.05], sigma=[0.03, 0.3, 0.04], truncate=4, threshold=1E3):
     # safely cast to list
-    features = spx.utils.safelist(features)
-    res = spx.utils.safelist(res)
-    sigma = spx.utils.safelist(sigma)
+    features = deimos.utils.safelist(features)
+    res = deimos.utils.safelist(res)
+    sigma = deimos.utils.safelist(sigma)
 
     # check dims
-    spx.utils.check_length([features, res, sigma])
+    deimos.utils.check_length([features, res, sigma])
 
     # grid data
-    edges, H = spx.grid.data2grid(data, features=features, res=res)
+    edges, H = deimos.grid.data2grid(data, features=features, res=res)
 
     # sigma in terms of n points
     points = [int(s / r) for s, r in zip(sigma, res)]
@@ -28,7 +28,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     peaks = non_maximum_suppression(corr, footprint)
 
     # convert to dataframe
-    peaks = spx.grid.grid2df(edges, peaks, features=features)
+    peaks = deimos.grid.grid2df(edges, peaks, features=features)
 
     # threshold
     peaks = peaks.loc[peaks['intensity'] > threshold, :]
@@ -38,17 +38,17 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
                       sigma=sigma, truncate=truncate, threshold=threshold)
 
     # resolve case of peaks mapping to same point
-    return spx.utils.collapse(peaks, keep=features, how=np.max)
+    return deimos.utils.collapse(peaks, keep=features, how=np.max)
 
 
 def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
               sigma=[0.03, 0.3, 0.04], truncate=4, threshold=1E3):
     # safely cast to list
-    features = spx.utils.safelist(features)
-    sigma = spx.utils.safelist(sigma)
+    features = deimos.utils.safelist(features)
+    sigma = deimos.utils.safelist(sigma)
 
     # check dims
-    spx.utils.check_length([features, sigma])
+    deimos.utils.check_length([features, sigma])
 
     # build containers
     res = {k: [] for k in features}
@@ -61,10 +61,10 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
     count = 0
     for idx, row in peaks.iterrows():
         # targeted search
-        subset = spx.targeted.find_feature(data_,
-                                           by=features,
-                                           loc=row[features].values,
-                                           tol=np.array(sigma) * truncate)
+        subset = deimos.targeted.find_feature(data_,
+                                              by=features,
+                                              loc=row[features].values,
+                                              tol=np.array(sigma) * truncate)
 
         if subset is not None:
             # pull features
@@ -91,7 +91,7 @@ def reconcile(peaks, data, features=['mz', 'drift_time', 'retention_time'],
             break
 
     # resolve case of peaks mapping to same point
-    return spx.utils.collapse(pd.DataFrame(res), keep=features, how=np.max)
+    return deimos.utils.collapse(pd.DataFrame(res), keep=features, how=np.max)
 
 
 def non_maximum_suppression(ndarray, size):
@@ -109,19 +109,19 @@ def matched_filter(ndarray, size):
 def guided(data, by=['mz', 'drift_time', 'retention_time'],
            res=[0.01, 0.12, 1], loc=[0, 0, 0], sigma=[0.06, 0.3, 1], truncate=4, threshold=1E3):
     # safely cast to list
-    by = spx.utils.safelist(by)
-    res = spx.utils.safelist(res)
-    loc = spx.utils.safelist(loc)
-    sigma = spx.utils.safelist(sigma)
+    by = deimos.utils.safelist(by)
+    res = deimos.utils.safelist(res)
+    loc = deimos.utils.safelist(loc)
+    sigma = deimos.utils.safelist(sigma)
 
     # check dims
-    spx.utils.check_length([by, res, loc, sigma])
+    deimos.utils.check_length([by, res, loc, sigma])
 
     # targeted search
-    subset = spx.targeted.find_feature(data,
-                                       by=by,
-                                       loc=loc,
-                                       tol=np.array(sigma) * truncate)
+    subset = deimos.targeted.find_feature(data,
+                                          by=by,
+                                          loc=loc,
+                                          tol=np.array(sigma) * truncate)
 
     # if no data found
     if subset is None:

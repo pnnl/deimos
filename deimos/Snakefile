@@ -1,5 +1,5 @@
 from os.path import *
-import spextractor as spx
+import deimos
 import numpy as np
 from os.path import *
 import pandas as pd
@@ -37,7 +37,7 @@ rule mzml2hdf:
     output:
         join('output', 'parsed', '{id}.h5')
     run:
-        spx.process.mzml2hdf(input[0], output[0])
+        deimos.process.mzml2hdf(input[0], output[0])
 
 
 rule ms2_untargeted:
@@ -93,4 +93,4 @@ rule ms2mgf:
             charge = '1+'
 
         data = pd.read_csv(input[0], sep='\t')
-        spx.utils.save_mgf(data, output[0], charge=charge)
+        deimos.utils.save_mgf(data, output[0], charge=charge)

@@ -1,2 +1,2 @@
-# spextractor
-Spectrum extractor workflow for Agilient binaries
+# DEIMoS
+Data Extraction for Integrated Multidimensional Spectrometry

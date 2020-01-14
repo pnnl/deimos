@@ -1,6 +1,6 @@
 from scipy.stats import linregress
 import numpy as np
-import spextractor as spx
+import deimos
 import matplotlib.pyplot as plt
 
 
@@ -32,17 +32,17 @@ def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1E3, verbosity=0):
     calibration :  ArrivalTimeCalibration instance
         Calibration result.
     """
-    data = spx.utils.load_hdf(path)
+    data = deimos.utils.load_hdf(path)
     measurements = {'mz': [],
                     'ccs': [],
                     'q': [],
                     'ta': []}
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
         # find peak by mz
-        peaks = spx.peakpick.guided(data,
-                                    mz=mz_i,
-                                    mz_tol=mz_tol,
-                                    threshold=threshold)
+        peaks = deimos.peakpick.guided(data,
+                                       mz=mz_i,
+                                       mz_tol=mz_tol,
+                                       threshold=threshold)
 
         if peaks is not None:
             peak = peaks.loc[0, :]
@@ -61,7 +61,7 @@ def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1E3, verbosity=0):
                 print('experimental ta:\t', ta_exp)
                 print()
             if verbosity > 1:
-                spx.plot.fill_between(peak['drift_time'], peak['intensity'])
+                deimos.plot.fill_between(peak['drift_time'], peak['intensity'])
                 plt.show()
         else:
             if verbosity > 0:

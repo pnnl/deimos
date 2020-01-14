@@ -1,4 +1,4 @@
-import spextractor as spx
+import deimos
 from os.path import *
 import os
 import matplotlib.pyplot as plt
@@ -16,17 +16,17 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
         os.makedirs(output_path)
 
     # load
-    data = spx.utils.load_hdf(exp_path)
+    data = deimos.utils.load_hdf(exp_path)
 
     # select ms1
     ms1 = data.loc[data['ms_level'] == 1, :].drop('ms_level', axis=1)
 
     # collapse
-    ms1 = spx.utils.collapse(ms1, keep=['mz', 'drift_time'], how=np.sum)
+    ms1 = deimos.utils.collapse(ms1, keep=['mz', 'drift_time'], how=np.sum)
 
     # find features
-    ms1 = spx.peakpick.auto(ms1, features=['mz', 'drift_time'],
-                            res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=ms1_threshold)
+    ms1 = deimos.peakpick.auto(ms1, features=['mz', 'drift_time'],
+                               res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=ms1_threshold)
 
     # sort by intensity
     ms1 = ms1.sort_values(by='intensity', ascending=False)
@@ -34,7 +34,7 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
     # ccs
     if (beta is not None) and (tfix is not None):
         # calibrate
-        c = spx.calibrate.ArrivalTimeCalibration()
+        c = deimos.calibrate.ArrivalTimeCalibration()
         c.calibrate(tfix=tfix, beta=beta)
 
         # apply
@@ -46,11 +46,11 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
     # check if ms2 present
     if len(ms2.index) > 1:
         # collapse
-        ms2 = spx.utils.collapse(ms2, keep=['mz', 'drift_time'], how=np.sum)
+        ms2 = deimos.utils.collapse(ms2, keep=['mz', 'drift_time'], how=np.sum)
 
         # peakpick
-        ms2_peaks = spx.peakpick.auto(ms2, features=['mz', 'drift_time'],
-                                      res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=ms2_threshold)
+        ms2_peaks = deimos.peakpick.auto(ms2, features=['mz', 'drift_time'],
+                                         res=[0.01, 0.12], sigma=[0.03, 0.3], truncate=4, threshold=ms2_threshold)
 
     # no ms2 present
     else:
@@ -66,14 +66,14 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
         # iterate ms1 peaks
         for idx, peak in ms1.iterrows():
             # extract ms2
-            ms2_subset = spx.targeted.find_feature(ms2,
-                                                   by='drift_time',
-                                                   loc=peak['drift_time'],
-                                                   tol=4 * 0.3)
+            ms2_subset = deimos.targeted.find_feature(ms2,
+                                                      by='drift_time',
+                                                      loc=peak['drift_time'],
+                                                      tol=4 * 0.3)
             # ms2 features
             if ms2_subset is not None:
                 # collapse to mz
-                ms2_mz = spx.utils.collapse(ms2_subset, keep='mz', how=np.sum)
+                ms2_mz = deimos.utils.collapse(ms2_subset, keep='mz', how=np.sum)
 
                 # filter
                 ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > ms2_threshold) & (ms2_mz['mz'] <= peak['mz'] + 10), :].sort_values(by='mz')
@@ -89,15 +89,15 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
                 ms2_list.append(np.nan)
 
             # extract centroid ms2
-            ms2_peaks_subset = spx.targeted.find_feature(ms2_peaks,
-                                                         by='drift_time',
-                                                         loc=peak['drift_time'],
-                                                         tol=4 * 0.3)
+            ms2_peaks_subset = deimos.targeted.find_feature(ms2_peaks,
+                                                            by='drift_time',
+                                                            loc=peak['drift_time'],
+                                                            tol=4 * 0.3)
 
             # ms2 centroid features
             if ms2_peaks_subset is not None:
                 # collapse to mz
-                ms2_peaks_mz = spx.utils.collapse(ms2_peaks_subset, keep='mz', how=np.sum)
+                ms2_peaks_mz = deimos.utils.collapse(ms2_peaks_subset, keep='mz', how=np.sum)
 
                 # filter
                 ms2_peaks_out = ms2_peaks_mz.loc[ms2_peaks_mz['mz'] <= peak['mz'] + 10, :].sort_values(by='mz')
@@ -125,8 +125,8 @@ def main(exp_path, output_path, beta, tfix, ms1_threshold, ms2_threshold):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='SpExtractor: target MS2 extraction script.')
-    parser.add_argument('-v', '--version', action='version', version=spx.__version__, help='print version and exit')
+    parser = argparse.ArgumentParser(description='DEIMoS: untargeted MS2 extraction script.')
+    parser.add_argument('-v', '--version', action='version', version=deimos.__version__, help='print version and exit')
     parser.add_argument('data', type=str, help='path to input .h5 file containing spectral data (str)')
     parser.add_argument('output', type=str, help='path to output folder (str)')
     parser.add_argument('--beta', type=float,

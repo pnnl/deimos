@@ -1,12 +1,12 @@
 import argparse
-from spextractor import __version__
+from deimos import __version__
 from multiprocessing import cpu_count
 from snakemake import snakemake
 from pkg_resources import resource_filename
 
 
 def main():
-    parser = argparse.ArgumentParser(description='spectrum extractor')
+    parser = argparse.ArgumentParser(description='DEIMoS: Data Extraction for Integrated Multidimensional Spectrometry')
     parser.add_argument('-v', '--version', action='version', version=__version__, help='print version and exit')
     parser.add_argument('--config', metavar='PATH', default='config.yaml', help='path to yaml configuration file')
     parser.add_argument('--dryrun', action='store_true', help='perform a dry run')
@@ -41,7 +41,7 @@ def main():
     else:
         cluster = None
 
-    snakemake(resource_filename('spextractor', 'Snakefile'),
+    snakemake(resource_filename('deimos', 'Snakefile'),
               configfile=args.config,
               config=config,
               cluster_config=args.cluster,

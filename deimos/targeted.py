@@ -1,4 +1,4 @@
-from spextractor.utils import safelist, check_length
+from deimos.utils import safelist, check_length
 import pandas as pd
 
 

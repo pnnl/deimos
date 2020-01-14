@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tick
 import numpy as np
-import spextractor as spx
+import deimos
 import pandas as pd
 from scipy.interpolate import griddata
 
@@ -78,7 +78,7 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
 def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, log=False, cmap='gray_r',
          ticks=4, ax=None, dpi=600):
     # safely cast to list
-    features = spx.utils.safelist(features)
+    features = deimos.utils.safelist(features)
 
     # check dims
     if len(features) != 2:

@@ -1,4 +1,4 @@
-import spextractor as spx
+import deimos
 from os.path import *
 import os
 import matplotlib.pyplot as plt
@@ -24,13 +24,13 @@ def main(exp_path, output_path, targets_path, mode,
         adducts = {'-H': -1.00784}
 
     # load data
-    df = spx.utils.load_hdf(exp_path)
+    df = deimos.utils.load_hdf(exp_path)
 
     # load features
     targets = pd.read_excel(targets_path, sheet_name='measuredLibrary')
 
     # calibrate
-    c = spx.calibrate.ArrivalTimeCalibration()
+    c = deimos.calibrate.ArrivalTimeCalibration()
     c.calibrate(tfix=tfix, beta=beta)
 
     # split by ms level
@@ -46,9 +46,9 @@ def main(exp_path, output_path, targets_path, mode,
             mz_i = row['Exact Mass'] + adduct_mass
 
             # ms1 guided peakpicking
-            ms1_subset = spx.targeted.find_feature(ms1, by='mz', loc=mz_i, tol=mz_tol)
-            ms1_peaks = spx.peakpick.auto(ms1_subset, features=['mz', 'drift_time'],
-                                          res=[0.01, 0.12], sigma=[0.03, 0.3])
+            ms1_subset = deimos.targeted.find_feature(ms1, by='mz', loc=mz_i, tol=mz_tol)
+            ms1_peaks = deimos.peakpick.auto(ms1_subset, features=['mz', 'drift_time'],
+                                             res=[0.01, 0.12], sigma=[0.03, 0.3])
 
             # iterate through peaks
             if ms1_peaks is not None:
@@ -60,12 +60,12 @@ def main(exp_path, output_path, targets_path, mode,
 
                     # extract ms2
                     # extract ms2
-                    ms2 = spx.targeted.find_feature(data['ms2'], by='drift_time',
-                                                    loc=dt_exp,
-                                                    tol=4 * 0.3)
+                    ms2 = deimos.targeted.find_feature(data['ms2'], by='drift_time',
+                                                       loc=dt_exp,
+                                                       tol=4 * 0.3)
 
                     if ms2 is not None:
-                        ms2_mz = spx.utils.collapse(ms2, by='mz', how=np.sum)
+                        ms2_mz = deimos.utils.collapse(ms2, by='mz', how=np.sum)
 
                         # sort
                         ms2_out = ms2_mz.loc[(ms2_mz['intensity'] > threshold) & (ms2_mz['mz'] <= mz_i + 10), :].sort_values(by='mz')
@@ -87,8 +87,8 @@ def main(exp_path, output_path, targets_path, mode,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='SpExtractor: target MS2 extraction script.')
-    parser.add_argument('-v', '--version', action='version', version=spx.__version__, help='print version and exit')
+    parser = argparse.ArgumentParser(description='DEIMoS: target MS2 extraction script.')
+    parser.add_argument('-v', '--version', action='version', version=deimos.__version__, help='print version and exit')
     parser.add_argument('data', type=str, help='path to input .h5 file containing spectral data (str)')
     parser.add_argument('output', type=str, help='path to output folder (str)')
     parser.add_argument('targets', type=str, help='path to input .xlsx spreadsheet containing targets (str)')

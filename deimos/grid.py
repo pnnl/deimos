@@ -1,7 +1,7 @@
 from scipy import stats
 import numpy as np
 import pandas as pd
-from spextractor.utils import safelist, check_length
+from deimos.utils import safelist, check_length
 
 
 def data2grid(data, features=['mz', 'drift_time', 'retention_time'],
