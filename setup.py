@@ -13,7 +13,7 @@ setup(
     url='https://github.com/pnnl/deimos',
     packages=pkgs,
     entry_points={
-        'console_scripts': ['spx = deimos.cli:main']
+        'console_scripts': ['deimos = deimos.cli:main']
     },
     package_data={'': ['Snakefile']},
     include_package_data=True
