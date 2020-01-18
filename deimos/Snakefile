@@ -40,6 +40,40 @@ rule mzml2hdf:
         deimos.process.mzml2hdf(input[0], output[0])
 
 
+# rule peak_picking:
+    # if we want to use peaks to align
+
+
+# rule alignment:
+    # do stuff
+    # homography approaches
+    # match filter (smooth first?)
+
+    # pseudo 3D
+    # m/z - rt
+    # m/z - dt
+    # dt - rt
+
+
+# rule peak_picking2:
+    # if we didn't do it already
+    # minimal threshold
+
+
+# rule deisotoping:
+    # look for isotopes in data and collapse
+
+
+# send off for stats analysis
+# statistically significant changes in features
+
+
+# rule deconvolution:
+    # pull ms1, identify peaks
+    # pull ms2, identify peaks
+    # match ms1 to ms2 based on separation dimensions only
+
+
 rule ms2_untargeted:
     input:
         rules.mzml2hdf.output
