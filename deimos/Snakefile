@@ -37,7 +37,7 @@ rule mzml2hdf:
     output:
         join('output', 'parsed', '{id}.h5')
     run:
-        deimos.process.mzml2hdf(input[0], output[0])
+        deimos.utils.save_hdf(deimos.utils.read_mzml(input[0]), output[0])
 
 
 # rule peak_picking:
