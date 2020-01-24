@@ -47,7 +47,7 @@ def save_hdf(path, data, dtype={}, compression_level=5):
         for level in data.keys():
             f.create_group(level)
             for c in data[level].columns:
-                if c not in dtypes.keys():
+                if c not in dtype.keys():
                     dtype[c] = np.float32
 
                 f[level].create_dataset(c, data=data[level][c].values,
