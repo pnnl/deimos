@@ -2,7 +2,6 @@ import h5py
 import pandas as pd
 import numpy as np
 import pymzml
-from os.path import *
 from collections import OrderedDict, defaultdict
 
 
