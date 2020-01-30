@@ -27,9 +27,6 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
         arr[:, 0] = spec.mz
         arr[:, 1] = spec.i
 
-        # drop
-        arr = arr[np.where(arr[:, 1] > 0)]
-
         for i, (k, v) in enumerate(accession.items()):
             cols.append(k)
             arr[:, 2 + i] = spec.get(v)
