@@ -14,7 +14,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     deimos.utils.check_length([features, res, sigma])
 
     # grid data
-    edges, H = deimos.grid.data2grid(data, features=features, res=res)
+    edges, H = deimos.grid.data2grid(data, features=features)
 
     # sigma in terms of n points
     points = [s / r for s, r in zip(sigma, res)]
