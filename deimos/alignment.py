@@ -5,9 +5,12 @@ import deimos
 
 
 class Aligner(OrderedDict):
-    def apply(self, data):
+    def apply(self, data, inverse=False):
         for k, v in self.items():
-            data[k] = v.slope * data[k] + v.intercept
+            if inverse:
+                data[k] = (data[k] - v.intercept) / v.slope
+            else:
+                data[k] = v.slope * data[k] + v.intercept
 
         return data
 
