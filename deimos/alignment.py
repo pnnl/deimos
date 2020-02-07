@@ -47,7 +47,7 @@ def proximity_screen(data, features=['mz', 'drift_time', 'retention_time'], tol=
     return data.iloc[idx, :].reset_index(drop=True)
 
 
-def compute(a, b, features=['mz', 'drift_time', 'retention_time'], tol=[10E-6, 0.2, 0.11]):
+def match_features(a, b, features=['mz', 'drift_time', 'retention_time'], tol=[10E-6, 0.2, 0.11]):
     # safely cast to list
     features = deimos.utils.safelist(features)
     tol = deimos.utils.safelist(tol)
@@ -92,9 +92,13 @@ def compute(a, b, features=['mz', 'drift_time', 'retention_time'], tol=[10E-6, 0
     a = a.iloc[ii].reset_index(drop=True)
     b = b.iloc[jj].reset_index(drop=True)
 
+    return a, b
+
+
+def fit(a, b, features=['mz', 'drift_time', 'retention_time']):
     # perform regressions
     res = Aligner()
     for f in features:
         res[f] = scipy.stats.linregress(a[f].values, b[f].values)
 
-    return ii, jj, res
+    return res
