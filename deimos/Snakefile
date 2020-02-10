@@ -6,11 +6,9 @@ import pandas as pd
 import glob
 
 
-localrules: ms2mgf
-
 # infer wildcards from inputs
 fns = [basename(x) for x in glob.glob(join('input', '*.*'))]
-IDS = [splitext(x)[0] for x in fns]
+IDS = [splitext(splitext(x)[0])[0] for x in fns]
 lookup = {k: v for k, v in zip(IDS, fns)}
 
 
