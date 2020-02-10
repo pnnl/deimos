@@ -8,7 +8,7 @@ from functools import partial
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
          sigma=[0.004, 0.2, 0.11], truncate=4, threshold=1E3,
-         split_on='mz', partitions=500, overlap=1.0, processes=mp.cpu_count()):
+         split_on='mz', partitions=500, overlap=0.05, processes=mp.cpu_count()):
 
     # safely cast to list
     features = deimos.utils.safelist(features)
@@ -41,18 +41,18 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
         # first partition
         if i < 1:
-            b = b - overlap // 2
+            b = b - overlap / 2
 
         # middle partitions
         elif i < len(peaks) - 1:
-            a = a + overlap // 2
-            b = b - overlap // 2
+            a = a + overlap / 2
+            b = b - overlap / 2
 
         # last partition
         else:
-            a = a + overlap // 2
+            a = a + overlap / 2
 
-        peaks[i] = deimos.targeted.slice(peaks, by=split_on, low=a, high=b)
+        peaks[i] = deimos.targeted.slice(peaks[i], by=split_on, low=a, high=b)
 
     # combine partitions
     peaks = pd.concat(peaks).reset_index(drop=True)
@@ -66,6 +66,8 @@ def _run(data, features=['mz', 'drift_time', 'retention_time'],
 
     # grid data
     edges, H = deimos.grid.data2grid(data, features=features)
+
+    print(H.shape)
 
     # sigma in terms of n points
     points = [s / r for s, r in zip(sigma, res)]
