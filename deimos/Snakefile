@@ -16,115 +16,26 @@ lookup = {k: v for k, v in zip(IDS, fns)}
 
 rule all:
     input:
-        expand(join('output', 'untargeted', '{id}_centroid.mgf'), id=IDS)
-
-
-rule msconvert:
-    input:
-        lambda wildcards: join('input', lookup[wildcards.id])
-    output:
-        join('output', 'msconvert', '{id}.mzML.gz')
-    log:
-        join('output', 'logs', 'msconvert', '{id}.log')
-    run:
-        outdir = dirname(output[0])
-        shell('msconvert.exe {input} -o {outdir} --32 --mz32 --inten32 -z -g > {log} 2>&1')
+        expand(join('output', 'peakpick', '{id}_ms1_peaks.h5'), id=IDS)
 
 
 rule mzml2hdf:
     input:
-        rules.msconvert.output
+        lambda wildcards: join('input', lookup[wildcards.id])
     output:
         join('output', 'parsed', '{id}.h5')
     run:
-        deimos.utils.save_hdf(deimos.utils.read_mzml(input[0]), output[0])
+        data = deimos.utils.read_mzml(input[0], accession={'drift_time': 'MS:1002476',
+                                                           'retention_time': 'MS:1000016'})
+        deimos.utils.save_hdf(output[0], data)
 
 
-# rule peak_picking:
-    # if we want to use peaks to align
-
-
-# rule alignment:
-    # do stuff
-    # homography approaches
-    # match filter (smooth first?)
-
-    # pseudo 3D
-    # m/z - rt
-    # m/z - dt
-    # dt - rt
-
-
-# rule peak_picking2:
-    # if we didn't do it already
-    # minimal threshold
-
-
-# rule deisotoping:
-    # look for isotopes in data and collapse
-
-
-# send off for stats analysis
-# statistically significant changes in features
-
-
-# rule deconvolution:
-    # pull ms1, identify peaks
-    # pull ms2, identify peaks
-    # match ms1 to ms2 based on separation dimensions only
-
-
-rule ms2_untargeted:
+rule peakpick_ms1:
     input:
         rules.mzml2hdf.output
     output:
-        join('output', 'untargeted', '{id}.tsv'),
-        join('output', 'untargeted', '{id}_centroid.tsv')
-    log:
-        join('output', 'logs', 'untargeted', '{id}.log')
+        join('output', 'peakpick', '{id}_ms1_peaks.h5')
     run:
-        outdir = dirname(output[0])
-
-        if 'neg' in output[0].lower():
-            mode = 'neg'
-        else:
-            mode = 'pos'
-
-        tfix = config['calibration'][mode]['tfix']
-        beta = config['calibration'][mode]['beta']
-
-        shell('python {config[untargeted][script]} {input} {outdir} --ms2-thresh 0 --tfix {tfix} --beta {beta} > {log} 2>&1')
-
-
-rule ms2_targeted:
-    input:
-        rules.mzml2hdf.output
-    output:
-        join('output', 'targeted', '{id}.tsv')
-    run:
-        outdir = dirname(output[0])
-
-        if 'neg' in output[0].lower():
-            mode = 'neg'
-        else:
-            mode = 'pos'
-
-        tfix = config['calibration'][mode]['tfix']
-        beta = config['calibration'][mode]['beta']
-
-        shell('python {config[targeted][script]} {input} {outdir} {config[targeted][targets]} \
-               --mode {mode} --tfix {tfix} --beta {beta}')
-
-rule ms2mgf:
-    input:
-        rules.ms2_untargeted.output[1]
-    output:
-        join('output', 'untargeted', '{id}_centroid.mgf')
-    run:
-        if 'neg' in output[0].lower():
-            charge = '1-'
-        else:
-            charge = '1+'
-
-        data = pd.read_csv(input[0], sep='\t')
-        deimos.utils.save_mgf(data, output[0], charge=charge)
+        data = deimos.utils.load_hdf(input[0], level='ms1')
+        peaks = deimos.peakpick.auto(data)
+        deimos.utils.save_hdf(output[0], {'ms1': peaks})
