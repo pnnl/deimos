@@ -67,8 +67,6 @@ def _run(data, features=['mz', 'drift_time', 'retention_time'],
     # grid data
     edges, H = deimos.grid.data2grid(data, features=features)
 
-    print(H.shape)
-
     # sigma in terms of n points
     points = [s / r for s, r in zip(sigma, res)]
 
