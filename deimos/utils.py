@@ -75,6 +75,12 @@ def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
     return data.groupby(by=keep, as_index=False, sort=False).agg({'intensity': how})
 
 
+def detect_features(data):
+    features = list(data.columns)
+    features.remove('intensity')
+    return features
+
+
 def save_mgf(data, path, charge='1+'):
     template = ('BEGIN IONS\n'
                 'PEPMASS={} {}\n'
