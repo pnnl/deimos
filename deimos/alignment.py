@@ -2,6 +2,7 @@ import scipy
 import numpy as np
 from collections import OrderedDict
 import deimos
+import pandas as pd
 
 
 class Aligner(OrderedDict):
@@ -108,9 +109,26 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'], tol=[1
 
 
 def fit(a, b, features=['mz', 'drift_time', 'retention_time']):
+    # safely cast to list
+    features = deimos.utils.safelist(features)
+
     # perform regressions
     res = Aligner()
     for f in features:
         res[f] = scipy.stats.linregress(a[f].values, b[f].values)
 
+    return res
+
+
+def internal_standards(data, masses, tol=0.02):
+    res = []
+    features = deimos.utils.detect_features(data)
+
+    for m in masses:
+        tmp = deimos.targeted.find_feature(data, by='mz', loc=m, tol=tol)
+        if tmp is not None:
+            res.append(tmp)
+
+    res = pd.concat(res).reset_index(drop=True)
+    res = deimos.utils.collapse(res, keep=features)
     return res
