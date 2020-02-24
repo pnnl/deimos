@@ -14,6 +14,18 @@ class Aligner(OrderedDict):
 
         return data
 
+    def __repr__(self):
+        s = ''
+        for k, v in self.items():
+            s += k + ':\n'
+            s += '\tslope:\t\t{}\n'.format(v.slope)
+            s += '\tintercept:\t{}\n'.format(v.intercept)
+            s += '\tr-value:\t{}\n'.format(v.rvalue)
+            s += '\tp-value:\t{}\n'.format(v.pvalue)
+            s += '\tstderr:\t\t{}\n'.format(v.stderr)
+
+        return s[:-2]
+
 
 def proximity_screen(data, features=['mz', 'drift_time', 'retention_time'], tol=[10E-6, 0.2, 0.11]):
     # safely cast to list
