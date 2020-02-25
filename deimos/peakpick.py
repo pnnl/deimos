@@ -9,6 +9,44 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
          sigma=[0.004, 0.2, 0.11], truncate=4, threshold=1E3,
          split_on='mz', partitions=500, overlap=0.05, processes=mp.cpu_count()):
+    """
+    Performs N-dimensional peak detection through partitioned matched filtering
+    and local non-maximum supression based on prototypical peak characteristics
+    in each dimension.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    features : str or list
+        Feature dimensions to perform peak detection in
+        (omitted dimensions will be collapsed and summed accross)..
+    res : float or list
+        Acquisition resolution in each dimension.
+    sigma : float or list
+        Width of a prototypical peak in each dimension.
+    truncate : int
+        Number of sigmas on either side of a peak considered
+        during local non-maximum suppression.
+    threshold : float
+        Filter resulting peaks by intensity threshold.
+    split_on : str
+        Dimension to partition the data to reduce memory footprint.
+    partitions : int
+        Number of partitions used (larger numbers reduce memory footprint
+        but increase computation time).
+    overlap : float
+        Amount of overlap between partitions to ameliorate edge effects.
+    processes : int
+        Number of partitions run in parallel processes (more processes
+        increases memory footprint but decreases computation time).
+
+    Returns
+    -------
+    peaks : DataFrame
+        Coordinates of detected peaks and associated apex intensitites.
+
+    """
 
     # safely cast to list
     features = deimos.utils.safelist(features)
@@ -63,6 +101,32 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 def _run(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
          sigma=[0.004, 0.2, 0.11], truncate=4, threshold=1E3):
+    """
+    Helper function to perform peak detection on a single partition.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    features : str or list
+        Feature dimensions to perform peak detection in
+        (omitted dimensions will be collapsed and summed accross)..
+    res : float or list
+        Acquisition resolution in each dimension.
+    sigma : float or list
+        Width of a prototypical peak in each dimension.
+    truncate : int
+        Number of sigmas on either side of a peak considered
+        during local non-maximum suppression.
+    threshold : float
+        Filter resulting peaks by intensity threshold.
+
+    Returns
+    -------
+    peaks : DataFrame
+        Coordinates of detected peaks and associated apex intensitites.
+
+    """
 
     # grid data
     edges, H = deimos.grid.data2grid(data, features=features)
@@ -77,13 +141,13 @@ def _run(data, features=['mz', 'drift_time', 'retention_time'],
     corr = deimos.filters.matched_gaussian(H, points)
 
     # peak detection
-    H_max = deimos.filters.non_maximum_suppression(corr, size)
+    H_max = deimos.filters.maximum(corr, size)
     peaks = np.where(corr == H_max, H, 0)
 
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, peaks, features=features)
 
     # threshold
-    peaks = peaks.loc[peaks['intensity'] > threshold, :]
+    peaks = deimos.utils.threshold(peaks, threshold=threshold)
 
     return peaks

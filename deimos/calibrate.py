@@ -29,9 +29,11 @@ def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1E3, verbosity=0):
     -------
     measurements : dict
         Experimental calibration points.
-    calibration :  ArrivalTimeCalibration instance
+    calibration :  ArrivalTimeCalibration
         Calibration result.
+
     """
+
     data = deimos.utils.load_hdf(path)
     measurements = {'mz': [],
                     'ccs': [],
@@ -76,6 +78,11 @@ def tunemix(path, mz, ccs, q, mz_tol=0.1, threshold=1E3, verbosity=0):
 
 
 class ArrivalTimeCalibration:
+    """
+    Performs calibration and stores result to enable convenient application.
+
+    """
+
     def __init__(self):
         """
         Initialization method.
@@ -87,7 +94,9 @@ class ArrivalTimeCalibration:
         Returns
         -------
         None.
+
         """
+
         # initialize variables
         self.buffer_mass = None
         self.beta = None
@@ -96,7 +105,7 @@ class ArrivalTimeCalibration:
 
     def _check(self):
         """
-        Helper method to check for calibration parameters
+        Helper method to check for calibration parameters.
 
         Parameters
         ----------
@@ -105,7 +114,9 @@ class ArrivalTimeCalibration:
         Returns
         -------
         None.
+
         """
+
         if (self.beta is None) or (self.tfix is None):
             raise ValueError('Must perform calibration to yield beta and tfix.')
 
@@ -133,7 +144,9 @@ class ArrivalTimeCalibration:
         Returns
         -------
         None.
+
         """
+
         # buffer mass
         self.buffer_mass = buffer_mass
 
@@ -182,7 +195,9 @@ class ArrivalTimeCalibration:
         -------
         ccs : float
             Feature collision cross section (A^2).
+
         """
+
         self._check()
         return q / self.beta * (ta - self.tfix) / np.sqrt(mz / (mz + self.buffer_mass))
 
@@ -204,6 +219,8 @@ class ArrivalTimeCalibration:
         -------
         ta : float
             Feature arrival time (ms).
+
         """
+
         self._check()
         return self.beta / q * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix

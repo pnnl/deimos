@@ -4,6 +4,28 @@ import pandas as pd
 
 def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
                  loc=[0, 0, 0], tol=[0, 0, 0]):
+    """
+    Given a feature coordinate and tolerances, return a subset
+    of the data.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    by : str or list
+        Feature(s) by which to subset the data
+    loc : float or list
+        Coordinate location.
+    tol : float or list
+        Tolerance in each dimension.
+
+    Returns
+    -------
+    out : DataFrame
+        Subset of feature coordinates and intensities.
+
+    """
+
     # safely cast to list
     by = safelist(by)
     loc = safelist(loc)
@@ -31,6 +53,28 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
 
 def slice(data, by=['mz', 'drift_time', 'retention_time'],
           low=[0, 0, 0], high=[0, 0, 0]):
+    """
+    Given a feature coordinate and bounds, return a subset
+    of the data.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    by : str or list
+        Feature(s) by which to subset the data
+    low : float or list
+        Lower bound(s) in each dimension.
+    high : float or list
+        Upper bound(s) in each dimension.
+
+    Returns
+    -------
+    out : DataFrame
+        Subset of feature coordinates and intensities.
+
+    """
+
     # safely cast to list
     by = safelist(by)
     low = safelist(low)
