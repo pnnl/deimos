@@ -30,8 +30,47 @@ pip install deimos/
 pip install git+https://github.com/pnnl/deimos
 ```
 
+Command-line DEIMoS
+-------------------
+For usage overview, simply invoke ``deimos --help`` or ``-h``. A Snakemake configuration file in [YAML](http://yaml.org/) format is required. DEIMoS will try to find ``config.yaml`` in the current directory, else a configuration file must be specified through the ``--config`` flag. A default [workflow configuration](resources/example_config.yaml) is provided, but this is intended to be modified and supplied by the user to accomodate workflow-specific needs.
+
+Inputs ([.mzML](http://www.psidev.info/mzML) or .mzML.gz) will automatically be detected in the ``input/`` folder, and results will be populated in a corresponding ``output/`` folder, both relative to the current working directory. For example:
+
+```bash
+.
+├── config.yaml
+├── input
+│   ├── example1.mzML.gz
+│   ├── example2.mzML.gz
+│   └── ...
+└── output
+```
+
+For running in cluster environments, please consult the [Snakemake](https://snakemake.readthedocs.io) workflow management system documentation concerning [profiles](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles).
+
+DEIMoS API
+----------
+For more flexibility, the same functionality can be achieved through DEIMoS' API. Recreating the command-line workflow through internal standards detection would involve the following:
+
+```python
+import deimos
+import numpy as np
+
+# load data
+data = deimos.utils.read_mzml('path/to/dataset.mzML.gz')
+
+# peakpicking in ms1
+peaks = deimos.peakpick.auto(data)
+deimos.utils.save_hdf('path/to/peaks.h5', {'ms1': peaks})
+
+# find standards
+masses = np.loadtxt('path/to/masses.txt')
+stds = deimos.alignment.internal_standards(peaks, masses=masses, tol=0.02)
+deimos.utils.save_hdf('path/to/standards.h5', {'ms1': stds})
+```
+
 Citing DEIMoS
---------------
+-------------
 If you would like to reference DEIMoS in an academic paper, we ask you include the following:
 * DEIMoS, version 0.1.0 http://github.com/pnnl/deimos (accessed MMM YYYY)
 
