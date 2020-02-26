@@ -1,8 +1,46 @@
 import scipy
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import deimos
 import pandas as pd
+
+
+LinregressResult = namedtuple('LinregressResult', ('n', 'slope', 'intercept',
+                                                   'rvalue', 'pvalue', 'stderr'))
+
+
+def linregress(x, y):
+    """
+    Slight modification of scipy.stats.linregress to include number of
+    measurements in the regression.
+
+    Parameters
+    ----------
+    x, y : array_like
+        Two sets of measurements. Both arrays should have the same length.
+
+    Returns
+    -------
+    n : int
+        Number of measurements.
+    slope : float
+        Slope of the regression line.
+    intercept : float
+        Intercept of the regression line.
+    rvalue : float
+        Correlation coefficient.
+    pvalue : float
+        Two-sided p-value for a hypothesis test whose null hypothesis
+        is that the slope is zero, using Wald Test with t-distribution
+        of the test statistic.
+    stderr : float
+        Standard error of the estimated gradient.
+
+    """
+
+    reg = scipy.stats.linregress(x, y)
+    return LinregressResult(len(x), reg.slope, reg.intercept,
+                            reg.rvalue, reg.pvalue, reg.stderr)
 
 
 class Aligner(OrderedDict):
@@ -58,6 +96,7 @@ class Aligner(OrderedDict):
         s = ''
         for k, v in self.items():
             s += k + ':\n'
+            s += '\tn:\t\t{}\n'.format(v.n)
             s += '\tslope:\t\t{}\n'.format(v.slope)
             s += '\tintercept:\t{}\n'.format(v.intercept)
             s += '\tr-value:\t{}\n'.format(v.rvalue)
@@ -215,7 +254,7 @@ def fit(a, b, features=['mz', 'drift_time', 'retention_time']):
     # perform regressions
     result = Aligner()
     for f in features:
-        result[f] = scipy.stats.linregress(a[f].values, b[f].values)
+        result[f] = linregress(a[f].values, b[f].values)
 
     return result
 
