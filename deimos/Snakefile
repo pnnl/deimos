@@ -18,7 +18,6 @@ lookup = {k: v for k, v in zip(IDS, fns)}
 
 rule all:
     input:
-        expand(join('output', 'standards', '{id}.h5'), id=IDS),
         expand(join('output', 'aligned', '{id}.h5'), id=IDS)
 
 
