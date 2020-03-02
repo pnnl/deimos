@@ -5,6 +5,10 @@ from os.path import *
 import pandas as pd
 import glob
 
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
 
 # infer wildcards from inputs
 fns = [basename(x) for x in glob.glob(join('input', '*.*'))]
@@ -65,29 +69,87 @@ rule alignment:
         rules.peakpick_ms1.output
     output:
         join('output', 'aligned', '{id}.h5'),
-        join('output', 'aligned', '{id}.regression')
+        join('output', 'splines', '{id}.npy'),
+        join('output', 'splines', '{id}_1.png'),
+        join('output', 'splines', '{id}_2.png')
     run:
+        # reference
+        ref = join('output', 'peakpick', '{}_ms1_peaks.h5'.format(config['alignment']['reference']))
+
         # load
         a = deimos.utils.load_hdf(input[0], level='ms1')
-        b = deimos.utils.load_hdf(join('output', 'peakpick', '{}_ms1_peaks.h5'.format(config['alignment']['reference'])),
-                                  level='ms1')
+        b = deimos.utils.load_hdf(ref, level='ms1')
 
         # threshold
         a_ = deimos.utils.threshold(a, threshold=config['alignment']['threshold'])
         b_ = deimos.utils.threshold(b, threshold=config['alignment']['threshold'])
 
         # align
-        a_, b_ = deimos.alignment.match_features(a_, b_,
-                                                 features=config['features'],
-                                                 tol=config['alignment']['tol'])
+        a_match, b_match = deimos.alignment.match_features(a_, b_,
+                                                           features=config['features'],
+                                                           tol=config['alignment']['tol'],
+                                                           ignore=config['alignment']['align'])
 
         # fit
-        regress = deimos.alignment.fit(a_, b_, features=config['features'])
+        spl, spl_inv = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
+                                                   frac=config['alignment']['lowess']['fraction'],
+                                                   it=config['alignment']['lowess']['iterations'],
+                                                   s=config['alignment']['lowess']['smoothing'])
 
-        # apply
-        a = regress.apply(a)
+        # figure
+        newx = np.linspace(a[config['alignment']['align']].min(),
+                           b[config['alignment']['align']].max(),
+                           1000)
+
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(newx, spl(newx), c='C3')
+        ax.scatter(a_match[config['alignment']['align']],
+                   b_match[config['alignment']['align']],
+                   color='black', s=2)
+
+        ax.set_xlabel(config['alignment']['align'], fontweight='bold')
+        ax.set_ylabel(config['alignment']['align'], fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(output[2])
+        plt.close()
+
+        # second iteration
+        a_[config['alignment']['align']] = spl(a_[config['alignment']['align']].values)
+
+        # align
+        a_match, b_match = deimos.alignment.match_features(a_, b_,
+                                                           features=config['features'],
+                                                           tol=config['alignment']['tol'],
+                                                           ignore=config['alignment']['align'])
+
+        # fit
+        spl2, spl_inv2 = deimos.alignment.fit_spline(a_match, b_match, config['alignment']['align'],
+                                                     frac=config['alignment']['lowess']['fraction'],
+                                                     it=config['alignment']['lowess']['iterations'],
+                                                     s=config['alignment']['lowess']['smoothing'])
+
+        # figure
+        fig, ax = plt.subplots(dpi=150)
+        ax.plot(newx, spl2(newx), c='C3')
+        ax.scatter(a_match[config['alignment']['align']],
+                   b_match[config['alignment']['align']],
+                   color='black', s=2)
+
+        ax.set_xlabel(config['alignment']['align'], fontweight='bold')
+        ax.set_ylabel(config['alignment']['align'], fontweight='bold')
+        plt.tight_layout()
+        plt.savefig(output[3])
+        plt.close()
+
+        # transform data
+        a[config['alignment']['align']] = spl2(spl(a[config['alignment']['align']].values))
+
+        # save transformed input
         deimos.utils.save_hdf(output[0], {'ms1': a})
 
-        # save regression
-        with open(output[1], 'w') as f:
-            f.write(regress.__repr__())
+        # save splines
+        splines = {'forward1': spl,
+                   'inverse1': spl_inv,
+                   'forward2': spl2,
+                   'inverse2': spl_inv2}
+        np.save(output[1], splines)
