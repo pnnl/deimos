@@ -1,165 +1,12 @@
 import scipy
 import numpy as np
-from collections import OrderedDict, namedtuple
 import deimos
 import pandas as pd
-
-
-LinregressResult = namedtuple('LinregressResult', ('n', 'slope', 'intercept',
-                                                   'rvalue', 'pvalue', 'stderr'))
-
-
-def linregress(x, y):
-    """
-    Slight modification of scipy.stats.linregress to include number of
-    measurements in the regression.
-
-    Parameters
-    ----------
-    x, y : array_like
-        Two sets of measurements. Both arrays should have the same length.
-
-    Returns
-    -------
-    n : int
-        Number of measurements.
-    slope : float
-        Slope of the regression line.
-    intercept : float
-        Intercept of the regression line.
-    rvalue : float
-        Correlation coefficient.
-    pvalue : float
-        Two-sided p-value for a hypothesis test whose null hypothesis
-        is that the slope is zero, using Wald Test with t-distribution
-        of the test statistic.
-    stderr : float
-        Standard error of the estimated gradient.
-
-    """
-
-    reg = scipy.stats.linregress(x, y)
-    return LinregressResult(len(x), reg.slope, reg.intercept,
-                            reg.rvalue, reg.pvalue, reg.stderr)
-
-
-class Aligner(OrderedDict):
-    """
-    Stores regression results as an OrderedDict for later application
-    through the apply() method.
-
-    """
-
-    def apply(self, data, inverse=False):
-        """
-        Applies stored regression results to a dataset.
-
-        Parameters
-        ----------
-        data : DataFrame
-            Input feature coordinates and intensities to be aligned.
-        inverse : bool
-            Signals whether to perform the inverse alignment
-            operation (i.e., if the stored alignment is a aligned to b,
-            perform b aligned to a).
-
-        Returns
-        -------
-        out : DataFrame
-            Aligned feature coordinates and intensities.
-
-        """
-
-        for k, v in self.items():
-            if inverse:
-                data[k] = (data[k] - v.intercept) / v.slope
-            else:
-                data[k] = v.slope * data[k] + v.intercept
-
-        return data
-
-    def __repr__(self):
-        """
-        Print representation.
-
-        Parameters
-        ----------
-        None.
-
-        Returns
-        -------
-        s : string
-            String representation of self.
-
-        """
-
-        s = ''
-        for k, v in self.items():
-            s += k + ':\n'
-            s += '\tn:\t\t{}\n'.format(v.n)
-            s += '\tslope:\t\t{}\n'.format(v.slope)
-            s += '\tintercept:\t{}\n'.format(v.intercept)
-            s += '\tr-value:\t{}\n'.format(v.rvalue)
-            s += '\tp-value:\t{}\n'.format(v.pvalue)
-            s += '\tstderr:\t\t{}\n'.format(v.stderr)
-
-        return s[:-2]
-
-
-def proximity_screen(data, features=['mz', 'drift_time', 'retention_time'],
-                     tol=[10E-6, 0.2, 0.11]):
-    """
-    Filter features by their proximity to the next closest feature.
-
-    Parameters
-    ----------
-    data : DataFrame
-        Input feature coordinates and intensities.
-    features : list
-        Features to filter against.
-    tol : float or list
-        Tolerance in each feature dimension to define proximity.
-
-    Returns
-    -------
-    out : DataFrame
-        Filtered feature coordinates and intensities.
-
-    """
-
-    # safely cast to list
-    features = deimos.utils.safelist(features)
-    tol = deimos.utils.safelist(tol)
-
-    # check dims
-    deimos.utils.check_length([features, tol])
-
-    # compute intra-feature distances
-    idx = []
-    for i, f in enumerate(features):
-        arr = data[f].values.reshape((-1, 1))
-        d = scipy.spatial.distance.cdist(arr, arr)
-
-        if f == 'mz':
-            d = np.divide(d, scipy.spatial.distance.cdist(arr, arr, min))
-
-        # overwrite identity
-        d[d == 0] = np.inf
-
-        # take minimum
-        d = np.min(d, axis=0)
-
-        # greater than tolerance
-        idx.append(d > tol[i])
-
-    # stack truth arrays
-    idx = np.nonzero(np.prod(np.vstack(idx), axis=0))[0]
-
-    return data.iloc[idx, :].reset_index(drop=True)
+import statsmodels
 
 
 def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
-                   tol=[10E-6, 0.2, 0.11]):
+                   ignore=None, tol=[10E-6, 0.2, 0.11]):
     """
     Match features by their proximity to the closest feature in another dataset.
 
@@ -172,6 +19,10 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
+    ignore : str or list
+        Ignore during distance calculation, e.g. for highly misaligned
+        dimensions. Does not affect tolerance filter. Ambiguous matches
+        in the ignored dimensions are dropped.
 
     Returns
     -------
@@ -188,9 +39,38 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([features, tol])
 
+    # mask ignored
+    if ignore is not None:
+        ignore = deimos.utils.safelist(ignore)
+        mask_idx = [features.index(x) for x in ignore]
+        features_masked = [j for i, j in enumerate(features) if i not in mask_idx]
+        tol_masked = [j for i, j in enumerate(tol) if i not in mask_idx]
+    else:
+        features_masked = features
+        tol_masked = tol
+
+    # groupby ops
+    if ignore is not None:
+        # placeholder for group counts
+        a['count'] = 1
+        b['count'] = 1
+
+        # aggregator
+        agg = {k: np.mean for k in ignore}
+        agg['intensity'] = np.sum
+        agg['count'] = np.sum
+
+        # group
+        a = a.groupby(by=features_masked, as_index=False, sort=False).agg(agg)
+        b = b.groupby(by=features_masked, as_index=False, sort=False).agg(agg)
+
+        # filter by counts
+        a = a.loc[a['count'] == 1, :].drop('count', axis=1)
+        b = b.loc[b['count'] == 1, :].drop('count', axis=1)
+
     # compute normalized 3d distance
-    v1 = a[features].values / np.array(tol)
-    v2 = b[features].values / np.array(tol)
+    v1 = a[features_masked].values / np.array(tol_masked)
+    v2 = b[features_masked].values / np.array(tol_masked)
     dist3d = scipy.spatial.distance.cdist(v1, v2)
 
     # compute inter-feature distances
@@ -228,35 +108,64 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def fit(a, b, features=['mz', 'drift_time', 'retention_time']):
+def lowess(a, b, align='retention_time', tol=[10E-6, 0.2],
+           frac=0.2, it=10, s=2):
     """
-    Given a set of matched features, fit a linear regression defining
-    the alignment.
+    Match features by their proximity to the closest feature in another dataset.
 
     Parameters
     ----------
     a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are
-        matched to features in b.
-    features : list
-        Features to match against.
+        Matched input feature coordinates and intensities.
+    align : str
+        Feature to align.
+    frac : float
+        Between 0 and 1. The fraction of the data used for the LOWESS fit.
+    it : int
+        The number of residual-based reweightings to perform during LOWESS fit.
+    s : int
+        Positive smoothing factor used to choose the number of knots in the
+        univariate spline approximation.
 
     Returns
     -------
-    result : Aligner
-        Aligner object containing regression results.
+    spl, spl_inv : UnivariateSpline
+        Forward and inverse spline approximations of the LOWESS
+        fit.
 
     """
 
-    # safely cast to list
-    features = deimos.utils.safelist(features)
+    # uniqueify
+    x = a[align].values
+    y = b[align].values
+    arr = np.vstack((x, y)).T
+    arr = np.unique(arr, axis=0)
 
-    # perform regressions
-    result = Aligner()
-    for f in features:
-        result[f] = linregress(a[f].values, b[f].values)
+    # fit forward lowess
+    lw = statsmodels.nonparametric.smoothers_lowess.lowess(arr[:, 1],
+                                                           arr[:, 0],
+                                                           frac=frac,
+                                                           it=it)
 
-    return result
+    # unique x
+    _, idx = np.unique(lw[:, 0], return_index=True)
+
+    # spline
+    spl = scipy.interpolate.UnivariateSpline(lw[idx, 0], lw[idx, 1], s=2)
+
+    # fit reverse lowess
+    lw_inv = statsmodels.nonparametric.smoothers_lowess.lowess(arr[:, 0],
+                                                               arr[:, 1],
+                                                               frac=frac,
+                                                               it=it)
+
+    # unique x
+    _, idx = np.unique(lw_inv[:, 0], return_index=True)
+
+    # spline
+    spl_inv = scipy.interpolate.UnivariateSpline(lw_inv[idx, 0], lw_inv[idx, 1], s=s)
+
+    return spl, spl_inv
 
 
 def internal_standards(data, masses, tol=0.02):
