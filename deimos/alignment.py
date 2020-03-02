@@ -2,7 +2,7 @@ import scipy
 import numpy as np
 import deimos
 import pandas as pd
-import statsmodels
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 
 def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
@@ -108,10 +108,10 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def lowess(a, b, align='retention_time', tol=[10E-6, 0.2],
-           frac=0.2, it=10, s=2):
+def fit_spline(a, b, align='retention_time', tol=[10E-6, 0.2],
+               frac=0.2, it=10, s=2):
     """
-    Match features by their proximity to the closest feature in another dataset.
+    Fit a LOWESS spline to matched features.
 
     Parameters
     ----------
@@ -142,10 +142,7 @@ def lowess(a, b, align='retention_time', tol=[10E-6, 0.2],
     arr = np.unique(arr, axis=0)
 
     # fit forward lowess
-    lw = statsmodels.nonparametric.smoothers_lowess.lowess(arr[:, 1],
-                                                           arr[:, 0],
-                                                           frac=frac,
-                                                           it=it)
+    lw = lowess(arr[:, 1], arr[:, 0], frac=frac, it=it)
 
     # unique x
     _, idx = np.unique(lw[:, 0], return_index=True)
@@ -154,10 +151,7 @@ def lowess(a, b, align='retention_time', tol=[10E-6, 0.2],
     spl = scipy.interpolate.UnivariateSpline(lw[idx, 0], lw[idx, 1], s=2)
 
     # fit reverse lowess
-    lw_inv = statsmodels.nonparametric.smoothers_lowess.lowess(arr[:, 0],
-                                                               arr[:, 1],
-                                                               frac=frac,
-                                                               it=it)
+    lw_inv = lowess(arr[:, 0], arr[:, 1], frac=frac, it=it)
 
     # unique x
     _, idx = np.unique(lw_inv[:, 0], return_index=True)
