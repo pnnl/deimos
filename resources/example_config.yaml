@@ -15,8 +15,13 @@ peakpick:
 
 alignment:
   reference: refid
-  tol: [30.E-6, 0.4, 0.22]
+  align: retention_time
+  tol: [20.E-6, 0.4, 5]
   threshold: 300
+  lowess:
+    fraction: 0.15
+    iterations: 10
+    smoothing: 2
 
 standards:
   pos: /path/to/masses.txt
