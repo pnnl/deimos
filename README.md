@@ -4,15 +4,15 @@ DEIMoS, or Data Extraction for Integrated Multidimensional Spectrometry, is a Py
 
 Installation
 ------------
-Use [``conda``](https://www.anaconda.com/download/) to create a virtual environment with required dependencies. First, ensure ``conda`` and ``anaconda-client`` are installed and updated:
+Use [``conda``](https://www.anaconda.com/download/) to create a virtual environment with required dependencies. First, ensure ``conda`` and ``anaconda`` are updated:
 ```bash
-conda install anaconda-client
-conda update conda anaconda-client
+conda update conda
+conda update anaconda
 ```
 
 Create the virtual environment:
 ```bash
-conda create -n deimos -c bioconda python=3 numpy scipy pandas matplotlib snakemake pymzml h5py
+conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels
 ```
 
 Activate the virtual environment:
