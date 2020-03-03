@@ -42,7 +42,7 @@ def main():
         cluster = None
 
     snakemake(resource_filename('deimos', 'Snakefile'),
-              configfile=args.config,
+              configfiles=[args.config],
               config=config,
               cluster_config=args.cluster,
               cluster=cluster,
