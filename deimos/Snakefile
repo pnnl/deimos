@@ -38,9 +38,13 @@ rule peakpick_ms1:
         join('output', 'peakpick', '{id}_ms1_peaks.h5')
     run:
         data = deimos.utils.load_hdf(input[0], level='ms1')
-        partitions = deimos.utils.partition(data, **config['partitioning'])
+        partitions = deimos.utils.partition(data,
+                                            split_on=config['partition']['split_on'],
+                                            size=config['partition']['size'],
+                                            overlap=config['partition']['overlap'])
         peaks = partitions.map(deimos.peakpick.auto,
                                features=config['features'],
+                               processes=config['partition']['processes'],
                                **config['peakpick'])
         deimos.utils.save_hdf(output[0], {'ms1': peaks})
 

@@ -9,9 +9,9 @@ peakpick:
   truncate: 4
   threshold: 0
 
-partitioning:
+partition:
   split_on: mz
-  partitions: 500
+  size: 500
   overlap: 0.05
   processes: 4
 
