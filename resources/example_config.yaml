@@ -8,6 +8,8 @@ peakpick:
   sigma: [0.004, 0.2, 0.11]
   truncate: 4
   threshold: 0
+
+partitioning:
   split_on: mz
   partitions: 500
   overlap: 0.05
@@ -22,8 +24,3 @@ alignment:
     fraction: 0.15
     iterations: 10
     smoothing: 2
-
-standards:
-  pos: /path/to/masses.txt
-  neg: /path/to/masses.txt
-  tol: 0.02

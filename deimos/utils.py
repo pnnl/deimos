@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 import pymzml
 from collections import OrderedDict, defaultdict
+from functools import partial
+import multiprocessing as mp
+import deimos
 
 
 def read_mzml(path, accession={'drift_time': 'MS:1002476',
@@ -210,6 +213,149 @@ def threshold(data, threshold=1000):
     """
 
     return data.loc[data['intensity'] >= threshold, :].reset_index(drop=True)
+
+
+class Partitions:
+    """
+    Generator object that will lazily build and
+    return each partition.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    split_on : str
+        Dimension to partition the data.
+    size : int
+        Target partition size.
+    overlap : float
+        Amount of overlap between partitions to ameliorate edge effects.
+
+    """
+
+    def __init__(self, data, split_on='mz', size=1000, overlap=0.05):
+        self.data = data
+        self.split_on = split_on
+        self.size = size
+        self.overlap = overlap
+
+        self._compute_splits()
+
+    def _compute_splits(self):
+        """
+        Determines data splits for partitioning.
+
+        """
+
+        # unique to split on
+        idx = np.unique(self.data[self.split_on].values)
+
+        # number of partitions
+        partitions = np.ceil(len(idx) / self.size)
+
+        # determine partition bounds
+        bounds = [[x.min(), x.max()] for x in np.array_split(idx, partitions)]
+        for i in range(1, len(bounds)):
+            bounds[i][0] = bounds[i - 1][1]
+
+        # functional bounds
+        fbounds = []
+        for i in range(len(bounds)):
+            a, b = bounds[i]
+
+            # first partition
+            if i < 1:
+                b = b - self.overlap / 2
+
+            # middle partitions
+            elif i < len(bounds) - 1:
+                a = a + self.overlap / 2
+                b = b - self.overlap / 2
+
+            # last partition
+            else:
+                a = a + self.overlap / 2
+
+            fbounds.append([a, b])
+
+        self.bounds = bounds
+        self.fbounds = fbounds
+
+    def __iter__(self):
+        """
+        Yields each partition.
+
+        Yields
+        ------
+        out : DataFrame
+            Partition of feature coordinates and intensities.
+
+        """
+
+        for a, b in self.bounds:
+            yield deimos.targeted.slice(self.data, by=self.split_on, low=a - self.overlap, high=b)
+
+    def map(self, func, processes=1, **kwargs):
+        """
+        Maps `func` to each partition, then returns the combined result,
+        accounting for overlap regions.
+
+        Parameters
+        ----------
+        func : function
+            Function to apply to partitions.
+        processes : int
+            Number of parallel processes. If less than 2,
+            a serial mapping is applied.
+        kwargs
+            Keyword arguments passed to `func`.
+
+        Returns
+        -------
+        out : DataFrame
+            Combined result of `func` applied to partitions.
+
+        """
+
+        # serial
+        if processes < 2:
+            result = [func(x, **kwargs) for x in self]
+        # parallel
+        else:
+            with mp.Pool(processes=processes) as p:
+                result = list(p.imap(partial(func, **kwargs), self))
+
+        # reconcile overlap
+        result = [deimos.targeted.slice(result[i], by=self.split_on, low=a, high=b) for i, (a, b) in enumerate(self.fbounds)]
+
+        # combine partitions
+        return pd.concat(result).reset_index(drop=True)
+
+
+def partition(data, split_on='mz', size=1000, overlap=0.05):
+    """
+    Partitions data along a feature dimension.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    split_on : str
+        Dimension to partition the data.
+    size : int
+        Target partition size.
+    overlap : float
+        Amount of overlap between partitions to ameliorate edge effects.
+
+    Returns
+    -------
+    out : Partitions
+        A generator object that will lazily build and
+        return each partition.
+
+    """
+
+    return Partitions(data, split_on, size, overlap)
 
 
 def detect_features(data):

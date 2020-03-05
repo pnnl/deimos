@@ -38,28 +38,10 @@ rule peakpick_ms1:
         join('output', 'peakpick', '{id}_ms1_peaks.h5')
     run:
         data = deimos.utils.load_hdf(input[0], level='ms1')
-        peaks = deimos.peakpick.auto(data,
-                                     features=config['features'],
-                                     **config['peakpick'])
-        deimos.utils.save_hdf(output[0], {'ms1': peaks})
-
-
-rule detect_standards:
-    input:
-        rules.peakpick_ms1.output
-    output:
-        join('output', 'standards', '{id}.h5')
-    run:
-        data = deimos.utils.load_hdf(input[0], level='ms1')
-
-        if 'pos' in input[0].lower():
-            masses = np.loadtxt(config['standards']['pos'])
-        elif 'neg' in input[0].lower():
-            masses = np.loadtxt(config['standards']['neg'])
-
-        peaks = deimos.alignment.internal_standards(data,
-                                                    masses=masses,
-                                                    tol=config['standards']['tol'])
+        partitions = deimos.utils.partition(data, **config['partitioning'])
+        peaks = partitions.map(deimos.peakpick.auto,
+                               features=config['features'],
+                               **config['peakpick'])
         deimos.utils.save_hdf(output[0], {'ms1': peaks})
 
 
