@@ -320,6 +320,7 @@ class Partitions:
         # serial
         if processes < 2:
             result = [func(x, **kwargs) for x in self]
+
         # parallel
         else:
             with mp.Pool(processes=processes) as p:
@@ -332,15 +333,15 @@ class Partitions:
         # combine partitions
         return pd.concat(result).reset_index(drop=True)
 
-    def zipmap(self, data, func, processes=1, **kwargs):
+    def zipmap(self, b, func, processes=1, **kwargs):
         """
         Maps `func` to each partition pair resulting from the zip operation
         of `self` and `b`, then returns the combined result, accounting
-        for overlap regions. Partitions must be of equal length.
+        for overlap regions.
 
         Parameters
         ----------
-        data : DataFrame
+        b : DataFrame
             Input feature coordinates and intensities.
         func : function
             Function to apply to zipped partitions. Must accept and
@@ -359,12 +360,13 @@ class Partitions:
         """
 
         # partition other dataset
-        partitions = (deimos.targeted.slice(data, by=self.split_on, low=a - self.overlap, high=b)
-                      for a, b in self.bounds)
+        partitions = (deimos.targeted.slice(b, by=self.split_on, low=a - self.overlap, high=b_)
+                      for a, b_ in self.bounds)
 
         # serial
         if processes < 2:
-            result = [func(a, b, **kwargs) for a, b in zip(self, partitions)]
+            result = [func(a, b_, **kwargs) for a, b_ in zip(self, partitions)]
+
         # parallel
         else:
             with mp.Pool(processes=processes) as p:
@@ -373,10 +375,10 @@ class Partitions:
         result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
 
         # reconcile overlap
-        result['a'] = [deimos.targeted.slice(result['a'][i], by=self.split_on, low=a, high=b)
-                       for i, (a, b) in enumerate(self.fbounds)]
-        result['b'] = [deimos.targeted.slice(result['b'][i], by=self.split_on, low=a, high=b)
-                       for i, (a, b) in enumerate(self.fbounds)]
+        result['a'] = [deimos.targeted.slice(result['a'][i], by=self.split_on, low=a, high=b_)
+                       for i, (a, b_) in enumerate(self.fbounds)]
+        result['b'] = [deimos.targeted.slice(result['b'][i], by=self.split_on, low=a, high=b_)
+                       for i, (a, b_) in enumerate(self.fbounds)]
 
         # combine partitions
         result['a'] = pd.concat(result['a']).reset_index(drop=True)
