@@ -326,10 +326,63 @@ class Partitions:
                 result = list(p.imap(partial(func, **kwargs), self))
 
         # reconcile overlap
-        result = [deimos.targeted.slice(result[i], by=self.split_on, low=a, high=b) for i, (a, b) in enumerate(self.fbounds)]
+        result = [deimos.targeted.slice(result[i], by=self.split_on, low=a, high=b)
+                  for i, (a, b) in enumerate(self.fbounds)]
 
         # combine partitions
         return pd.concat(result).reset_index(drop=True)
+
+    def zipmap(self, data, func, processes=1, **kwargs):
+        """
+        Maps `func` to each partition pair resulting from the zip operation
+        of `self` and `b`, then returns the combined result, accounting
+        for overlap regions. Partitions must be of equal length.
+
+        Parameters
+        ----------
+        data : DataFrame
+            Input feature coordinates and intensities.
+        func : function
+            Function to apply to zipped partitions. Must accept and
+            return two DataFrames.
+        processes : int
+            Number of parallel processes. If less than 2,
+            a serial mapping is applied.
+        kwargs
+            Keyword arguments passed to `func`.
+
+        Returns
+        -------
+        a, b : DataFrame
+            Combined result of `func` applied to partitions.
+
+        """
+
+        # partition other dataset
+        partitions = (deimos.targeted.slice(data, by=self.split_on, low=a - self.overlap, high=b)
+                      for a, b in self.bounds)
+
+        # serial
+        if processes < 2:
+            result = [func(a, b, **kwargs) for a, b in zip(self, partitions)]
+        # parallel
+        else:
+            with mp.Pool(processes=processes) as p:
+                result = list(p.starmap(partial(func, **kwargs), zip(self, partitions)))
+
+        result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
+
+        # reconcile overlap
+        result['a'] = [deimos.targeted.slice(result['a'][i], by=self.split_on, low=a, high=b)
+                       for i, (a, b) in enumerate(self.fbounds)]
+        result['b'] = [deimos.targeted.slice(result['b'][i], by=self.split_on, low=a, high=b)
+                       for i, (a, b) in enumerate(self.fbounds)]
+
+        # combine partitions
+        result['a'] = pd.concat(result['a']).reset_index(drop=True)
+        result['b'] = pd.concat(result['b']).reset_index(drop=True)
+
+        return result['a'], result['b']
 
 
 def partition(data, split_on='mz', size=1000, overlap=0.05):
