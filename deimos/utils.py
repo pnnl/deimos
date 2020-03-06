@@ -333,7 +333,7 @@ class Partitions:
         # combine partitions
         return pd.concat(result).reset_index(drop=True)
 
-    def zipmap(self, b, func, processes=1, **kwargs):
+    def zipmap(self, func, b, processes=1, **kwargs):
         """
         Maps `func` to each partition pair resulting from the zip operation
         of `self` and `b`, then returns the combined result, accounting
@@ -341,11 +341,11 @@ class Partitions:
 
         Parameters
         ----------
-        b : DataFrame
-            Input feature coordinates and intensities.
         func : function
             Function to apply to zipped partitions. Must accept and
             return two DataFrames.
+        b : DataFrame
+            Input feature coordinates and intensities.
         processes : int
             Number of parallel processes. If less than 2,
             a serial mapping is applied.
