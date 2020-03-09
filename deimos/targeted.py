@@ -4,7 +4,7 @@ import numpy as np
 
 
 def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
-                 loc=[0, 0, 0], tol=[0, 0, 0]):
+                 loc=[0, 0, 0], tol=[0, 0, 0], return_index=False):
     """
     Given a feature coordinate and tolerances, return a subset
     of the data.
@@ -24,6 +24,8 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
     -------
     out : DataFrame
         Subset of feature coordinates and intensities.
+    index : array
+        If `return_index` is True, indices of slice elements.
 
     """
 
@@ -41,15 +43,26 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
 
     # subset by each dim
     data = data.values
+    idx = np.full(data.shape[0], True, dtype=bool)
     for i, x, dx in zip(cidx, loc, tol):
-        data = data[(data[:, i] <= x + dx) & (data[:, i] >= x - dx)]
+        idx *= (data[:, i] <= x + dx) & (data[:, i] >= x - dx)
 
-    # data found
-    if data.shape[0] > 0:
-        return pd.DataFrame(data, columns=cols)
+    data = data[idx]
 
-    # no data
-    return None
+    if return_index is True:
+        # data found
+        if data.shape[0] > 0:
+            return pd.DataFrame(data, columns=cols), idx
+
+        # no data
+        return None, idx
+    else:
+        # data found
+        if data.shape[0] > 0:
+            return pd.DataFrame(data, columns=cols)
+
+        # no data
+        return None
 
 
 def slice(data, by=['mz', 'drift_time', 'retention_time'],
@@ -73,6 +86,8 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
     -------
     out : DataFrame
         Subset of feature coordinates and intensities.
+    index : array
+        If `return_index` is True, indices of slice elements.
 
     """
 

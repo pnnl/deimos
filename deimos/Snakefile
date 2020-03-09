@@ -83,10 +83,10 @@ rule alignment:
                                              ignore=config['alignment']['align'])
 
         # fit
-        spl, spl_inv = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
-                                                   frac=config['alignment']['lowess']['fraction'],
-                                                   it=config['alignment']['lowess']['iterations'],
-                                                   s=config['alignment']['lowess']['smoothing'])
+        spl = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
+                                          frac=config['alignment']['lowess']['fraction'],
+                                          it=config['alignment']['lowess']['iterations'],
+                                          s=config['alignment']['lowess']['smoothing'])
 
         # figure
         newx = np.linspace(a_[config['alignment']['align']].min(),
@@ -122,10 +122,10 @@ rule alignment:
                                              ignore=config['alignment']['align'])
 
         # fit
-        spl2, spl_inv2 = deimos.alignment.fit_spline(a_match, b_match, config['alignment']['align'],
-                                                     frac=config['alignment']['lowess']['fraction'],
-                                                     it=config['alignment']['lowess']['iterations'],
-                                                     s=config['alignment']['lowess']['smoothing'])
+        spl2 = deimos.alignment.fit_spline(a_match, b_match, config['alignment']['align'],
+                                           frac=config['alignment']['lowess']['fraction'],
+                                           it=config['alignment']['lowess']['iterations'],
+                                           s=config['alignment']['lowess']['smoothing'])
 
         # figure
         fig, ax = plt.subplots(dpi=150)
@@ -147,8 +147,6 @@ rule alignment:
         deimos.utils.save_hdf(output[0], {'ms1': a})
 
         # save splines
-        splines = {'forward1': spl,
-                   'inverse1': spl_inv,
-                   'forward2': spl2,
-                   'inverse2': spl_inv2}
+        splines = {'it1': spl,
+                   'it2': spl2}
         np.save(output[1], splines)

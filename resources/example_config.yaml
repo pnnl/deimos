@@ -18,9 +18,9 @@ partition:
 alignment:
   reference: refid
   align: retention_time
-  tol: [20.E-6, 0.4, 5]
+  tol: [10.E-6, 0.2, 5]
   threshold: 300
   lowess:
-    fraction: 0.15
-    iterations: 10
+    fraction: 0.2
+    iterations: 1
     smoothing: 2

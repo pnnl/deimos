@@ -108,8 +108,7 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def fit_spline(a, b, align='retention_time', tol=[10E-6, 0.2],
-               frac=0.2, it=10, s=2):
+def fit_spline(a, b, align='retention_time', frac=0.1, it=1, s=2):
     """
     Fit a LOWESS spline to matched features.
 
@@ -129,9 +128,8 @@ def fit_spline(a, b, align='retention_time', tol=[10E-6, 0.2],
 
     Returns
     -------
-    spl, spl_inv : UnivariateSpline
-        Forward and inverse spline approximations of the LOWESS
-        fit.
+    spl : Interpolator
+        Spline approximation of the LOWESS fit.
 
     """
 
@@ -148,18 +146,14 @@ def fit_spline(a, b, align='retention_time', tol=[10E-6, 0.2],
     _, idx = np.unique(lw[:, 0], return_index=True)
 
     # spline
-    spl = scipy.interpolate.UnivariateSpline(lw[idx, 0], lw[idx, 1], s=2)
+    spl = scipy.interpolate.UnivariateSpline(lw[idx, 0], lw[idx, 1], s=s, k=3)
 
-    # fit reverse lowess
-    lw_inv = lowess(arr[:, 0], arr[:, 1], frac=frac, it=it)
+    # interpolate
+    x2 = np.linspace(x.min(), x.max(), 1000)
+    y2 = spl(x2)
+    interp = scipy.interpolate.interp1d(x2, y2, kind='linear', fill_value='extrapolate')
 
-    # unique x
-    _, idx = np.unique(lw_inv[:, 0], return_index=True)
-
-    # spline
-    spl_inv = scipy.interpolate.UnivariateSpline(lw_inv[idx, 0], lw_inv[idx, 1], s=s, ext=3)
-
-    return spl, spl_inv
+    return interp
 
 
 def internal_standards(data, masses, tol=0.02):
