@@ -1,6 +1,6 @@
 from . import calibrate
 from . import peakpick
-# from . import plot
+from . import plot
 from . import targeted
 from . import utils
 from . import grid

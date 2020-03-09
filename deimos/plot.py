@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
-import matplotlib.ticker as tick
 import numpy as np
 import deimos
 import pandas as pd
 from scipy.interpolate import griddata
+import types
 
 
 def _ceil(value):
@@ -36,8 +36,8 @@ def fill_between(x, y, xlabel='drift time (ms)', ylabel='intensity',
     ax.fill_between(x, y, alpha=0.1, color='black')
 
     # axis setup
-    ax.set_ylim(0, _ceil(y.max()))
-    ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    ax.set_ylim(0, None)
+    # ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
 
     # axis labels
@@ -64,8 +64,8 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
         ax.scatter(x, y, s=1, c='k')
 
     # axis setup
-    ax.set_ylim(0, _ceil(y.max()))
-    ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    ax.set_ylim(0, None)
+    # ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
 
     # axis labels
@@ -75,14 +75,14 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
     return ax
 
 
-def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, log=False, cmap='gray_r',
+def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, cmap='gray_r',
          ticks=4, ax=None, dpi=600):
     # safely cast to list
     features = deimos.utils.safelist(features)
 
     # check dims
     if len(features) != 2:
-        raise ValueError('grid plots only support in 2 dimensions')
+        raise ValueError('grid plots only supported in 2 dimensions')
 
     # initialize figure
     if ax is None:
@@ -102,8 +102,8 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, l
     # plot
     ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap)
 
-    # axis format
-    ax.xaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    # # axis format
+    # ax.xaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
 
     # axis labels
     names = _rename(features)
@@ -111,6 +111,95 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, l
     ax.set_ylabel(names[1], fontweight='bold')
 
     return ax
+
+
+def multipanel_ms1(data, dpi=600):
+    def _sync_y_with_x(self, event):
+        self.set_xlim(event.get_ylim(), emit=False)
+
+    def _sync_x_with_y(self, event):
+        self.set_ylim(event.get_xlim(), emit=False)
+
+    def sync_y_with_x(ax1, ax2):
+        ax1.update_ylim = types.MethodType(_sync_x_with_y, ax1)
+        ax2.update_xlim = types.MethodType(_sync_y_with_x, ax2)
+
+        ax1.callbacks.connect("xlim_changed", ax2.update_xlim)
+        ax2.callbacks.connect("ylim_changed", ax1.update_ylim)
+
+        return ax1, ax2
+
+    def sync_x_with_y(ax1, ax2):
+        ax1.update_xlim = types.MethodType(_sync_y_with_x, ax1)
+        ax2.update_ylim = types.MethodType(_sync_x_with_y, ax2)
+
+        ax1.callbacks.connect("xlim_changed", ax2.update_ylim)
+        ax2.callbacks.connect("ylim_changed", ax1.update_xlim)
+
+        return ax1, ax2
+
+    # init figure, axes
+    fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi)
+    gs = fig.add_gridspec(2, 3)
+    axes = {}
+    axes['mz'] = fig.add_subplot(gs[1, 0])
+    axes['dt'] = fig.add_subplot(gs[1, 1])
+    axes['rt'] = fig.add_subplot(gs[1, 2])
+    axes['mz-dt'] = fig.add_subplot(gs[0, 0], sharex=axes['mz'])
+    axes['dt-rt'] = fig.add_subplot(gs[0, 1], sharex=axes['dt'])
+    axes['rt-mz'] = fig.add_subplot(gs[0, 2], sharex=axes['rt'])
+
+    # sync axes y with x
+    sync_y_with_x(axes['mz-dt'], axes['dt'])
+    sync_y_with_x(axes['dt-rt'], axes['rt'])
+    sync_y_with_x(axes['rt-mz'], axes['mz'])
+    sync_y_with_x(axes['mz-dt'], axes['dt-rt'])
+    sync_y_with_x(axes['dt-rt'], axes['rt-mz'])
+    sync_y_with_x(axes['rt-mz'], axes['mz-dt'])
+
+    # sync axes x with y
+    sync_x_with_y(axes['mz'], axes['rt-mz'])
+    sync_x_with_y(axes['dt'], axes['mz-dt'])
+    sync_x_with_y(axes['rt'], axes['dt-rt'])
+    sync_x_with_y(axes['mz-dt'], axes['rt-mz'])
+    sync_x_with_y(axes['dt-rt'], axes['mz-dt'])
+    sync_x_with_y(axes['rt-mz'], axes['dt-rt'])
+
+    # mz
+    tmp = deimos.utils.collapse(data, keep='mz')
+    stem(tmp['mz'], tmp['intensity'], ax=axes['mz'])
+    plt.setp(axes['mz'].get_xticklabels(), ha="right", rotation=30)
+
+    # dt
+    tmp = deimos.utils.collapse(data, keep='drift_time')
+    stem(tmp['drift_time'], tmp['intensity'], xlabel='drift time (ms)', ax=axes['dt'])
+    axes['dt'].set_xlim(0, tmp['drift_time'].max())
+    plt.setp(axes['dt'].get_xticklabels(), ha="right", rotation=30)
+
+    # rt
+    tmp = deimos.utils.collapse(data, keep='retention_time')
+    stem(tmp['retention_time'], tmp['intensity'], xlabel='retention time (min)', ax=axes['rt'])
+    plt.setp(axes['rt'].get_xticklabels(), ha="right", rotation=30)
+
+    # mz-dt
+    tmp = deimos.utils.collapse(data, keep=['mz', 'drift_time'])
+    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], cmap='viridis')
+    axes['mz-dt'].xaxis.label.set_visible(False)
+    axes['mz-dt'].tick_params(labelbottom=False)
+
+    # dt-rt
+    tmp = deimos.utils.collapse(data, keep=['drift_time', 'retention_time'])
+    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], cmap='viridis')
+    axes['dt-rt'].xaxis.label.set_visible(False)
+    axes['dt-rt'].tick_params(labelbottom=False)
+
+    # rt-mz
+    tmp = deimos.utils.collapse(data, keep=['retention_time', 'mz'])
+    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], cmap='viridis')
+    axes['rt-mz'].xaxis.label.set_visible(False)
+    axes['rt-mz'].tick_params(labelbottom=False)
+
+    return axes
 
 
 def _rename(features):
