@@ -69,11 +69,18 @@ rule alignment:
         a_ = deimos.utils.threshold(a, threshold=config['alignment']['threshold'])
         b_ = deimos.utils.threshold(b, threshold=config['alignment']['threshold'])
 
+        # partition
+        partitions = deimos.utils.partition(a_,
+                                            split_on=config['partition']['split_on'],
+                                            size=config['partition']['size'],
+                                            overlap=config['partition']['overlap'])
+
         # align
-        a_match, b_match = deimos.alignment.match_features(a_, b_,
-                                                           features=config['features'],
-                                                           tol=config['alignment']['tol'],
-                                                           ignore=config['alignment']['align'])
+        a_match, b_match = partitions.zipmap(deimos.alignment.match_features, b_,
+                                             processes=config['partition']['processes'],
+                                             features=config['features'],
+                                             tol=config['alignment']['tol'],
+                                             ignore=config['alignment']['align'])
 
         # fit
         spl, spl_inv = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
@@ -82,8 +89,8 @@ rule alignment:
                                                    s=config['alignment']['lowess']['smoothing'])
 
         # figure
-        newx = np.linspace(a[config['alignment']['align']].min(),
-                           b[config['alignment']['align']].max(),
+        newx = np.linspace(a_[config['alignment']['align']].min(),
+                           a_[config['alignment']['align']].max(),
                            1000)
 
         fig, ax = plt.subplots(dpi=150)
@@ -101,11 +108,18 @@ rule alignment:
         # second iteration
         a_[config['alignment']['align']] = spl(a_[config['alignment']['align']].values)
 
+        # partition
+        partitions = deimos.utils.partition(a_,
+                                            split_on=config['partition']['split_on'],
+                                            size=config['partition']['size'],
+                                            overlap=config['partition']['overlap'])
+
         # align
-        a_match, b_match = deimos.alignment.match_features(a_, b_,
-                                                           features=config['features'],
-                                                           tol=config['alignment']['tol'],
-                                                           ignore=config['alignment']['align'])
+        a_match, b_match = partitions.zipmap(deimos.alignment.match_features, b_,
+                                             processes=config['partition']['processes'],
+                                             features=config['features'],
+                                             tol=config['alignment']['tol'],
+                                             ignore=config['alignment']['align'])
 
         # fit
         spl2, spl_inv2 = deimos.alignment.fit_spline(a_match, b_match, config['alignment']['align'],

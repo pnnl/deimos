@@ -375,10 +375,11 @@ class Partitions:
         result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
 
         # reconcile overlap
-        result['a'] = [deimos.targeted.slice(result['a'][i], by=self.split_on, low=a, high=b_)
-                       for i, (a, b_) in enumerate(self.fbounds)]
-        result['b'] = [deimos.targeted.slice(result['b'][i], by=self.split_on, low=a, high=b_)
-                       for i, (a, b_) in enumerate(self.fbounds)]
+        tmp = [deimos.targeted.slice(result['a'][i], by=self.split_on, low=a, high=b_, return_index=True)
+               for i, (a, b_) in enumerate(self.fbounds)]
+        result['a'] = [x[0] for x in tmp]
+        idx = [x[1] for x in tmp]
+        result['b'] = [p.iloc[i, :] for p, i in zip(result['b'], idx)]
 
         # combine partitions
         result['a'] = pd.concat(result['a']).reset_index(drop=True)

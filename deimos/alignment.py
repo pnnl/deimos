@@ -157,7 +157,7 @@ def fit_spline(a, b, align='retention_time', tol=[10E-6, 0.2],
     _, idx = np.unique(lw_inv[:, 0], return_index=True)
 
     # spline
-    spl_inv = scipy.interpolate.UnivariateSpline(lw_inv[idx, 0], lw_inv[idx, 1], s=s)
+    spl_inv = scipy.interpolate.UnivariateSpline(lw_inv[idx, 0], lw_inv[idx, 1], s=s, ext=3)
 
     return spl, spl_inv
 

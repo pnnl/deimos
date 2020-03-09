@@ -1,5 +1,6 @@
 from deimos.utils import safelist, check_length
 import pandas as pd
+import numpy as np
 
 
 def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
@@ -52,7 +53,7 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
 
 
 def slice(data, by=['mz', 'drift_time', 'retention_time'],
-          low=[0, 0, 0], high=[0, 0, 0]):
+          low=[0, 0, 0], high=[0, 0, 0], return_index=False):
     """
     Given a feature coordinate and bounds, return a subset
     of the data.
@@ -89,12 +90,23 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
 
     # subset by each dim
     data = data.values
+    idx = np.full(data.shape[0], True, dtype=bool)
     for i, lb, ub in zip(cidx, low, high):
-        data = data[(data[:, i] <= ub) & (data[:, i] >= lb)]
+        idx *= (data[:, i] <= ub) & (data[:, i] >= lb)
 
-    # data found
-    if data.shape[0] > 0:
-        return pd.DataFrame(data, columns=cols)
+    data = data[idx]
 
-    # no data
-    return None
+    if return_index is True:
+        # data found
+        if data.shape[0] > 0:
+            return pd.DataFrame(data, columns=cols), idx
+
+        # no data
+        return None, idx
+    else:
+        # data found
+        if data.shape[0] > 0:
+            return pd.DataFrame(data, columns=cols)
+
+        # no data
+        return None
