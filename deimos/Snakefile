@@ -84,6 +84,7 @@ rule alignment:
 
         # fit
         spl = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
+                                          kernel=config['alignment']['svr']['kernel'],
                                           gamma=config['alignment']['svr']['gamma'],
                                           epsilon=config['alignment']['svr']['epsilon'],
                                           C=config['alignment']['svr']['C'],
@@ -124,6 +125,7 @@ rule alignment:
 
         # fit
         spl2 = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
+                                           kernel=config['alignment']['svr']['kernel'],
                                            gamma=config['alignment']['svr']['gamma'],
                                            epsilon=config['alignment']['svr']['epsilon'],
                                            C=config['alignment']['svr']['C'],

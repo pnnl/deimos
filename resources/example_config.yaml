@@ -21,6 +21,7 @@ alignment:
   tol: [10.E-6, 0.2, 5]
   threshold: 300
   svr:
+    kernel: linear
     epsilon: 0.1
     C: 100
     gamma: 0.05
