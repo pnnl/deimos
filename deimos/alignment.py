@@ -160,7 +160,7 @@ def fit_spline(a, b, align='retention_time', buffer=0.05, **kwargs):
         ylin2 = lin2.predict(newx.reshape(-1, 1))
 
         # overwrite
-        newy[newx < arr[N, 0]] = ylin1[newx < arr[N, 0]]
+        # newy[newx < arr[N, 0]] = ylin1[newx < arr[N, 0]]
         newy[newx > arr[-N, 0]] = ylin2[newx > arr[-N, 0]]
 
         # fit spline for continuity
