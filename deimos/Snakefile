@@ -84,9 +84,9 @@ rule alignment:
 
         # fit
         spl = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
-                                          frac=config['alignment']['lowess']['fraction'],
-                                          it=config['alignment']['lowess']['iterations'],
-                                          s=config['alignment']['lowess']['smoothing'])
+                                          gamma=config['alignment']['svr']['gamma'],
+                                          epsilon=config['alignment']['svr']['epsilon'],
+                                          C=config['alignment']['svr']['C'])
 
         # figure
         newx = np.linspace(a_[config['alignment']['align']].min(),
@@ -122,10 +122,10 @@ rule alignment:
                                              ignore=config['alignment']['align'])
 
         # fit
-        spl2 = deimos.alignment.fit_spline(a_match, b_match, config['alignment']['align'],
-                                           frac=config['alignment']['lowess']['fraction'],
-                                           it=config['alignment']['lowess']['iterations'],
-                                           s=config['alignment']['lowess']['smoothing'])
+        spl2 = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
+                                           gamma=config['alignment']['svr']['gamma'],
+                                           epsilon=config['alignment']['svr']['epsilon'],
+                                           C=config['alignment']['svr']['C'])
 
         # figure
         fig, ax = plt.subplots(dpi=150)

@@ -20,7 +20,7 @@ alignment:
   align: retention_time
   tol: [10.E-6, 0.2, 5]
   threshold: 300
-  lowess:
-    fraction: 0.2
-    iterations: 1
-    smoothing: 2
+  svr:
+    epsilon: 0.1
+    C: 100
+    gamma: 0.05

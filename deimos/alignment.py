@@ -2,7 +2,7 @@ import scipy
 import numpy as np
 import deimos
 import pandas as pd
-from statsmodels.nonparametric.smoothers_lowess import lowess
+from sklearn.svm import SVR
 
 
 def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
@@ -108,9 +108,9 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def fit_spline(a, b, align='retention_time', frac=0.1, it=1, s=2):
+def fit_spline(a, b, align='retention_time', **kwargs):
     """
-    Fit a LOWESS spline to matched features.
+    Fit a support vector regressor to matched features.
 
     Parameters
     ----------
@@ -118,42 +118,31 @@ def fit_spline(a, b, align='retention_time', frac=0.1, it=1, s=2):
         Matched input feature coordinates and intensities.
     align : str
         Feature to align.
-    frac : float
-        Between 0 and 1. The fraction of the data used for the LOWESS fit.
-    it : int
-        The number of residual-based reweightings to perform during LOWESS fit.
-    s : int
-        Positive smoothing factor used to choose the number of knots in the
-        univariate spline approximation.
+    kwargs :
+        Keyword arguments for scikit-learn support vector
+        regressor (`sklearn.svm.SVR`).
 
     Returns
     -------
-    spl : Interpolator
-        Spline approximation of the LOWESS fit.
+    interp : interpolator
+        Interpolated fit of the SVR result.
 
     """
-
     # uniqueify
     x = a[align].values
     y = b[align].values
     arr = np.vstack((x, y)).T
     arr = np.unique(arr, axis=0)
 
-    # fit forward lowess
-    lw = lowess(arr[:, 1], arr[:, 0], frac=frac, it=it)
+    # fit forward reg
+    svr = SVR(**kwargs)
+    svr.fit(arr[:, 0].reshape(-1, 1), arr[:, 1])
 
-    # unique x
-    _, idx = np.unique(lw[:, 0], return_index=True)
+    newx = np.linspace(arr[:, 0].min(), arr[:, 0].max(), 1000)
 
-    # spline
-    spl = scipy.interpolate.UnivariateSpline(lw[idx, 0], lw[idx, 1], s=s, k=3)
+    newy = svr.predict(newx.reshape(-1, 1))
 
-    # interpolate
-    x2 = np.linspace(x.min(), x.max(), 1000)
-    y2 = spl(x2)
-    interp = scipy.interpolate.interp1d(x2, y2, kind='linear', fill_value='extrapolate')
-
-    return interp
+    return scipy.interpolate.interp1d(newx, newy, fill_value='extrapolate')
 
 
 def internal_standards(data, masses, tol=0.02):
