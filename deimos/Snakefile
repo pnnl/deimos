@@ -55,8 +55,7 @@ rule alignment:
     output:
         join('output', 'aligned', '{id}.h5'),
         join('output', 'splines', '{id}.npy'),
-        join('output', 'splines', '{id}_1.png'),
-        join('output', 'splines', '{id}_2.png')
+        join('output', 'splines', '{id}.png')
     run:
         # reference
         ref = join('output', 'peakpick', '{}_ms1_peaks.h5'.format(config['alignment']['reference']))
@@ -80,15 +79,14 @@ rule alignment:
                                              processes=config['partition']['processes'],
                                              features=config['features'],
                                              tol=config['alignment']['tol'],
-                                             ignore=config['alignment']['align'])
+                                             ignore=None)
 
         # fit
         spl = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
                                           kernel=config['alignment']['svr']['kernel'],
                                           gamma=config['alignment']['svr']['gamma'],
                                           epsilon=config['alignment']['svr']['epsilon'],
-                                          C=config['alignment']['svr']['C'],
-                                          buffer=config['alignment']['svr']['buffer'])
+                                          C=config['alignment']['svr']['C'])
 
         # figure
         newx = np.linspace(a_[config['alignment']['align']].min(),
@@ -107,50 +105,11 @@ rule alignment:
         plt.savefig(output[2])
         plt.close()
 
-        # second iteration
-        a_[config['alignment']['align']] = spl(a_[config['alignment']['align']].values)
-
-        # partition
-        partitions = deimos.utils.partition(a_,
-                                            split_on=config['partition']['split_on'],
-                                            size=config['partition']['size'],
-                                            overlap=config['partition']['overlap'])
-
-        # align
-        a_match, b_match = partitions.zipmap(deimos.alignment.match_features, b_,
-                                             processes=config['partition']['processes'],
-                                             features=config['features'],
-                                             tol=config['alignment']['tol'],
-                                             ignore=config['alignment']['align'])
-
-        # fit
-        spl2 = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
-                                           kernel=config['alignment']['svr']['kernel'],
-                                           gamma=config['alignment']['svr']['gamma'],
-                                           epsilon=config['alignment']['svr']['epsilon'],
-                                           C=config['alignment']['svr']['C'],
-                                           buffer=config['alignment']['svr']['buffer'])
-
-        # figure
-        fig, ax = plt.subplots(dpi=150)
-        ax.plot(newx, spl2(newx), c='C3')
-        ax.scatter(a_match[config['alignment']['align']],
-                   b_match[config['alignment']['align']],
-                   color='black', s=2)
-
-        ax.set_xlabel(config['alignment']['align'], fontweight='bold')
-        ax.set_ylabel(config['alignment']['align'], fontweight='bold')
-        plt.tight_layout()
-        plt.savefig(output[3])
-        plt.close()
-
         # transform data
-        a[config['alignment']['align']] = spl2(spl(a[config['alignment']['align']].values))
+        a[config['alignment']['align']] = spl(a[config['alignment']['align']].values)
 
         # save transformed input
         deimos.utils.save_hdf(output[0], {'ms1': a})
 
-        # save splines
-        splines = {'it1': spl,
-                   'it2': spl2}
-        np.save(output[1], splines)
+        # save spline
+        np.save(output[1], spl)

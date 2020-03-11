@@ -11,9 +11,9 @@ peakpick:
 
 partition:
   split_on: mz
-  size: 500
+  size: 1000
   overlap: 0.05
-  processes: 4
+  processes: 1
 
 alignment:
   reference: refid

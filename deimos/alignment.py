@@ -108,7 +108,7 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def fit_spline(a, b, align='retention_time', buffer=0.05, **kwargs):
+def fit_spline(a, b, align='retention_time', **kwargs):
     """
     Fit a support vector regressor to matched features.
 
@@ -118,9 +118,6 @@ def fit_spline(a, b, align='retention_time', buffer=0.05, **kwargs):
         Matched input feature coordinates and intensities.
     align : str
         Feature to align.
-    buffer : float
-        Fraction of data to perform linear fit at either
-        edge.
     kwargs :
         Keyword arguments for scikit-learn support vector
         regressor (`sklearn.svm.SVR`).
@@ -146,26 +143,26 @@ def fit_spline(a, b, align='retention_time', buffer=0.05, **kwargs):
     newx = np.linspace(arr[:, 0].min(), arr[:, 0].max(), 1000)
     newy = svr.predict(newx.reshape(-1, 1))
 
-    # linear edges
-    N = int(len(arr) * buffer)
-    if N > 2:
-        # fit
-        lin1 = SVR(kernel='linear', **kwargs)
-        lin1.fit(arr[:N, 0].reshape(-1, 1), arr[:N, 1])
-        lin2 = SVR(kernel='linear', **kwargs)
-        lin2.fit(arr[-N:, 0].reshape(-1, 1), arr[-N:, 1])
+    # # linear edges
+    # N = int(len(arr) * buffer)
+    # if N > 2:
+    #     # fit
+    #     lin1 = SVR(kernel='linear', **kwargs)
+    #     lin1.fit(arr[:N, 0].reshape(-1, 1), arr[:N, 1])
+    #     lin2 = SVR(kernel='linear', **kwargs)
+    #     lin2.fit(arr[-N:, 0].reshape(-1, 1), arr[-N:, 1])
 
-        # predict
-        ylin1 = lin1.predict(newx.reshape(-1, 1))
-        ylin2 = lin2.predict(newx.reshape(-1, 1))
+    #     # predict
+    #     ylin1 = lin1.predict(newx.reshape(-1, 1))
+    #     ylin2 = lin2.predict(newx.reshape(-1, 1))
 
-        # overwrite
-        # newy[newx < arr[N, 0]] = ylin1[newx < arr[N, 0]]
-        newy[newx > arr[-N, 0]] = ylin2[newx > arr[-N, 0]]
+    #     # overwrite
+    #     # newy[newx < arr[N, 0]] = ylin1[newx < arr[N, 0]]
+    #     newy[newx > arr[-N, 0]] = ylin2[newx > arr[-N, 0]]
 
-        # fit spline for continuity
-        spl = scipy.interpolate.UnivariateSpline(newx, newy, s=2, k=3)
-        newy = spl(newx)
+    #     # fit spline for continuity
+    #     spl = scipy.interpolate.UnivariateSpline(newx, newy, s=2, k=3)
+    #     newy = spl(newx)
 
     # return interpolator
     return scipy.interpolate.interp1d(newx, newy, kind='linear', fill_value='extrapolate')
