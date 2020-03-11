@@ -32,6 +32,14 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
     """
 
+    # safely cast to list
+    features = deimos.utils.safelist(features)
+    res = deimos.utils.safelist(res)
+    sigma = deimos.utils.safelist(sigma)
+
+    # check dims
+    deimos.utils.check_length([features, res, sigma])
+
     # grid data
     edges, H = deimos.grid.data2grid(data, features=features)
 
