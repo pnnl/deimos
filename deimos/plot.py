@@ -173,7 +173,6 @@ def multipanel_ms1(data, dpi=600):
     # dt
     tmp = deimos.utils.collapse(data, keep='drift_time')
     stem(tmp['drift_time'], tmp['intensity'], xlabel='drift time (ms)', ax=axes['dt'])
-    axes['dt'].set_xlim(0, tmp['drift_time'].max())
     plt.setp(axes['dt'].get_xticklabels(), ha="right", rotation=30)
 
     # rt
