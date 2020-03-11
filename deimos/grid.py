@@ -61,10 +61,10 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time']):
 
     # edges to grid
     axes = np.meshgrid(*edges, indexing='ij')
-    grid = np.hstack([x.reshape(-1, 1) for x in axes])
+    axes = np.hstack([x.reshape(-1, 1) for x in axes])
 
     # create dataframe
-    data = pd.DataFrame(grid, columns=features)
+    data = pd.DataFrame(axes, columns=features)
     data['intensity'] = grid.flatten()
 
     # threshold and sort
