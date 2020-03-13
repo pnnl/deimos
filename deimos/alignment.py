@@ -6,7 +6,7 @@ from sklearn.svm import SVR
 
 
 def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
-                   ignore=None, tol=[10E-6, 0.2, 0.11]):
+                   ppm=True, ignore=None, tol=[10E-6, 0.2, 0.11]):
     """
     Match features by their proximity to the closest feature in another dataset.
 
@@ -19,6 +19,9 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
+    ppm : bool
+        Whether to use ppm or absolute values when determining m/z
+        tolerance.
     ignore : str or list
         Ignore during distance calculation, e.g. for highly misaligned
         dimensions. Does not affect tolerance filter. Ambiguous matches
@@ -81,7 +84,7 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
 
         d = scipy.spatial.distance.cdist(v1, v2)
 
-        if f == 'mz':
+        if f == 'mz' and ppm is True:
             d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
 
         distances.append(d)
