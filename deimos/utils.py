@@ -194,7 +194,7 @@ def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
     return data.groupby(by=keep, as_index=False, sort=False).agg({'intensity': how})
 
 
-def threshold(data, threshold=1000):
+def threshold(data, threshold=0):
     """
     Thresholds input by intensity.
 
