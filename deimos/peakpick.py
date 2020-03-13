@@ -4,7 +4,7 @@ import deimos
 
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
-         sigma=[0.004, 0.2, 0.11], truncate=4, threshold=0):
+         sigma=[0.025, 0.2, 0.11], truncate=4):
     """
     Helper function to perform peak detection on a single partition.
 
@@ -22,8 +22,6 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     truncate : int
         Number of sigmas on either side of a peak considered
         during local non-maximum suppression.
-    threshold : float
-        Filter resulting peaks by intensity threshold.
 
     Returns
     -------
@@ -58,8 +56,5 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, peaks, features=features)
-
-    # threshold
-    peaks = deimos.utils.threshold(peaks, threshold=threshold)
 
     return peaks
