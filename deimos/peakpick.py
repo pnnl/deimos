@@ -4,7 +4,7 @@ import deimos
 
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
          res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
-         sigma=[0.004, 0.2, 0.11], truncate=4, threshold=1E3):
+         sigma=[0.004, 0.2, 0.11], truncate=4, threshold=0):
     """
     Helper function to perform peak detection on a single partition.
 
