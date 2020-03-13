@@ -256,27 +256,30 @@ class Partitions:
         # determine partition bounds
         bounds = [[x.min(), x.max()] for x in np.array_split(idx, partitions)]
         for i in range(1, len(bounds)):
-            bounds[i][0] = bounds[i - 1][1]
+            bounds[i][0] = bounds[i - 1][1] - self.overlap
 
-        # functional bounds
-        fbounds = []
-        for i in range(len(bounds)):
-            a, b = bounds[i]
+        if self.overlap > 0:
+            # functional bounds
+            fbounds = []
+            for i in range(len(bounds)):
+                a, b = bounds[i]
 
-            # first partition
-            if i < 1:
-                b = b - self.overlap / 2
+                # first partition
+                if i < 1:
+                    b = b - self.overlap / 2
 
-            # middle partitions
-            elif i < len(bounds) - 1:
-                a = a + self.overlap / 2
-                b = b - self.overlap / 2
+                # middle partitions
+                elif i < len(bounds) - 1:
+                    a = a + self.overlap / 2
+                    b = b - self.overlap / 2
 
-            # last partition
-            else:
-                a = a + self.overlap / 2
+                # last partition
+                else:
+                    a = a + self.overlap / 2
 
-            fbounds.append([a, b])
+                fbounds.append([a, b])
+        else:
+            fbounds = bounds
 
         self.bounds = bounds
         self.fbounds = fbounds
@@ -293,7 +296,7 @@ class Partitions:
         """
 
         for a, b in self.bounds:
-            yield deimos.targeted.slice(self.data, by=self.split_on, low=a - self.overlap, high=b)
+            yield deimos.targeted.slice(self.data, by=self.split_on, low=a, high=b)
 
     def map(self, func, processes=1, **kwargs):
         """
@@ -360,7 +363,7 @@ class Partitions:
         """
 
         # partition other dataset
-        partitions = (deimos.targeted.slice(b, by=self.split_on, low=a - self.overlap, high=b_)
+        partitions = (deimos.targeted.slice(b, by=self.split_on, low=a, high=b_)
                       for a, b_ in self.bounds)
 
         # serial
