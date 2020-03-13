@@ -5,7 +5,7 @@ accession: {'drift_time': 'MS:1002476',
 
 peakpick:
   res: [0.002445220947265625, 0.12024688720703125, 0.03858184814453125]
-  sigma: [0.004, 0.2, 0.11]
+  sigma: [0.025, 0.2, 0.11]
   truncate: 4
 
 partition:
