@@ -48,13 +48,18 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     size = [np.ceil(truncate * x) for x in points]
 
     # matched filter
-    corr = deimos.filters.matched_gaussian(H, points)
+    corr = deimos.filters.matched_gaussian(np.nan_to_num(H), points)
 
     # peak detection
     H_max = deimos.filters.maximum(corr, size)
     peaks = np.where(corr == H_max, H, 0)
 
+    # actual information
+    info = deimos.filters.count(H, size)
+    nz = deimos.filters.count(H, size, nonzero=True)
+
     # convert to dataframe
-    peaks = deimos.grid.grid2df(edges, peaks, features=features)
+    peaks = deimos.grid.grid2df(edges, peaks, features=features,
+                                additional={'npoints': info, 'nonzero': nz})
 
     return peaks

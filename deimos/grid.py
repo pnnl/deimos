@@ -33,13 +33,14 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 
-    grid = np.zeros([len(x) for x in idx], dtype=np.float32)
+    grid = np.full([len(x) for x in idx], np.nan, dtype=np.float32)
     grid[tuple(idx_i)] = data.loc[:, 'intensity'].values
 
     return idx, grid
 
 
-def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time']):
+def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
+            additional=None):
     """
     Converts dense grid representation to a data frame.
 
@@ -66,6 +67,10 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time']):
     # create dataframe
     data = pd.DataFrame(axes, columns=features)
     data['intensity'] = grid.flatten()
+
+    if additional is not None:
+        for k, v in additional.items():
+            data[k] = v.flatten()
 
     # threshold and sort
     data = data.loc[data['intensity'] > 0, :].sort_values(by='intensity', ascending=False).reset_index(drop=True)
