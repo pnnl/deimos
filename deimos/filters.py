@@ -3,7 +3,7 @@ import numpy as np
 import deimos
 
 
-def stdev_filter(a, size):
+def stdev(a, size):
     """
     N-dimensional convolution of a standard deviation filter.
 
