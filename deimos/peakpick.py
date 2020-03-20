@@ -54,12 +54,20 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     H_max = deimos.filters.maximum(corr, size)
     peaks = np.where(corr == H_max, H, 0)
 
-    # actual information
-    info = deimos.filters.count(H, size)
-    nz = deimos.filters.count(H, size, nonzero=True)
+    # data counts
+    n = deimos.filters.count(H, size)
+    n_nonzero = deimos.filters.count(H, size, nonzero=True)
+
+    # kurtosis
+    k = deimos.filters.kurtosis(edges, np.nan_to_num(H), size)
+
+    # additional dictionary
+    additional = {'k_{}'.format(k): v for k, v in zip(features, k)}
+    additional['npoints'] = n
+    additional['nonzero'] = n_nonzero
 
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, peaks, features=features,
-                                additional={'npoints': info, 'nonzero': nz})
+                                additional=additional)
 
     return peaks

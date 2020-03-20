@@ -125,3 +125,38 @@ def count(a, size, nonzero=False):
         ksize = np.prod(size)
 
     return ksize * ndi.uniform_filter(a, size=size, mode='constant', cval=0)
+
+
+def kurtosis(edges, a, size):
+    """
+    N-dimensional convolution of a standard deviation filter.
+
+    Parameters
+    ----------
+    edges : ndarray(s)
+        Edges coordinates along each grid axis.
+    a : ndarray
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    out : ndarray
+        Filtered intensity data.
+
+    """
+    k = []
+    for i, (e, s) in enumerate(zip(edges, size)):
+        ax = tuple(x for x in range(len(edges)) if x is not i)
+        freq = np.sum(a, axis=ax)
+
+        # conv
+        total = s * ndi.filters.uniform_filter(freq, s, mode='constant')
+        xbar = s * ndi.filters.uniform_filter(e * freq, s, mode='constant') / total
+        m2 = s * ndi.filters.uniform_filter(np.square(e - xbar) * freq, s, mode='constant') / total
+        m4 = s * ndi.filters.uniform_filter(np.power(e - xbar, 4) * freq, s, mode='constant') / total
+        k.append(m4 / np.square(m2) - 3.0)
+
+    k = np.meshgrid(*k, indexing='ij')
+    return k
