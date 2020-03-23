@@ -41,7 +41,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     # parse
     for spec in data:
         # init
-        arr = np.empty((spec.mz.shape[0], len(accession) + 2))
+        arr = np.empty((spec.mz.shape[0], len(accession) + 2), dtype=np.float32)
         cols = ['mz', 'intensity']
 
         # fill
