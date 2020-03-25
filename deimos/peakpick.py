@@ -38,28 +38,32 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([features, res, sigma])
 
-    # grid data
-    edges, H = deimos.grid.data2grid(data, features=features)
-
     # sigma in terms of n points
     points = [s / r for s, r in zip(sigma, res)]
 
     # truncate * sigma size
     size = [np.ceil(truncate * x) for x in points]
 
-    # matched filter
-    corr = deimos.filters.matched_gaussian(np.nan_to_num(H), points)
-
-    # peak detection
-    H_max = deimos.filters.maximum(corr, size)
-    peaks = np.where(corr == H_max, H, 0)
+    # grid data
+    edges, H = deimos.grid.data2grid(data, features=features)
 
     # data counts
     n = deimos.filters.count(H, size)
     n_nonzero = deimos.filters.count(H, size, nonzero=True)
 
+    # nan to num
+    H = np.nan_to_num(H)
+
     # kurtosis
-    k = deimos.filters.kurtosis(edges, np.nan_to_num(H), size)
+    k = deimos.filters.kurtosis(edges, H, size)
+
+    # peak detection
+    corr = deimos.filters.matched_gaussian(H, points)
+    H_max = deimos.filters.maximum(corr, size)
+    peaks = np.where(corr == H_max, H, 0)
+
+    # clean up
+    del corr, H_max, H
 
     # additional dictionary
     additional = {'k_{}'.format(k): v for k, v in zip(features, k)}
@@ -67,7 +71,5 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     additional['nonzero'] = n_nonzero
 
     # convert to dataframe
-    peaks = deimos.grid.grid2df(edges, peaks, features=features,
-                                additional=additional)
-
-    return peaks
+    return deimos.grid.grid2df(edges, peaks, features=features,
+                               additional=additional)

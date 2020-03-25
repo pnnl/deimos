@@ -61,20 +61,28 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
 
     """
 
+    # column labels container
+    cols = features.copy()
+
+    # flatten grid and threshold
+    grid = grid.flatten()
+    idx = grid > 0
+    grid = grid[idx].reshape(-1, 1)
+
     # edges to grid
-    axes = np.meshgrid(*edges, indexing='ij')
-    axes = np.hstack([x.reshape(-1, 1) for x in axes])
+    data = np.meshgrid(*edges, indexing='ij')
+    data = [x.reshape(-1, 1)[idx] for x in data]
 
-    # create dataframe
-    data = pd.DataFrame(axes, columns=features)
-    data['intensity'] = grid.flatten()
+    # append intensity
+    data.append(grid)
+    cols.append('intensity')
 
+    # append additional columns
     if additional is not None:
         for k, v in additional.items():
-            data[k] = v.flatten()
+            data.append(v.flatten()[idx].reshape(-1, 1))
+            cols.append(k)
 
-    # threshold and sort
-    data = data.loc[data['intensity'] > 0, :].sort_values(by='intensity', ascending=False).reset_index(drop=True)
+    del additional, idx
 
-    # return all hits
-    return data
+    return pd.DataFrame(np.hstack(data), columns=cols, dtype=np.float32)
