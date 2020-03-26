@@ -54,8 +54,7 @@ rule alignment:
         rules.peakpick_ms1.output
     output:
         join('output', 'aligned', '{id}.h5'),
-        join('output', 'splines', '{id}.npy'),
-        join('output', 'splines', '{id}.png')
+        join('output', 'splines', '{id}.npy')
     run:
         # reference
         ref = join('output', 'peakpick', '{}_ms1_peaks.h5'.format(config['alignment']['reference']))
@@ -81,35 +80,35 @@ rule alignment:
                                              tol=config['alignment']['tol'],
                                              ignore=None)
 
-        # fit
-        spl = deimos.alignment.fit_spline(a_match, b_match, align=config['alignment']['align'],
-                                          kernel=config['alignment']['svr']['kernel'],
-                                          gamma=config['alignment']['svr']['gamma'],
-                                          epsilon=config['alignment']['svr']['epsilon'],
-                                          C=config['alignment']['svr']['C'])
+        splines = {}
+        for f in config['alignment']['align']:
+            # fit
+            splines[f] = deimos.alignment.fit_spline(a_match, b_match, align=f,
+                                                     kernel=config['alignment']['svr']['kernel'],
+                                                     gamma=config['alignment']['svr']['gamma'],
+                                                     epsilon=config['alignment']['svr']['epsilon'],
+                                                     C=config['alignment']['svr']['C'])
 
-        # figure
-        newx = np.linspace(a_[config['alignment']['align']].min(),
-                           a_[config['alignment']['align']].max(),
-                           1000)
+            # figure
+            newx = np.linspace(a_[f].min(), a_[f].max(), 1000)
 
-        fig, ax = plt.subplots(dpi=150)
-        ax.plot(newx, spl(newx), c='C3')
-        ax.scatter(a_match[config['alignment']['align']],
-                   b_match[config['alignment']['align']],
-                   color='black', s=2)
+            fig, ax = plt.subplots(dpi=150)
+            ax.plot(newx, splines[f](newx), c='C3')
+            ax.scatter(a_match[f],
+                       b_match[f],
+                       color='black', s=2)
 
-        ax.set_xlabel(config['alignment']['align'], fontweight='bold')
-        ax.set_ylabel(config['alignment']['align'], fontweight='bold')
-        plt.tight_layout()
-        plt.savefig(output[2])
-        plt.close()
+            ax.set_xlabel(f, fontweight='bold')
+            ax.set_ylabel(f, fontweight='bold')
+            plt.tight_layout()
+            plt.savefig(join('output', 'splines', '{}_{}.png'.format(wildcards.id, f)))
+            plt.close()
 
-        # transform data
-        a[config['alignment']['align']] = spl(a[config['alignment']['align']].values)
+            # transform data
+            a[f] = splines[f](a[f].values)
 
         # save transformed input
         deimos.utils.save_hdf(output[0], {'ms1': a})
 
         # save spline
-        np.save(output[1], spl)
+        np.save(output[1], splines)

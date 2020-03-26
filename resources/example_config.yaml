@@ -16,7 +16,7 @@ partition:
 
 alignment:
   reference: refid
-  align: retention_time
+  align: ['drift_time', 'retention_time']
   tol: [10.E-6, 0.2, 5]
   threshold: 300
   svr:
