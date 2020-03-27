@@ -138,13 +138,27 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     arr = np.vstack((x, y)).T
     arr = np.unique(arr, axis=0)
 
-    # fit
-    svr = SVR(**kwargs)
-    svr.fit(arr[:, 0].reshape(-1, 1), arr[:, 1])
+    # check kwargs
+    if 'kernel' in kwargs:
+        kernel = kwargs.get('kernel')
+    else:
+        kernel = 'linear'
 
-    # predict
     newx = np.linspace(arr[:, 0].min(), arr[:, 0].max(), 1000)
-    newy = svr.predict(newx.reshape(-1, 1))
+
+    if kernel == 'linear':
+        reg = scipy.stats.linregress(x, y)
+        newy = reg.slope * newx + reg.intercept
+
+    else:
+        # fit
+        svr = SVR(**kwargs)
+        svr.fit(arr[:, 0].reshape(-1, 1), arr[:, 1])
+
+        # predict
+        newy = svr.predict(newx.reshape(-1, 1))
+
+    return scipy.interpolate.interp1d(newx, newy, kind='linear', fill_value='extrapolate')
 
     # # linear edges
     # N = int(len(arr) * buffer)
@@ -168,7 +182,6 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     #     newy = spl(newx)
 
     # return interpolator
-    return scipy.interpolate.interp1d(newx, newy, kind='linear', fill_value='extrapolate')
 
 
 def internal_standards(data, masses, tol=0.02):
