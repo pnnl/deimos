@@ -37,6 +37,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
     # result container
     res = defaultdict(list)
+    precursors = defaultdict(list)
 
     # parse
     for spec in data:
@@ -53,9 +54,19 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
             arr[:, 2 + i] = spec.get(v)
 
         res['ms{}'.format(spec.ms_level)].append(arr)
+        if spec.selected_precursors:
+            precursors['ms{}'.format(spec.ms_level)].append(spec.selected_precursors[0])
 
+    # create dataframes
     for level in res.keys():
         res[level] = pd.DataFrame(np.concatenate(res[level], axis=0), columns=cols)
+
+        # append precursor info if present
+        if level in precursors.keys():
+            precursors[level] = pd.DataFrame(precursors[level]).rename(columns={'mz': 'precursor_mz',
+                                                                                'i': 'precursor_intensity',
+                                                                                'charge': 'precursor_charge'})
+            res[level] = pd.concat((res[level], precursors[level]), axis=1)
 
     return res
 
