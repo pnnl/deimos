@@ -396,8 +396,8 @@ class Partitions:
         result['b'] = [p.iloc[i, :] for p, i in zip(result['b'], idx)]
 
         # combine partitions
-        result['a'] = pd.concat(result['a']).reset_index(drop=True)
-        result['b'] = pd.concat(result['b']).reset_index(drop=True)
+        result['a'] = pd.concat(result['a'])
+        result['b'] = pd.concat(result['b'])
 
         return result['a'], result['b']
 

@@ -37,6 +37,9 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
     # check dims
     check_length([by, loc, tol])
 
+    # store index
+    rindex = data.index.values
+
     # extend columns
     cols = data.columns
     cidx = [cols.get_loc(x) for x in by]
@@ -48,18 +51,19 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
         idx *= (data[:, i] <= x + dx) & (data[:, i] >= x - dx)
 
     data = data[idx]
+    rindex = rindex[idx]
 
     if return_index is True:
         # data found
         if data.shape[0] > 0:
-            return pd.DataFrame(data, columns=cols), idx
+            return pd.DataFrame(data, index=rindex, columns=cols), idx
 
         # no data
         return None, idx
     else:
         # data found
         if data.shape[0] > 0:
-            return pd.DataFrame(data, columns=cols)
+            return pd.DataFrame(data, index=rindex, columns=cols)
 
         # no data
         return None
@@ -99,6 +103,9 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
     # check dims
     check_length([by, low, high])
 
+    # store index
+    rindex = data.index.values
+
     # extend columns
     cols = data.columns
     cidx = [cols.get_loc(x) for x in by]
@@ -110,18 +117,19 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
         idx *= (data[:, i] <= ub) & (data[:, i] >= lb)
 
     data = data[idx]
+    rindex = rindex[idx]
 
     if return_index is True:
         # data found
         if data.shape[0] > 0:
-            return pd.DataFrame(data, columns=cols), idx
+            return pd.DataFrame(data, index=rindex, columns=cols), idx
 
         # no data
         return None, idx
     else:
         # data found
         if data.shape[0] > 0:
-            return pd.DataFrame(data, columns=cols)
+            return pd.DataFrame(data, index=rindex, columns=cols)
 
         # no data
         return None

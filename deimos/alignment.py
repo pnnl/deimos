@@ -105,8 +105,8 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     ii, jj = np.where(np.repeat(mn, dist3d.shape[1], axis=1) == dist3d)
 
     # reorder
-    a = a.iloc[ii].reset_index(drop=True)
-    b = b.iloc[jj].reset_index(drop=True)
+    a = a.iloc[ii]
+    b = b.iloc[jj]
 
     return a, b
 
