@@ -19,6 +19,8 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
         Coordinate location.
     tol : float or list
         Tolerance in each dimension.
+    return_index : bool
+        Return indices of subset.
 
     Returns
     -------
@@ -36,6 +38,12 @@ def find_feature(data, by=['mz', 'drift_time', 'retention_time'],
 
     # check dims
     check_length([by, loc, tol])
+
+    if data is None:
+        if return_index is True:
+            return None, None
+        else:
+            return None
 
     # store index
     rindex = data.index.values
@@ -85,6 +93,8 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
         Lower bound(s) in each dimension.
     high : float or list
         Upper bound(s) in each dimension.
+    return_index : bool
+        Return indices of subset.
 
     Returns
     -------
@@ -102,6 +112,12 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
 
     # check dims
     check_length([by, low, high])
+
+    if data is None:
+        if return_index is True:
+            return None, None
+        else:
+            return None
 
     # store index
     rindex = data.index.values

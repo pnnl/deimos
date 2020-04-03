@@ -393,7 +393,7 @@ class Partitions:
                for i, (a, b_) in enumerate(self.fbounds)]
         result['a'] = [x[0] for x in tmp]
         idx = [x[1] for x in tmp]
-        result['b'] = [p.iloc[i, :] for p, i in zip(result['b'], idx)]
+        result['b'] = [p.iloc[i, :] if i is not None else None for p, i in zip(result['b'], idx)]
 
         # combine partitions
         result['a'] = pd.concat(result['a'])

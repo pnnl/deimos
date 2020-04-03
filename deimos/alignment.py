@@ -5,6 +5,159 @@ import pandas as pd
 from sklearn.svm import SVR
 
 
+def match(a, b, features=['mz', 'drift_time', 'retention_time'],
+          ppm=True, tol=[10E-6, 0.2, 0.11]):
+    """
+    Identify features in `b` within tolerance of those in `a`.
+
+    Parameters
+    ----------
+    a, b : DataFrame
+        Input feature coordinates and intensities. Features from a are
+        matched to features in b.
+    features : list
+        Features to match against.
+    tol : float or list
+        Tolerance in each feature dimension to define a match.
+    ppm : bool
+        Whether to use ppm or absolute values when determining m/z
+        tolerance.
+
+    Returns
+    -------
+    a, b : DataFrame
+        Features matched within tolerances. E.g., a[i..n] and
+        b[i..n] each represent matched features.
+
+    """
+
+    if a is None or b is None:
+        return None, None
+
+    # safely cast to list
+    features = deimos.utils.safelist(features)
+    tol = deimos.utils.safelist(tol)
+
+    # check dims
+    deimos.utils.check_length([features, tol])
+
+    # compute inter-feature distances
+    idx = []
+    for i, f in enumerate(features):
+        v1 = a[f].values.reshape(-1, 1)
+        v2 = b[f].values.reshape(-1, 1)
+
+        d = scipy.spatial.distance.cdist(v1, v2)
+
+        if f == 'mz' and ppm is True:
+            d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
+
+        idx.append(d <= tol[i])
+
+    # stack truth arrays
+    idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
+
+    # compute normalized 3d distance
+    v1 = a[features].values / np.array(tol)
+    v2 = b[features].values / np.array(tol)
+    dist3d = scipy.spatial.distance.cdist(v1, v2)
+    dist3d = np.multiply(dist3d, idx)
+    dist3d = dist3d / dist3d.max()
+
+    # intensities
+    intensity = np.repeat(a['intensity'].values.reshape(-1, 1), b.shape[0], axis=1)
+    intensity = np.multiply(intensity, idx)
+
+    # tie break by min distance
+    intensity = intensity - dist3d
+
+    # max across rows, cols
+    maxcols = np.max(intensity, axis=0)
+    maxrows = np.max(intensity, axis=1)
+
+    # grid
+    igrid = np.meshgrid(maxcols, maxrows)
+
+    # where max and nonzero
+    ii, jj = np.where((intensity == igrid[0]) &
+                      (intensity == igrid[1]) &
+                      (intensity > 0))
+
+    # reorder
+    a = a.iloc[ii]
+    b = b.iloc[jj]
+
+    if len(a.index) < 1 or len(b.index) < 1:
+        return None, None
+
+    return a, b
+
+
+def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
+              ppm=True, tol=[10E-6, 0.2, 0.11]):
+    """
+    Identify features in `b` within tolerance of those in `a`.
+
+    Parameters
+    ----------
+    a, b : DataFrame
+        Input feature coordinates and intensities. Features from a are
+        matched to features in b.
+    features : list
+        Features to match against.
+    tol : float or list
+        Tolerance in each feature dimension to define a match.
+    ppm : bool
+        Whether to use ppm or absolute values when determining m/z
+        tolerance.
+
+    Returns
+    -------
+    a, b : DataFrame
+        Features matched within tolerances. E.g., a[i..n] and
+        b[i..n] each represent matched features.
+
+    """
+
+    if a is None or b is None:
+        return None, None
+
+    # safely cast to list
+    features = deimos.utils.safelist(features)
+    tol = deimos.utils.safelist(tol)
+
+    # check dims
+    deimos.utils.check_length([features, tol])
+
+    # compute inter-feature distances
+    idx = []
+    for i, f in enumerate(features):
+        v1 = a[f].values.reshape(-1, 1)
+        v2 = b[f].values.reshape(-1, 1)
+
+        d = scipy.spatial.distance.cdist(v1, v2)
+
+        if f == 'mz' and ppm is True:
+            d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
+
+        idx.append(d <= tol[i])
+
+    # stack truth arrays
+    idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
+
+    # per-dataset indices
+    ii, jj = np.where(idx > 0)
+
+    # reorder
+    a = a.iloc[ii]
+    b = b.iloc[jj]
+
+    if len(a.index) < 1 or len(b.index) < 1:
+        return None, None
+
+    return a, b
+
+
 def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
                    ppm=True, ignore=None, tol=[10E-6, 0.2, 0.11]):
     """
@@ -34,6 +187,9 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
         b[i..n] each represent matched features.
 
     """
+
+    if a is None or b is None:
+        return None, None
 
     # safely cast to list
     features = deimos.utils.safelist(features)
@@ -77,8 +233,8 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     dist3d = scipy.spatial.distance.cdist(v1, v2)
 
     # compute inter-feature distances
-    distances = []
-    for f in features:
+    idx = []
+    for i, f in enumerate(features):
         v1 = a[f].values.reshape(-1, 1)
         v2 = b[f].values.reshape(-1, 1)
 
@@ -87,15 +243,7 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
         if f == 'mz' and ppm is True:
             d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
 
-        distances.append(d)
-
-    # stack
-    distances = np.dstack(distances)
-
-    # compute indices where each condition true
-    idx = []
-    for i in range(len(features)):
-        idx.append(distances[:, :, i] <= tol[i])
+        idx.append(d <= tol[i])
 
     # stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
@@ -107,6 +255,9 @@ def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
     # reorder
     a = a.iloc[ii]
     b = b.iloc[jj]
+
+    if len(a.index) < 1 or len(b.index) < 1:
+        return None, None
 
     return a, b
 
