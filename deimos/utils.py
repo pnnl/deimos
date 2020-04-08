@@ -223,7 +223,7 @@ def threshold(data, threshold=0):
 
     """
 
-    return data.loc[data['intensity'] >= threshold, :].reset_index(drop=True)
+    return data.loc[data['intensity'] > threshold, :].reset_index(drop=True)
 
 
 class Partitions:
