@@ -37,36 +37,47 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
     # result container
     res = defaultdict(list)
-    precursors = defaultdict(list)
+
+    # precursor rename
+    pdict = {'mz': 'precursor_mz',
+             'i': 'precursor_intensity',
+             'charge': 'precursor_charge'}
 
     # parse
     for spec in data:
         # init
-        arr = np.empty((spec.mz.shape[0], len(accession) + 2), dtype=np.float32)
         cols = ['mz', 'intensity']
+
+        # check for precursor
+        if spec.selected_precursors:
+            arr = np.empty((spec.mz.shape[0],
+                            len(accession) + len(spec.selected_precursors[0]) + 2), dtype=np.float32)
+
+        # no precursor
+        else:
+            arr = np.empty((spec.mz.shape[0], len(accession) + 2), dtype=np.float32)
 
         # fill
         arr[:, 0] = spec.mz
         arr[:, 1] = spec.i
 
+        # populate accession fields
         for i, (k, v) in enumerate(accession.items()):
             cols.append(k)
             arr[:, 2 + i] = spec.get(v)
 
-        res['ms{}'.format(spec.ms_level)].append(arr)
+        # populate precursor information
         if spec.selected_precursors:
-            precursors['ms{}'.format(spec.ms_level)].append(spec.selected_precursors[0])
+            for i, (k, v) in enumerate(spec.selected_precursors[0].items()):
+                cols.append(pdict[k])
+                arr[:, 2 + len(accession) + i] = v
 
-    # create dataframes
+        # append dataframe
+        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr, columns=cols))
+
+    # concatenate dataframes
     for level in res.keys():
-        res[level] = pd.DataFrame(np.concatenate(res[level], axis=0), columns=cols)
-
-        # append precursor info if present
-        if level in precursors.keys():
-            precursors[level] = pd.DataFrame(precursors[level]).rename(columns={'mz': 'precursor_mz',
-                                                                                'i': 'precursor_intensity',
-                                                                                'charge': 'precursor_charge'})
-            res[level] = pd.concat((res[level], precursors[level]), axis=1)
+        res[level] = pd.concat(res[level], axis=0, ignore_index=True)
 
     return res
 
