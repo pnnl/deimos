@@ -4,9 +4,10 @@ accession: {'drift_time': 'MS:1002476',
             'retention_time': 'MS:1000016'}
 
 peakpick:
-  res: [0.002445220947265625, 0.12024688720703125, 0.03858184814453125]
-  sigma: [0.025, 0.2, 0.11]
-  truncate: 4
+  bins: [2.7, 0.94, 3.64]
+  scale_by: mz
+  ref_res: 0.002445221
+  scale: drift_time
 
 partition:
   split_on: mz
