@@ -47,6 +47,55 @@ def maximum(a, size):
     return ndi.maximum_filter(a, size=size, mode='constant', cval=0)
 
 
+def sum(a, size):
+    """
+    N-dimensional convolution of a sum filter.
+
+    Parameters
+    ----------
+    a : ndarray
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    out : ndarray
+        Filtered intensity data.
+
+    """
+
+    size = deimos.utils.safelist(size)
+    if len(size) == 1:
+        size = size[0]
+        ksize = size ** len(a.shape)
+    else:
+        ksize = np.prod(size)
+    return ksize * ndi.filters.uniform_filter(a, size, mode='constant')
+
+
+def mean(a, size):
+    """
+    N-dimensional convolution of a mean filter.
+
+    Parameters
+    ----------
+    a : ndarray
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    out : ndarray
+        Filtered intensity data.
+
+    """
+
+    a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
+    return ndi.uniform_filter(a, size=size, mode='constant', cval=0)
+
+
 def matched_gaussian(a, size):
     """
     N-dimensional convolution of a matched Gaussian filter.
@@ -117,14 +166,7 @@ def count(a, size, nonzero=False):
     else:
         a = np.where(np.isnan(a), 0.0, 1.0)
 
-    size = deimos.utils.safelist(size)
-    if len(size) == 1:
-        size = size[0]
-        ksize = size ** len(a.shape)
-    else:
-        ksize = np.prod(size)
-
-    return ksize * ndi.uniform_filter(a, size=size, mode='constant', cval=0)
+    return deimos.filters.sum(a, size)
 
 
 def kurtosis(edges, a, size):

@@ -3,8 +3,7 @@ import deimos
 
 
 def auto(data, features=['mz', 'drift_time', 'retention_time'],
-         res=[0.002445220947265625, 0.12024688720703125, 0.03858184814453125],
-         sigma=[0.025, 0.2, 0.11], truncate=4):
+         bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None, scale=None):
     """
     Helper function to perform peak detection on a single partition.
 
@@ -14,14 +13,16 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
         Input feature coordinates and intensities.
     features : str or list
         Feature dimensions to perform peak detection in
-        (omitted dimensions will be collapsed and summed accross)..
-    res : float or list
-        Acquisition resolution in each dimension.
-    sigma : float or list
-        Width of a prototypical peak in each dimension.
-    truncate : int
-        Number of sigmas on either side of a peak considered
-        during local non-maximum suppression.
+        (omitted dimensions will be collapsed and summed accross).
+    bins : float or list
+        Number of bins representing 1 sigma in each dimension.
+    scale_by : str
+        Dimension to scale bin widths by. Only applies when data is
+        partitioned by `scale_by` (see `deimos.utils.partition`).
+    ref_res : float
+        Minimum acquisition resolution of `scale_by` dimension.
+    scale : str or list
+        Dimensions to scale, according to `scale_by`.
 
     Returns
     -------
@@ -32,44 +33,64 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
     # safely cast to list
     features = deimos.utils.safelist(features)
-    res = deimos.utils.safelist(res)
-    sigma = deimos.utils.safelist(sigma)
+    bins = deimos.utils.safelist(bins)
 
     # check dims
-    deimos.utils.check_length([features, res, sigma])
+    deimos.utils.check_length([features, bins])
 
-    # sigma in terms of n points
-    points = [s / r for s, r in zip(sigma, res)]
+    # scaling
+    if None not in [scale_by, ref_res, scale]:
+        scale = deimos.utils.safelist(scale)
+        sf = np.min(np.diff(np.unique(data[scale_by]))) / ref_res
 
-    # truncate * sigma size
-    size = [np.ceil(truncate * x) for x in points]
+        # enumerate features
+        for i, f in enumerate(features):
+
+            # scale
+            if f in scale:
+                bins[i] *= sf
+
+    # improper scaling kwargs
+    else:
+        raise ValueError('`scale_by`, `ref_res`, and `scale` must all be supplied')
+
+    # bounds
+    sigma2 = [round(2 * x) for x in bins]
+    sigma4 = [round(4 * x) for x in bins]
+
+    # container
+    additional = {}
 
     # grid data
     edges, H = deimos.grid.data2grid(data, features=features)
 
     # data counts
-    n = deimos.filters.count(H, size)
-    n_nonzero = deimos.filters.count(H, size, nonzero=True)
+    additional['npoints_2'] = deimos.filters.count(H, sigma2)
+    additional['nonzero_2'] = deimos.filters.count(H, sigma2, nonzero=True)
+    additional['npoints_4'] = deimos.filters.count(H, sigma4)
+    additional['nonzero_4'] = deimos.filters.count(H, sigma4, nonzero=True)
 
     # nan to num
     H = np.nan_to_num(H)
 
-    # kurtosis
-    k = deimos.filters.kurtosis(edges, H, size)
+    # sum
+    additional['sum_2'] = deimos.filters.sum(H, sigma2)
+    additional['sum_4'] = deimos.filters.sum(H, sigma4)
 
     # peak detection
-    corr = deimos.filters.matched_gaussian(H, points)
-    H_max = deimos.filters.maximum(corr, size)
-    peaks = np.where(corr == H_max, H, 0)
+    H_max = deimos.filters.maximum(H, sigma4)
+    peaks = np.where(H == H_max, H, 0)
 
     # clean up
-    del corr, H_max, H
-
-    # additional dictionary
-    additional = {'k_{}'.format(k): v for k, v in zip(features, k)}
-    additional['npoints'] = n
-    additional['nonzero'] = n_nonzero
+    del H_max, H
 
     # convert to dataframe
-    return deimos.grid.grid2df(edges, peaks, features=features,
-                               additional=additional)
+    peaks = deimos.grid.grid2df(edges, peaks, features=features,
+                                additional=additional)
+
+    # add bins info
+    for i, f in enumerate(features):
+        peaks['sigma_{}_2'.format(f)] = sigma2[i]
+        peaks['sigma_{}_4'.format(f)] = sigma4[i]
+
+    return peaks

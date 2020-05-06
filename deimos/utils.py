@@ -165,8 +165,8 @@ def safelist(x):
     """
 
     if not isinstance(x, (list, pd.core.series.Series, np.ndarray)):
-        return [x]
-    return x
+        return [x].copy()
+    return x.copy()
 
 
 def check_length(lists):
