@@ -6,6 +6,7 @@ from collections import OrderedDict, defaultdict
 from functools import partial
 import multiprocessing as mp
 import deimos
+import warnings
 
 
 def read_mzml(path, accession={'drift_time': 'MS:1002476',
@@ -45,6 +46,11 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
     # parse
     for spec in data:
+        # dimension check
+        if len(spec.mz) != len(spec.i):
+            warnings.warn("m/z and intensity array dimension mismatch")
+            continue
+
         # init
         cols = ['mz', 'intensity']
 
