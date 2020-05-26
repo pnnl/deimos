@@ -50,6 +50,10 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
             if f in scale:
                 bins[i] *= sf
 
+    # no scaling
+    elif not any([scale_by, ref_res, scale]):
+        pass
+
     # improper scaling kwargs
     else:
         raise ValueError('`scale_by`, `ref_res`, and `scale` must all be supplied')
