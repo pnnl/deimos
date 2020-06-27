@@ -6,7 +6,7 @@ from sklearn.svm import SVR
 
 
 def match(a, b, features=['mz', 'drift_time', 'retention_time'],
-          ppm=True, tol=[10E-6, 0.2, 0.11]):
+          relative=[True, True, False], tol=[10E-6, 0.2, 0.11]):
     """
     Identify features in `b` within tolerance of those in `a`.
 
@@ -15,11 +15,11 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     a, b : DataFrame
         Input feature coordinates and intensities. Features from a are
         matched to features in b.
-    features : list
+    features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
-    ppm : bool
+    relative : bool or list
         Whether to use ppm or absolute values when determining m/z
         tolerance.
 
@@ -37,31 +37,47 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     # safely cast to list
     features = deimos.utils.safelist(features)
     tol = deimos.utils.safelist(tol)
+    relative = deimos.utils.safelist(relative)
 
     # check dims
-    deimos.utils.check_length([features, tol])
+    deimos.utils.check_length([features, tol, relative])
 
     # compute inter-feature distances
     idx = []
     for i, f in enumerate(features):
+        # vectors
         v1 = a[f].values.reshape(-1, 1)
         v2 = b[f].values.reshape(-1, 1)
 
+        # distances
         d = scipy.spatial.distance.cdist(v1, v2)
 
-        if f == 'mz' and ppm is True:
-            d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
+        if relative[i] is True:
+            # divisor
+            basis = np.repeat(v1, v2.shape[0], axis=1)
+            fix = np.repeat(v2, v1.shape[0], axis=1).T
+            basis = np.where(basis == 0, fix, basis)
 
+            # divide
+            d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
+
+        # check tol
         idx.append(d <= tol[i])
 
     # stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
 
     # compute normalized 3d distance
-    v1 = a[features].values / np.array(tol)
-    v2 = b[features].values / np.array(tol)
+    v1 = a[features].values / a[features].values.mean(axis=0)
+    v2 = b[features].values / b[features].values.mean(axis=0)
     dist3d = scipy.spatial.distance.cdist(v1, v2)
     dist3d = np.multiply(dist3d, idx)
+
+    # normalize to 0-1
+    mx = dist3d.max()
+    if mx == 0:
+        return None, None
+
     dist3d = dist3d / dist3d.max()
 
     # intensities
@@ -94,7 +110,7 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
 
 
 def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
-              ppm=True, tol=[10E-6, 0.2, 0.11]):
+              relative=[True, True, False], tol=[10E-6, 0.2, 0.11]):
     """
     Identify features in `b` within tolerance of those in `a`.
 
@@ -103,11 +119,11 @@ def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
     a, b : DataFrame
         Input feature coordinates and intensities. Features from a are
         matched to features in b.
-    features : list
+    features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
-    ppm : bool
+    relative : bool or list
         Whether to use ppm or absolute values when determining m/z
         tolerance.
 
@@ -132,14 +148,23 @@ def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
     # compute inter-feature distances
     idx = []
     for i, f in enumerate(features):
+        # vectors
         v1 = a[f].values.reshape(-1, 1)
         v2 = b[f].values.reshape(-1, 1)
 
+        # distances
         d = scipy.spatial.distance.cdist(v1, v2)
 
-        if f == 'mz' and ppm is True:
-            d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
+        if relative[i] is True:
+            # divisor
+            basis = np.repeat(v1, v2.shape[0], axis=1)
+            fix = np.repeat(v2, v1.shape[0], axis=1).T
+            basis = np.where(basis == 0, fix, basis)
 
+            # divide
+            d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
+
+        # check tol
         idx.append(d <= tol[i])
 
     # stack truth arrays
@@ -147,110 +172,6 @@ def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
 
     # per-dataset indices
     ii, jj = np.where(idx > 0)
-
-    # reorder
-    a = a.iloc[ii]
-    b = b.iloc[jj]
-
-    if len(a.index) < 1 or len(b.index) < 1:
-        return None, None
-
-    return a, b
-
-
-def match_features(a, b, features=['mz', 'drift_time', 'retention_time'],
-                   ppm=True, ignore=None, tol=[10E-6, 0.2, 0.11]):
-    """
-    Match features by their proximity to the closest feature in another dataset.
-
-    Parameters
-    ----------
-    a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are
-        matched to features in b.
-    features : list
-        Features to match against.
-    tol : float or list
-        Tolerance in each feature dimension to define a match.
-    ppm : bool
-        Whether to use ppm or absolute values when determining m/z
-        tolerance.
-    ignore : str or list
-        Ignore during distance calculation, e.g. for highly misaligned
-        dimensions. Does not affect tolerance filter. Ambiguous matches
-        in the ignored dimensions are dropped.
-
-    Returns
-    -------
-    a, b : DataFrame
-        Matched feature coordinates and intensities. E.g., a[i..n] and
-        b[i..n] each represent matched features.
-
-    """
-
-    if a is None or b is None:
-        return None, None
-
-    # safely cast to list
-    features = deimos.utils.safelist(features)
-    tol = deimos.utils.safelist(tol)
-
-    # check dims
-    deimos.utils.check_length([features, tol])
-
-    # mask ignored
-    if ignore is not None:
-        ignore = deimos.utils.safelist(ignore)
-        mask_idx = [features.index(x) for x in ignore]
-        features_masked = [j for i, j in enumerate(features) if i not in mask_idx]
-        tol_masked = [j for i, j in enumerate(tol) if i not in mask_idx]
-    else:
-        features_masked = features
-        tol_masked = tol
-
-    # groupby ops
-    if ignore is not None:
-        # placeholder for group counts
-        a['count'] = 1
-        b['count'] = 1
-
-        # aggregator
-        agg = {k: np.mean for k in ignore}
-        agg['intensity'] = np.sum
-        agg['count'] = np.sum
-
-        # group
-        a = a.groupby(by=features_masked, as_index=False, sort=False).agg(agg)
-        b = b.groupby(by=features_masked, as_index=False, sort=False).agg(agg)
-
-        # filter by counts
-        a = a.loc[a['count'] == 1, :].drop('count', axis=1)
-        b = b.loc[b['count'] == 1, :].drop('count', axis=1)
-
-    # compute normalized 3d distance
-    v1 = a[features_masked].values / np.array(tol_masked)
-    v2 = b[features_masked].values / np.array(tol_masked)
-    dist3d = scipy.spatial.distance.cdist(v1, v2)
-
-    # compute inter-feature distances
-    idx = []
-    for i, f in enumerate(features):
-        v1 = a[f].values.reshape(-1, 1)
-        v2 = b[f].values.reshape(-1, 1)
-
-        d = scipy.spatial.distance.cdist(v1, v2)
-
-        if f == 'mz' and ppm is True:
-            d = np.divide(d, scipy.spatial.distance.cdist(v1, v2, min))
-
-        idx.append(d <= tol[i])
-
-    # stack truth arrays
-    idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
-
-    # per-dataset indices
-    mn = np.amin(dist3d, axis=1, where=idx, initial=np.inf, keepdims=True)
-    ii, jj = np.where(np.repeat(mn, dist3d.shape[1], axis=1) == dist3d)
 
     # reorder
     a = a.iloc[ii]
