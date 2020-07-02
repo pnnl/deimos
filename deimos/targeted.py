@@ -1,4 +1,4 @@
-from deimos.utils import safelist, check_length
+from deimos.utils import safelist, check_length, collapse
 import pandas as pd
 import numpy as np
 
@@ -149,3 +149,40 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
 
         # no data
         return None
+
+
+def find_standard(data, mz, features=['mz', 'retention_time', 'drift_time'],
+                  tol=[20E-6, 0.15, 0.3], relative=[True, True, False]):
+    """
+    Detect standard (by mass only) in the dataset.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    mz : float
+        Expected m/z of the standard.
+    tol : float or list
+        Tolerance in each feature dimension to define a match.
+    relative : bool or list
+        Whether to use ppm or absolute values when determining m/z
+        tolerance.
+
+    Returns
+    -------
+    out : DataFrame
+        Feature coordinates and intensities that matched to
+        provided internal standards by mass.
+
+    """
+
+    coords = [mz]
+    i = 1
+    while i < len(features):
+        true_tol = [x * y if z else x for x, y, z in zip(tol[:i], coords, relative[:i])]
+        subset = find_feature(data, by=features[:i], loc=coords, tol=true_tol)
+        xic = collapse(subset, keep=features[i])
+        coords.append(xic.loc[xic['intensity'] == xic['intensity'].max(), features[i]].values[0])
+        i += 1
+
+    return coords

@@ -1,12 +1,11 @@
 import scipy
 import numpy as np
 import deimos
-import pandas as pd
 from sklearn.svm import SVR
 
 
 def match(a, b, features=['mz', 'drift_time', 'retention_time'],
-          relative=[True, True, False], tol=[10E-6, 0.2, 0.11]):
+          tol=[10E-6, 0.2, 0.11], relative=[True, True, False]):
     """
     Identify features in `b` within tolerance of those in `a`.
 
@@ -110,7 +109,7 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
 
 
 def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
-              relative=[True, True, False], tol=[10E-6, 0.2, 0.11]):
+              tol=[10E-6, 0.2, 0.11], relative=[True, True, False]):
     """
     Identify features in `b` within tolerance of those in `a`.
 
@@ -254,37 +253,3 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     #     newy = spl(newx)
 
     # return interpolator
-
-
-def internal_standards(data, masses, tol=0.02):
-    """
-    Detect internal standards (by mass only) in the dataset.
-
-    Parameters
-    ----------
-    data : DataFrame
-        Input feature coordinates and intensities.
-    masses : array_like
-        Expected masses of the internal standards.
-    tol : float
-        Tolerance in mass to define a match.
-
-    Returns
-    -------
-    out : DataFrame
-        Feature coordinates and intensities that matched to
-        provided internal standards by mass.
-
-    """
-
-    out = []
-    features = deimos.utils.detect_features(data)
-
-    for m in masses:
-        tmp = deimos.targeted.find_feature(data, by='mz', loc=m, tol=tol)
-        if tmp is not None:
-            out.append(tmp)
-
-    out = pd.concat(out).reset_index(drop=True)
-    out = deimos.utils.collapse(out, keep=features)
-    return out
