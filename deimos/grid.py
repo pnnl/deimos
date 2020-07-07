@@ -17,10 +17,10 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
 
     Returns
     -------
-    grid : ndarray
-        Resulting N-dimensional grid.
     edges : ndarray(s)
         Edges coordinates along each grid axis.
+    grid : ndarray
+        Resulting N-dimensional grid.
 
     """
 
