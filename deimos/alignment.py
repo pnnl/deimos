@@ -2,12 +2,15 @@ import scipy
 import numpy as np
 import deimos
 from sklearn.svm import SVR
+import pandas as pd
+import time
 
 
 def match(a, b, features=['mz', 'drift_time', 'retention_time'],
-          tol=[10E-6, 0.2, 0.11], relative=[True, True, False]):
+          tol=[5E-6, 0.015, 0.3], relative=[True, True, False]):
     """
     Identify features in `b` within tolerance of those in `a`.
+    Matches are bidirectionally one-to-one by highest intensity.
 
     Parameters
     ----------
@@ -109,9 +112,10 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
 
 
 def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
-              tol=[10E-6, 0.2, 0.11], relative=[True, True, False]):
+              tol=[5E-6, 0.025, 0.3], relative=[True, True, False]):
     """
     Identify features in `b` within tolerance of those in `a`.
+    Matches are potentially many-to-one.
 
     Parameters
     ----------
@@ -253,3 +257,160 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     #     newy = spl(newx)
 
     # return interpolator
+
+
+def join(paths, features=['mz', 'drift_time', 'retention_time'],
+         quantiles=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], processes=4,
+         partition_kwargs={}, match_kwargs={}):
+    '''
+    Iteratively apply `deimos.alignment.threshold` and `deimos.alignment.match`
+    across multiple datasets, generating a growing set of "clusters", similar
+    to the "join aligner" method of MZmine.
+
+    Parameters
+    ----------
+    paths : list
+        List of dataset paths to align.
+    features : str or list
+        Features to align with.
+    quantiles : array_like
+        Quantiles of feature intensities to iteratively perform
+        alignment.
+    processes : int
+        Number of parallel processes. If less than 2, a serial
+        mapping is applied.
+    partition_kwargs : dict
+        Keyword arguments for `deimos.utils.partition`.
+    match_kwargs : dict
+        Keyword arugments for `deimos.alignment.threshold`
+        and `deimos.alignment.match`.
+
+    Returns
+    -------
+    clusters : DataFrame
+        Coordinates of detected clusters, average intensitites,
+        and number of datasets observed.
+
+    '''
+
+    def helper(samp, clusters, verbose=True):
+        if len(samp.index) > 1000:
+            partition_kwargs['size'] = 500
+        else:
+            partition_kwargs['size'] = len(samp.index)
+
+        # partition
+        c_parts = deimos.utils.partition(pd.concat((samp, clusters), axis=0),
+                                         **partition_kwargs)
+        partitions = deimos.utils.partition(samp, **partition_kwargs)
+        partitions.bounds = c_parts.bounds
+        partitions.fbounds = c_parts.fbounds
+
+        # filter by tolerance
+        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.threshold, clusters,
+                                                  processes=processes, **match_kwargs)
+
+        # drop duplicates
+        samp_pass = samp_pass[~samp_pass.index.duplicated(keep='first')]
+        clust_pass = clust_pass[~clust_pass.index.duplicated(keep='first')]
+
+        # unmatched
+        unmatched = samp.loc[samp.index.difference(samp_pass.index), :]
+
+        # one-to-one mapping
+        if samp_pass.index.equals(clust_pass.index):
+            samp_match = samp_pass
+            clust_match = clust_pass
+
+        # many-to-many mapping
+        else:
+            # repartition
+            partitions = deimos.utils.partition(samp_pass, **partition_kwargs)
+            partitions.bounds = c_parts.bounds
+            partitions.fbounds = c_parts.fbounds
+            c_parts = None
+
+            # match
+            samp_match, clust_match = partitions.zipmap(deimos.alignment.match, clust_pass,
+                                                        processes=processes, **match_kwargs)
+
+        # match stats
+        if verbose:
+            print('clusters:\t{}'.format(len(clusters.index)))
+            print('sample count:\t{}'.format(len(samp.index)))
+            p = len(samp_pass.index) / len(samp.index) * 100
+            print('matched:\t{} ({:.1f}%)'.format(len(samp_pass.index), p))
+            p = len(samp_match.index) / len(samp.index) * 100
+            print('kept:\t\t{} ({:.1f}%)'.format(len(samp_match.index), p))
+            p = len(unmatched.index) / len(samp.index) * 100
+            print('unmatched:\t{} ({:.1f}%)'.format(len(unmatched.index), p))
+
+        return samp_match, clust_match, unmatched
+
+    # column indices
+    colnames = features + ['intensity']
+
+    # iterate quantiles
+    for k in range(1, len(quantiles)):
+        high = quantiles[-k]
+        low = quantiles[-k - 1]
+        print('quantile range: ({}, {}]'.format(low, high))
+
+        # iterate datasets
+        for i in range(len(paths)):
+            start = time.time()
+            print(i, paths[i])
+
+            # load
+            samp = deimos.utils.load_hdf(paths[i])
+            samp['intensity'] = samp['sum_2']
+
+            # filter
+            samp = samp.loc[(samp['intensity'] <= samp['intensity'].quantile(high)) &
+                            (samp['intensity'] > samp['intensity'].quantile(low)), :]
+            samp = samp[colnames]
+
+            # no clusters initialized
+            if (k == 1) and (i == 0):
+                clusters = samp
+
+            # match
+            samp_match, clust_match, unmatched = helper(samp, clusters)
+
+            # initialize unique clusters
+            if (k == 1) and (i == 0):
+                clusters = samp_match.reset_index(drop=True)
+                clusters['n'] = 1
+
+            # update clusters
+            else:
+                # unique matched clusters
+                idx = clust_match.index
+
+                # increment intensity
+                clusters.loc[idx, 'intensity'] += samp_match.loc[:, 'intensity'].values
+                clusters.loc[idx, 'n'] += 1
+
+                # update cluster centers
+                ab = clusters.loc[idx, 'intensity'].values
+                b = samp_match.loc[:, 'intensity'].values
+                a = ab - b
+
+                for f in features:
+                    clusters.loc[idx, f] = (a * clusters.loc[idx, f].values + b * samp_match.loc[:, f].values) / ab
+
+                # uniqueify unmatched
+                if len(unmatched.index) > 0:
+                    unmatched, _, _ = helper(unmatched, unmatched, verbose=False)
+                    unmatched['n'] = 1
+
+                # new cluster counts
+                p = len(unmatched.index) / len(samp.index) * 100
+                print('new:\t\t{} ({:.1f}%)'.format(len(unmatched.index), p))
+
+                # combine
+                clusters = pd.concat((clusters, unmatched), axis=0, ignore_index=True)
+
+            print('time:\t\t{:.2f}\n'.format(time.time() - start))
+
+    return clusters
