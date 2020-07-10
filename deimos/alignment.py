@@ -70,8 +70,8 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
 
     # compute normalized 3d distance
-    v1 = a[features].values / a[features].values.mean(axis=0)
-    v2 = b[features].values / b[features].values.mean(axis=0)
+    v1 = (a[features].values - a[features].values.mean(axis=0)) / a[features].values.std(axis=0)
+    v2 = (b[features].values - b[features].values.mean(axis=0)) / b[features].values.std(axis=0)
     dist3d = scipy.spatial.distance.cdist(v1, v2)
     dist3d = np.multiply(dist3d, idx)
 
