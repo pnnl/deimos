@@ -70,9 +70,11 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
 
     # compute normalized 3d distance
-    v1 = (a[features].values - a[features].values.mean(axis=0)) / a[features].values.std(axis=0)
-    v2 = (b[features].values - b[features].values.mean(axis=0)) / b[features].values.std(axis=0)
-    dist3d = scipy.spatial.distance.cdist(v1, v2)
+    v1 = a[features].values / tol
+    v2 = b[features].values / tol
+    # v1 = (v1 - v1.min(axis=0)) / (v1.max(axis=0) - v1.min(axis=0))
+    # v2 = (v2 - v1.min(axis=0)) / (v1.max(axis=0) - v1.min(axis=0))
+    dist3d = scipy.spatial.distance.cdist(v1, v2, 'cityblock')
     dist3d = np.multiply(dist3d, idx)
 
     # normalize to 0-1
@@ -86,20 +88,20 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     intensity = np.repeat(a['intensity'].values.reshape(-1, 1), b.shape[0], axis=1)
     intensity = np.multiply(intensity, idx)
 
-    # tie break by min distance
+    # max over features
+    maxcols = np.max(intensity, axis=0, keepdims=True)
+
+    # zero out nonmax over features
+    intensity[intensity != maxcols] = 0
+
+    # break ties by distance
     intensity = intensity - dist3d
 
-    # max across rows, cols
-    maxcols = np.max(intensity, axis=0)
-    maxrows = np.max(intensity, axis=1)
-
-    # grid
-    igrid = np.meshgrid(maxcols, maxrows)
+    # max over clusters
+    maxrows = np.max(intensity, axis=1, keepdims=True)
 
     # where max and nonzero
-    ii, jj = np.where((intensity == igrid[0]) &
-                      (intensity == igrid[1]) &
-                      (intensity > 0))
+    ii, jj = np.where((intensity == maxrows) & (intensity > 0))
 
     # reorder
     a = a.iloc[ii]
@@ -381,6 +383,7 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
             if (k == 1) and (i == 0):
                 clusters = samp_match.reset_index(drop=True)
                 clusters['n'] = 1
+                clusters['quantile'] = low
 
             # update clusters
             else:
@@ -403,6 +406,7 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
                 if len(unmatched.index) > 0:
                     unmatched, _, _ = helper(unmatched, unmatched, verbose=False)
                     unmatched['n'] = 1
+                    unmatched['quantile'] = low
 
                 # new cluster counts
                 p = len(unmatched.index) / len(samp.index) * 100
