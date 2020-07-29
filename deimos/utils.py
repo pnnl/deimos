@@ -286,7 +286,7 @@ class Partitions:
         for i in range(1, len(bounds)):
             bounds[i][0] = bounds[i - 1][1] - self.overlap
 
-        if self.overlap > 0:
+        if (self.overlap > 0) & (len(bounds) > 1):
             # functional bounds
             fbounds = []
             for i in range(len(bounds)):
