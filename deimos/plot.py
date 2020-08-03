@@ -113,7 +113,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     return ax
 
 
-def multipanel_ms1(data, method='linear', dpi=600):
+def multipanel_ms1(data, method='linear', cmap='cividis', dpi=600):
     def _sync_y_with_x(self, event):
         self.set_xlim(event.get_ylim(), emit=False)
 
@@ -182,19 +182,19 @@ def multipanel_ms1(data, method='linear', dpi=600):
 
     # mz-dt
     tmp = deimos.utils.collapse(data, keep=['mz', 'drift_time'])
-    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], cmap='viridis', method=method)
+    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], cmap=cmap, method=method)
     axes['mz-dt'].xaxis.label.set_visible(False)
     axes['mz-dt'].tick_params(labelbottom=False)
 
     # dt-rt
     tmp = deimos.utils.collapse(data, keep=['drift_time', 'retention_time'])
-    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], cmap='viridis', method=method)
+    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], cmap=cmap, method=method)
     axes['dt-rt'].xaxis.label.set_visible(False)
     axes['dt-rt'].tick_params(labelbottom=False)
 
     # rt-mz
     tmp = deimos.utils.collapse(data, keep=['retention_time', 'mz'])
-    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], cmap='viridis', method=method)
+    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], cmap=cmap, method=method)
     axes['rt-mz'].xaxis.label.set_visible(False)
     axes['rt-mz'].tick_params(labelbottom=False)
 
