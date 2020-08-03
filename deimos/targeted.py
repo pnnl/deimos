@@ -151,8 +151,8 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
         return None
 
 
-def find_standard(data, mz, features=['mz', 'retention_time', 'drift_time'],
-                  tol=[20E-6, 0.15, 0.3], relative=[True, True, False]):
+def _find_standard(data, mz, features=['mz', 'retention_time', 'drift_time'],
+                   tol=[20E-6, 0.15, 0.3], relative=[True, True, False]):
     """
     Detect standard (by mass only) in the dataset.
 
@@ -186,3 +186,32 @@ def find_standard(data, mz, features=['mz', 'retention_time', 'drift_time'],
         i += 1
 
     return coords
+
+
+def find_standard(data, mz, xix=['drift_time', 'retention_time'], tol=20E-6):
+    """
+    Detect standard (by mass only) in the dataset.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input feature coordinates and intensities.
+    mz : float
+        Expected m/z of the standard.
+    tol : float or list
+        Tolerance in each feature dimension to define a match.
+
+    Returns
+    -------
+    out : DataFrame
+        Feature coordinates and intensities that matched to
+        provided internal standards by mass.
+
+    """
+
+    subset = find_feature(data, by='mz', loc=mz, tol=tol)
+    subset = collapse(subset, keep=xix)
+    subset = subset.loc[subset['intensity'] == subset['intensity'].max(), :]
+    subset['mz'] = mz
+
+    return subset
