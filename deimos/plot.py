@@ -100,7 +100,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     gridded = np.nan_to_num(griddata(points, values, (grid_x, grid_y), method=method))
 
     # plot
-    ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap)
+    ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap, shading='auto')
 
     # # axis format
     # ax.xaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
