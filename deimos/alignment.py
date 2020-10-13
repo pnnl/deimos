@@ -368,8 +368,8 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
             samp['intensity'] = samp['sum_2']
 
             # filter
-            samp = samp.loc[(samp['intensity'] <= samp['intensity'].quantile(high)) &
-                            (samp['intensity'] > samp['intensity'].quantile(low)), :]
+            samp = samp.loc[(samp['intensity'] <= samp['intensity'].quantile(high))
+                            & (samp['intensity'] > samp['intensity'].quantile(low)), :]
             samp = samp[colnames]
 
             # no clusters initialized
