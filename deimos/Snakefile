@@ -5,10 +5,6 @@ from os.path import *
 import pandas as pd
 import glob
 
-import matplotlib
-matplotlib.use('agg')
-import matplotlib.pyplot as plt
-
 
 # infer wildcards from inputs
 fns = [basename(x) for x in glob.glob(join('input', '*.*'))]
@@ -18,7 +14,7 @@ lookup = {k: v for k, v in zip(IDS, fns)}
 
 rule all:
     input:
-        expand(join('output', 'aligned', '{id}.h5'), id=IDS)
+        expand(join('output', 'peakpick', '{id}.h5'), id=IDS)
 
 
 rule mzml2hdf:
@@ -31,84 +27,33 @@ rule mzml2hdf:
         deimos.utils.save_hdf(output[0], data)
 
 
-rule peakpick_ms1:
+rule peakpick:
     input:
         rules.mzml2hdf.output
     output:
         join('output', 'peakpick', '{id}.h5')
     run:
+        # ms1
         data = deimos.utils.load_hdf(input[0], level='ms1')
         partitions = deimos.utils.partition(data,
                                             split_on=config['partition']['split_on'],
                                             size=config['partition']['size'],
                                             overlap=config['partition']['overlap'])
-        peaks = partitions.map(deimos.peakpick.auto,
-                               features=config['features'],
-                               processes=config['partition']['processes'],
-                               **config['peakpick'])
-        deimos.utils.save_hdf(output[0], {'ms1': peaks})
+        ms1_peaks = partitions.map(deimos.peakpick.auto,
+                                   features=config['features'],
+                                   processes=config['partition']['processes'],
+                                   **config['peakpick']['ms1'])
 
-
-rule alignment:
-    input:
-        rules.peakpick_ms1.output
-    output:
-        join('output', 'aligned', '{id}.h5'),
-        join('output', 'splines', '{id}.npy')
-    run:
-        # reference
-        ref = join('output', 'peakpick', '{}.h5'.format(config['alignment']['reference']))
-
-        # load
-        a = deimos.utils.load_hdf(input[0], level='ms1')
-        b = deimos.utils.load_hdf(ref, level='ms1')
-
-        # threshold
-        a_ = deimos.utils.threshold(a, threshold=config['alignment']['threshold'])
-        b_ = deimos.utils.threshold(b, threshold=config['alignment']['threshold'])
-
-        # partition
-        partitions = deimos.utils.partition(a_,
+        # ms2
+        data = deimos.utils.load_hdf(input[0], level='ms2')
+        partitions = deimos.utils.partition(data,
                                             split_on=config['partition']['split_on'],
                                             size=config['partition']['size'],
                                             overlap=config['partition']['overlap'])
+        ms2_peaks = partitions.map(deimos.peakpick.auto,
+                                   features=config['features'],
+                                   processes=config['partition']['processes'],
+                                   **config['peakpick']['ms2'])
 
-        # align
-        a_match, b_match = partitions.zipmap(deimos.alignment.match_features, b_,
-                                             processes=config['partition']['processes'],
-                                             features=config['features'],
-                                             tol=config['alignment']['tol'],
-                                             ignore=None)
-
-        splines = {}
-        for f in config['alignment']['align']:
-            # fit
-            splines[f] = deimos.alignment.fit_spline(a_match, b_match, align=f,
-                                                     kernel=config['alignment']['svr']['kernel'],
-                                                     gamma=config['alignment']['svr']['gamma'],
-                                                     epsilon=config['alignment']['svr']['epsilon'],
-                                                     C=config['alignment']['svr']['C'])
-
-            # figure
-            newx = np.linspace(a_[f].min(), a_[f].max(), 1000)
-
-            fig, ax = plt.subplots(dpi=150)
-            ax.plot(newx, splines[f](newx), c='C3')
-            ax.scatter(a_match[f],
-                       b_match[f],
-                       color='black', s=2)
-
-            ax.set_xlabel(f, fontweight='bold')
-            ax.set_ylabel(f, fontweight='bold')
-            plt.tight_layout()
-            plt.savefig(join('output', 'splines', '{}_{}.png'.format(wildcards.id, f)))
-            plt.close()
-
-            # transform data
-            a[f] = splines[f](a[f].values)
-
-        # save transformed input
-        deimos.utils.save_hdf(output[0], {'ms1': a})
-
-        # save spline
-        np.save(output[1], splines)
+        deimos.utils.save_hdf(output[0], {'ms1': ms1_peaks
+                                          'ms2': ms2_peaks})

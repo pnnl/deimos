@@ -4,24 +4,16 @@ accession: {'drift_time': 'MS:1002476',
             'retention_time': 'MS:1000016'}
 
 peakpick:
-  bins: [2.7, 0.94, 3.64]
-  scale_by: mz
-  ref_res: 0.002445221
-  scale: drift_time
+  ms1:
+    bins: [2.7, 0.94, 3.64]
+    scale_by: mz
+    ref_res: 0.002445221
+    scale: drift_time
+  ms2:
+    bins: [2.7, 2.92, 3.64]
 
 partition:
   split_on: mz
   size: 1000
   overlap: 0.05
   processes: 1
-
-alignment:
-  reference: refid
-  align: ['drift_time', 'retention_time']
-  tol: [10.E-6, 0.2, 5]
-  threshold: 300
-  svr:
-    kernel: linear
-    epsilon: 0.1
-    C: 100
-    gamma: 0.05
