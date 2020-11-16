@@ -61,6 +61,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # bounds
     sigma2 = [round(2 * x) for x in bins]
     sigma4 = [round(4 * x) for x in bins]
+    sigma8 = [round(8 * x) for x in bins]
 
     # container
     additional = {}
@@ -80,6 +81,10 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     # sum
     additional['sum_2'] = deimos.filters.sum(H, sigma2)
     additional['sum_4'] = deimos.filters.sum(H, sigma4)
+
+    # minimum
+    additional['min_4'] = deimos.filters.minimum(H, sigma4)
+    additional['min_8'] = deimos.filters.minimum(H, sigma8)
 
     # peak detection
     H_max = deimos.filters.maximum(H, sigma4)

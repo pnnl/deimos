@@ -47,6 +47,27 @@ def maximum(a, size):
     return ndi.maximum_filter(a, size=size, mode='constant', cval=0)
 
 
+def minimum(a, size):
+    """
+    N-dimensional convolution of a minimum filter.
+
+    Parameters
+    ----------
+    a : ndarray
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    out : ndarray
+        Filtered intensity data.
+
+    """
+
+    return ndi.maximum_filter(-a, size=size, mode='constant', cval=0)
+
+
 def sum(a, size):
     """
     N-dimensional convolution of a sum filter.
