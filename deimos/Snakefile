@@ -54,6 +54,9 @@ rule peakpick:
                                    features=config['features'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms2'])
+        deimos.utils.save_hdf(output[0], {'ms1': ms1_peaks,
+                                    'ms2': ms2_peaks})
 
-        deimos.utils.save_hdf(output[0], {'ms1': ms1_peaks
-                                          'ms2': ms2_peaks})
+
+
+
