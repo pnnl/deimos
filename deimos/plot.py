@@ -14,7 +14,7 @@ def _ceil(value):
     return upper
 
 
-def fill_between(x, y, xlabel='drift time (ms)', ylabel='intensity',
+def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
                  ax=None, ticks=5, dpi=600):
     # sort
     idx = np.argsort(x)
@@ -29,11 +29,11 @@ def fill_between(x, y, xlabel='drift time (ms)', ylabel='intensity',
 
     # initialize figure
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
+        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
     # plot
-    ax.plot(x, y, color='black')
-    ax.fill_between(x, y, alpha=0.1, color='black')
+    # ax.plot(x, y, color='black')
+    ax.fill_between(x, y, color='lightgrey')
 
     # axis setup
     ax.set_ylim(0, None)
@@ -47,11 +47,11 @@ def fill_between(x, y, xlabel='drift time (ms)', ylabel='intensity',
     return ax
 
 
-def stem(x, y, points=False, xlabel='m/z', ylabel='intensity',
+def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
          width=0.1, ax=None, ticks=4, dpi=600):
 
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
+        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
     # plot
     _, stemlines, _ = ax.stem(x, y,
@@ -86,7 +86,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
 
     # initialize figure
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi)
+        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
     # split features and values
     points = data.loc[:, features].values
@@ -113,7 +113,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     return ax
 
 
-def multipanel_ms1(data, method='linear', cmap='cividis', dpi=600):
+def multipanel_ms1(data, method='linear', dpi=600, grid_kwargs={}):
     def _sync_y_with_x(self, event):
         self.set_xlim(event.get_ylim(), emit=False)
 
@@ -139,7 +139,7 @@ def multipanel_ms1(data, method='linear', cmap='cividis', dpi=600):
         return ax1, ax2
 
     # init figure, axes
-    fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi)
+    fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi, facecolor='white')
     gs = fig.add_gridspec(2, 3)
     axes = {}
     axes['mz'] = fig.add_subplot(gs[1, 0])
@@ -172,29 +172,29 @@ def multipanel_ms1(data, method='linear', cmap='cividis', dpi=600):
 
     # dt
     tmp = deimos.utils.collapse(data, keep='drift_time')
-    stem(tmp['drift_time'], tmp['intensity'], xlabel='drift time (ms)', ax=axes['dt'])
+    fill_between(tmp['drift_time'], tmp['intensity'], xlabel='Drift Time (ms)', ax=axes['dt'])
     plt.setp(axes['dt'].get_xticklabels(), ha="right", rotation=30)
 
     # rt
     tmp = deimos.utils.collapse(data, keep='retention_time')
-    stem(tmp['retention_time'], tmp['intensity'], xlabel='retention time (min)', ax=axes['rt'])
+    fill_between(tmp['retention_time'], tmp['intensity'], xlabel='Retention Time (min)', ax=axes['rt'])
     plt.setp(axes['rt'].get_xticklabels(), ha="right", rotation=30)
 
     # mz-dt
     tmp = deimos.utils.collapse(data, keep=['mz', 'drift_time'])
-    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], cmap=cmap, method=method)
+    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], **grid_kwargs)
     axes['mz-dt'].xaxis.label.set_visible(False)
     axes['mz-dt'].tick_params(labelbottom=False)
 
     # dt-rt
     tmp = deimos.utils.collapse(data, keep=['drift_time', 'retention_time'])
-    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], cmap=cmap, method=method)
+    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], **grid_kwargs)
     axes['dt-rt'].xaxis.label.set_visible(False)
     axes['dt-rt'].tick_params(labelbottom=False)
 
     # rt-mz
     tmp = deimos.utils.collapse(data, keep=['retention_time', 'mz'])
-    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], cmap=cmap, method=method)
+    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], **grid_kwargs)
     axes['rt-mz'].xaxis.label.set_visible(False)
     axes['rt-mz'].tick_params(labelbottom=False)
 
@@ -203,6 +203,6 @@ def multipanel_ms1(data, method='linear', cmap='cividis', dpi=600):
 
 def _rename(features):
     names = ['m/z' if x == 'mz' else x for x in features]
-    names = ['retention time (min)' if x == 'retention_time' else x for x in names]
-    names = ['drift time (ms)' if x == 'drift_time' else x for x in names]
+    names = ['Retention Time (min)' if x == 'retention_time' else x for x in names]
+    names = ['Drift Time (ms)' if x == 'drift_time' else x for x in names]
     return names
