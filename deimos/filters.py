@@ -4,22 +4,22 @@ import deimos
 
 
 def stdev(a, size):
-    """
+    '''
     N-dimensional convolution of a standard deviation filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     c1 = ndi.filters.uniform_filter(a, size, mode='constant')
     c2 = ndi.filters.uniform_filter(np.square(a), size, mode='constant')
@@ -27,64 +27,64 @@ def stdev(a, size):
 
 
 def maximum(a, size):
-    """
+    '''
     N-dimensional convolution of a maximum filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     return ndi.maximum_filter(a, size=size, mode='constant', cval=0)
 
 
 def minimum(a, size):
-    """
+    '''
     N-dimensional convolution of a minimum filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     return ndi.maximum_filter(-a, size=size, mode='constant', cval=0)
 
 
 def sum(a, size):
-    """
+    '''
     N-dimensional convolution of a sum filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     size = deimos.utils.safelist(size)
     if len(size) == 1:
@@ -96,65 +96,65 @@ def sum(a, size):
 
 
 def mean(a, size):
-    """
+    '''
     N-dimensional convolution of a mean filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
     return ndi.uniform_filter(a, size=size, mode='constant', cval=0)
 
 
 def matched_gaussian(a, size):
-    """
+    '''
     N-dimensional convolution of a matched Gaussian filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     return np.square(ndi.gaussian_filter(a, size, mode='constant', cval=0))
 
 
 def signal_to_noise_ratio(a, size):
-    """
+    '''
     N-dimensional convolution of a signal-to-noise filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     c1 = ndi.filters.uniform_filter(a, size, mode='constant')
     c2 = ndi.filters.uniform_filter(np.square(a), size, mode='constant')
@@ -163,12 +163,12 @@ def signal_to_noise_ratio(a, size):
 
 
 def count(a, size, nonzero=False):
-    """
+    '''
     N-dimensional convolution of a counting filter.
 
     Parameters
     ----------
-    a : ndarray
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
@@ -177,10 +177,10 @@ def count(a, size, nonzero=False):
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
 
     if nonzero is True:
         a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
@@ -191,24 +191,25 @@ def count(a, size, nonzero=False):
 
 
 def kurtosis(edges, a, size):
-    """
+    '''
     N-dimensional convolution of a standard deviation filter.
 
     Parameters
     ----------
-    edges : ndarray(s)
-        Edges coordinates along each grid axis.
-    a : ndarray
+    edges : list of :obj:`~numpy.array`
+        Edge coordinates along each grid axis.
+    a : :obj:`~numpy.array`
         N-dimensional array of intensity data.
     size : int or list
         Size of the convolution kernel in each dimension.
 
     Returns
     -------
-    out : ndarray
+    :obj:`~numpy.array`
         Filtered intensity data.
 
-    """
+    '''
+
     k = []
     for i, (e, s) in enumerate(zip(edges, size)):
         ax = tuple(x for x in range(len(edges)) if x is not i)

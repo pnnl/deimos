@@ -2,14 +2,15 @@ import numpy as np
 import deimos
 
 
-def auto(data, features=['mz', 'drift_time', 'retention_time'],
-         bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None, scale=None):
-    """
-    Helper function to perform peak detection on a single partition.
+def non_max_suppression(data, features=['mz', 'drift_time', 'retention_time'],
+                        bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None,
+                        scale=None):
+    '''
+    N-dimensional non-maximum suppression peak detection method.
 
     Parameters
     ----------
-    data : DataFrame
+    data : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     features : str or list
         Feature dimensions to perform peak detection in (omitted dimensions
@@ -18,7 +19,7 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
         Number of bins representing 1 sigma in each dimension.
     scale_by : str
         Dimension to scale bin widths by. Only applies when data is partitioned
-        by `scale_by` (see `deimos.utils.partition`).
+        by `scale_by` (see :func:`deimos.utils.partition`).
     ref_res : float
         Minimum acquisition resolution of `scale_by` dimension.
     scale : str or list
@@ -26,10 +27,10 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
 
     Returns
     -------
-    peaks : DataFrame
+    :obj:`~pandas.DataFrame`
         Coordinates of detected peaks and associated apex intensitites.
 
-    """
+    '''
 
     # safely cast to list
     features = deimos.utils.safelist(features)

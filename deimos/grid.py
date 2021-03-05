@@ -4,12 +4,12 @@ import deimos
 
 
 def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
-    """
+    '''
     Converts data frame representation to a dense, N-dimensional grid.
 
     Parameters
     ----------
-    data : DataFrame
+    data : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     features : str or list
         Feature dimension(s) to create the dense grid (omitted dimensions will
@@ -17,12 +17,12 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
 
     Returns
     -------
-    edges : ndarray(s)
+    edges : list of :obj:`~numpy.array`
         Edges coordinates along each grid axis.
-    grid : ndarray
+    grid : :obj:`~numpy.array`
         Resulting N-dimensional grid.
 
-    """
+    '''
 
     # safely cast to list
     features = deimos.utils.safelist(features)
@@ -43,24 +43,27 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
 
 def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
             additional=None):
-    """
+    '''
     Converts dense grid representation to a data frame.
 
     Parameters
     ----------
-    edges : ndarray(s)
+    edges : list of :obj:`~numpy.array`
         Edges coordinates along each grid axis.
-    grid : ndarray
+    grid : :obj:`~numpy.array`
         N-dimensional dense grid of intensities.
     features : str or list
         Feature label(s) for each grid dimension.
+    additional : str or list
+        Additional grids to process.
 
     Returns
     -------
-    out : DataFrame
-        Data frame representation of input grid.
+    :obj:`~pandas.DataFrame`
+        Feature coordinates, intensities, and any other attributes from
+        `additional`.
 
-    """
+    '''
 
     # column labels container
     cols = features.copy()

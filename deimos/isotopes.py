@@ -4,12 +4,30 @@ import pandas as pd
 import scipy
 
 
-def OrderedSet(x):
-    return list({k: None for k in x})
-
-
 def detect(data, features=['mz', 'drift_time', 'retention_time'],
            tol=[0.1, 0.2, 0.3], delta=1.003355, max_isotopes=4, max_charge=1):
+    '''
+    Perform isotope detection according to expected patterning.
+
+    Parameters
+    ----------
+    features : str or list
+        Feature dimensions to perform isotope detection in.
+    tol : float or list
+        Tolerance in each dimension to be considered a match.
+    delta : float
+        Expected spacing between isotopes (e.g. C13=1.003355).
+    max_isotopes : int
+        Maximum number of isotopes to search for per parent feature.
+    max_charge : int
+        Maximum charge to search for per parent feature.
+
+    Returns
+    -------
+    :obj:`pandas.DataFrame`
+        Features grouped by isotopic pattern.
+
+    '''
 
     # safely cast to list
     features = deimos.utils.safelist(features)
@@ -72,14 +90,11 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     isotopes = pd.concat(isotopes, axis=0, ignore_index=True)
 
     # stats
-    isotopes['error'] = 1E6 * \
-        np.abs((isotopes['mz_iso'] - isotopes['mz']) -
-               isotopes['dx']) / isotopes['mz']
+    isotopes['error'] = 1E6 * np.abs((isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
     isotopes['decay'] = isotopes['intensity_iso'] / isotopes['intensity']
 
     # cull non-decreasing
-    isotopes = isotopes.loc[isotopes['intensity']
-                            > isotopes['intensity_iso'], :]
+    isotopes = isotopes.loc[isotopes['intensity'] > isotopes['intensity_iso'], :]
 
     # cull high error
     isotopes = isotopes.loc[isotopes['error'] < 50, :]

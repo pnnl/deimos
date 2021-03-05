@@ -8,9 +8,9 @@ import numpy as np
 
 def read_mzml(path, accession={'drift_time': 'MS:1002476',
                                'retention_time': 'MS:1000016'}):
-    """
+    '''
     Read in an mzML file, parsing for accession values, to yield a long-format
-    data frame.
+    :obj:`~pandas.DataFrame`.
 
     Parameters
     ----------
@@ -21,10 +21,10 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
     Returns
     -------
-    out : DataFrame
+    :obj:`~pandas.DataFrame`
         Parsed feature coordinates and intensities.
 
-    """
+    '''
 
     # open file
     data = pymzml.run.Reader(path)
@@ -89,17 +89,17 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
 
 def save_hdf(path, data, dtype={}, compression_level=5):
-    """
-    Saves data frame to HDF5 container.
+    '''
+    Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
 
     Parameters
     ----------
     path : str
         Path to output file.
-    data : dict
-        Dictionary of data frames to be saved. Dictionary keys will be saved as
-        'groups' (e.g., MS level) and data frame columns will be saved as
-        'datasets' in the HDF5 container.
+    data : dict of :obj:`~pandas.DataFrame`
+        Dictionary of :obj:`~pandas.DataFrame`s to be saved. Dictionary keys
+        are saved as "groups" (e.g., MS level) and data frame columns are saved
+        as "datasets" in the HDF5 container.
     dtype : dict
         Specifies what data type to save each column, provided as column:dtype
         pairs. Defaults to 32-bit float if unspecified.
@@ -108,11 +108,7 @@ def save_hdf(path, data, dtype={}, compression_level=5):
         apply. Higher values result in greater compression at the expense of
         computational overhead.
 
-    Returns
-    -------
-    None
-
-    """
+    '''
 
     with h5py.File(path, 'w') as f:
         for level in data.keys():
@@ -128,7 +124,7 @@ def save_hdf(path, data, dtype={}, compression_level=5):
 
 
 def load_hdf(path, level='ms1'):
-    """
+    '''
     Loads data frame from HDF5 container.
 
     Parameters
@@ -136,15 +132,15 @@ def load_hdf(path, level='ms1'):
     path : str
         Path to input HDF5 file.
     level : str
-        Access this level (group) of the HDF5 container. E.g., 'ms1' or 'ms2'
+        Access this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
         for MS levels 1 or 2, respectively.
 
     Returns
     -------
-    out : DataFrame
+    :obj:`~pandas.DataFrame`
         Feature coordinates and intensities for the specified level.
 
-    """
+    '''
 
     with h5py.File(path, 'r') as f:
         g = f[level]
@@ -152,21 +148,17 @@ def load_hdf(path, level='ms1'):
 
 
 def save_mgf(path, data, charge='1+'):
-    """
+    '''
     Saves data to MGF format.
 
     Parameters
     ----------
     path : str
         Path to output file.
-    data : DataFrame
+    data : :obj:`~pandas.DataFrame`
         Precursor m/z and intensities paired to MS2 spectra.
 
-    Returns
-    -------
-    None
-
-    """
+    '''
 
     template = ('BEGIN IONS\n'
                 'PEPMASS={} {}\n'
