@@ -34,8 +34,8 @@ Command-line interface
 ----------------------
 The CLI is able to process data from mzML through MS1 and MS2 peakpicking. For usage overview, simply invoke ``deimos --help`` or ``-h``. A Snakemake configuration file in [YAML](http://yaml.org/) format is required. DEIMoS will try to find ``config.yaml`` in the current directory, else a configuration file must be specified through the ``--config`` flag. A default [workflow configuration](resources/example_config.yaml) is provided, but this is intended to be modified and supplied by the user to accomodate workflow-specific needs.
 
-```bash
-$ deimos --h
+```
+$ deimos --help
 usage: deimos [-h] [-v] [--config PATH] [--dryrun] [--unlock] [--touch]
               [--latency N] [--cores N] [--count N] [--start IDX]
               [--cluster PATH] [--jobs N]
