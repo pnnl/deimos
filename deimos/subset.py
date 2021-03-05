@@ -50,7 +50,9 @@ def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
 
     """
 
-    return data.groupby(by=keep, as_index=False, sort=False).agg({'intensity': how})
+    return data.groupby(by=keep,
+                        as_index=False,
+                        sort=False).agg({'intensity': how})
 
 
 def locate(data, by=['mz', 'drift_time', 'retention_time'],
@@ -130,8 +132,7 @@ def locate(data, by=['mz', 'drift_time', 'retention_time'],
 def slice(data, by=['mz', 'drift_time', 'retention_time'],
           low=[0, 0, 0], high=[0, 0, 0], return_index=False):
     """
-    Given a feature coordinate and bounds, return a subset
-    of the data.
+    Given a feature coordinate and bounds, return a subset of the data.
 
     Parameters
     ----------
@@ -203,8 +204,7 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
 
 class Partitions:
     """
-    Generator object that will lazily build and
-    return each partition.
+    Generator object that will lazily build and return each partition.
 
     Parameters
     ----------
@@ -294,8 +294,8 @@ class Partitions:
         func : function
             Function to apply to partitions.
         processes : int
-            Number of parallel processes. If less than 2,
-            a serial mapping is applied.
+            Number of parallel processes. If less than 2, a serial mapping is
+            applied.
         kwargs
             Keyword arguments passed to `func`.
 
@@ -324,20 +324,20 @@ class Partitions:
 
     def zipmap(self, func, b, processes=1, **kwargs):
         """
-        Maps `func` to each partition pair resulting from the zip operation
-        of `self` and `b`, then returns the combined result, accounting
-        for overlap regions.
+        Maps `func` to each partition pair resulting from the zip operation of
+        `self` and `b`, then returns the combined result, accounting for
+        overlap regions.
 
         Parameters
         ----------
         func : function
-            Function to apply to zipped partitions. Must accept and
-            return two DataFrames.
+            Function to apply to zipped partitions. Must accept and return two
+            DataFrames.
         b : DataFrame
             Input feature coordinates and intensities.
         processes : int
-            Number of parallel processes. If less than 2,
-            a serial mapping is applied.
+            Number of parallel processes. If less than 2, a serial mapping is
+            applied.
         kwargs
             Keyword arguments passed to `func`.
 
@@ -395,8 +395,7 @@ def partition(data, split_on='mz', size=1000, overlap=0.05):
     Returns
     -------
     out : Partitions
-        A generator object that will lazily build and
-        return each partition.
+        A generator object that will lazily build and return each partition.
 
     """
 

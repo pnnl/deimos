@@ -216,9 +216,12 @@ def kurtosis(edges, a, size):
 
         # conv
         total = s * ndi.filters.uniform_filter(freq, s, mode='constant')
-        xbar = s * ndi.filters.uniform_filter(e * freq, s, mode='constant') / total
-        m2 = s * ndi.filters.uniform_filter(np.square(e - xbar) * freq, s, mode='constant') / total
-        m4 = s * ndi.filters.uniform_filter(np.power(e - xbar, 4) * freq, s, mode='constant') / total
+        xbar = s * ndi.filters.uniform_filter(e * freq, s,
+                                              mode='constant') / total
+        m2 = s * ndi.filters.uniform_filter(np.square(e - xbar) * freq, s,
+                                            mode='constant') / total
+        m4 = s * ndi.filters.uniform_filter(np.power(e - xbar, 4) * freq, s,
+                                            mode='constant') / total
         k.append(m4 / np.square(m2) - 3.0)
 
     k = np.meshgrid(*k, indexing='ij')

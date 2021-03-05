@@ -12,13 +12,13 @@ def auto(data, features=['mz', 'drift_time', 'retention_time'],
     data : DataFrame
         Input feature coordinates and intensities.
     features : str or list
-        Feature dimensions to perform peak detection in
-        (omitted dimensions will be collapsed and summed accross).
+        Feature dimensions to perform peak detection in (omitted dimensions
+        will be collapsed and summed accross).
     bins : float or list
         Number of bins representing 1 sigma in each dimension.
     scale_by : str
-        Dimension to scale bin widths by. Only applies when data is
-        partitioned by `scale_by` (see `deimos.utils.partition`).
+        Dimension to scale bin widths by. Only applies when data is partitioned
+        by `scale_by` (see `deimos.utils.partition`).
     ref_res : float
         Minimum acquisition resolution of `scale_by` dimension.
     scale : str or list

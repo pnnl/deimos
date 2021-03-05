@@ -25,8 +25,8 @@ def safelist(x):
 
 def check_length(lists):
     """
-    Ensures collection of lists passed are of equal length. If not,
-    a value error is raised.
+    Ensures collection of lists passed are of equal length. If not, a value
+    error is raised.
 
     Parameters
     ----------
@@ -35,7 +35,7 @@ def check_length(lists):
 
     Returns
     -------
-    None.
+    None
 
     """
 

@@ -1,7 +1,5 @@
 from scipy.stats import linregress
 import numpy as np
-import deimos
-import matplotlib.pyplot as plt
 
 
 class ArrivalTimeCalibration:
@@ -16,11 +14,11 @@ class ArrivalTimeCalibration:
 
         Parameters
         ----------
-        None.
+        None
 
         Returns
         -------
-        None.
+        None
 
         """
 
@@ -36,22 +34,24 @@ class ArrivalTimeCalibration:
 
         Parameters
         ----------
-        None.
+        None
 
         Returns
         -------
-        None.
+        None
 
         """
 
         if (self.beta is None) or (self.tfix is None):
-            raise ValueError('Must perform calibration to yield beta and tfix.')
+            raise ValueError('Must perform calibration to yield beta and '
+                             'tfix.')
 
     def calibrate(self, mz=None, ta=None, ccs=None, q=None,
                   beta=None, tfix=None, buffer_mass=28.013):
         """
         Performs calibration if 'mz', 'ta', 'ccs', and 'q' arrays are provided,
-        otherwise calibration parameters 'beta' and 'tfix' must be supplied directly.
+        otherwise calibration parameters 'beta' and 'tfix' must be supplied
+        directly.
 
         Parameters
         ----------
@@ -70,7 +70,7 @@ class ArrivalTimeCalibration:
 
         Returns
         -------
-        None.
+        None
 
         """
 
@@ -78,7 +78,8 @@ class ArrivalTimeCalibration:
         self.buffer_mass = buffer_mass
 
         # calibrant arrays supplied
-        if (mz is not None) and (ta is not None) and (ccs is not None) and (q is not None):
+        if (mz is not None) and (ta is not None) and (ccs is not None) \
+           and (q is not None):
             mz = np.array(mz)
             ta = np.array(ta)
             ccs = np.array(ccs)
@@ -102,12 +103,13 @@ class ArrivalTimeCalibration:
             self.tfix = tfix
             return
 
-        raise ValueError('Must supply arrays for calibration or calibration parameters.')
+        raise ValueError('Must supply arrays for calibration or calibration '
+                         'parameters.')
 
     def arrival2ccs(self, mz, ta, q=1):
         """
-        Calculates collision cross section (CCS) from arrival time, mz,
-        and nominal charge, according to calibration parameters.
+        Calculates collision cross section (CCS) from arrival time, mz, and
+        nominal charge, according to calibration parameters.
 
         Parameters
         ----------
@@ -126,12 +128,14 @@ class ArrivalTimeCalibration:
         """
 
         self._check()
-        return q / self.beta * (ta - self.tfix) / np.sqrt(mz / (mz + self.buffer_mass))
+
+        return q / self.beta * (ta - self.tfix)
+        / np.sqrt(mz / (mz + self.buffer_mass))
 
     def ccs2arrival(self, mz, ccs, q=1):
         """
-        Calculates arrival time from collsion cross section (CCS), mz,
-        and nominal charge, according to calibration parameters.
+        Calculates arrival time from collsion cross section (CCS), mz, and
+        nominal charge, according to calibration parameters.
 
         Parameters
         ----------
@@ -150,4 +154,5 @@ class ArrivalTimeCalibration:
         """
 
         self._check()
-        return self.beta / q * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix
+        return self.beta / q
+        * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix

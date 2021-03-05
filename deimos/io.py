@@ -3,21 +3,21 @@ import h5py
 from collections import OrderedDict, defaultdict
 import warnings
 import pandas as pd
+import numpy as np
 
 
 def read_mzml(path, accession={'drift_time': 'MS:1002476',
                                'retention_time': 'MS:1000016'}):
     """
-    Read in an mzML file, parsing for accession values, to yield
-    a long-format data frame.
+    Read in an mzML file, parsing for accession values, to yield a long-format
+    data frame.
 
     Parameters
     ----------
     path : str
         Path to input mzML file.
     accession : dict
-        Key-value pairs signaling which features to parse for
-        in the mzML file.
+        Key-value pairs signaling which features to parse for in the mzML file.
 
     Returns
     -------
@@ -53,11 +53,14 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
         # check for precursor
         if spec.selected_precursors:
             arr = np.empty((spec.mz.shape[0],
-                            len(accession) + len(spec.selected_precursors[0]) + 2), dtype=np.float32)
+                            len(accession)
+                            + len(spec.selected_precursors[0]) + 2),
+                           dtype=np.float32)
 
         # no precursor
         else:
-            arr = np.empty((spec.mz.shape[0], len(accession) + 2), dtype=np.float32)
+            arr = np.empty((spec.mz.shape[0], len(accession) + 2),
+                           dtype=np.float32)
 
         # fill
         arr[:, 0] = spec.mz
@@ -75,7 +78,8 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
                 arr[:, 2 + len(accession) + i] = v
 
         # append dataframe
-        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr, columns=cols))
+        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr,
+                                                              columns=cols))
 
     # concatenate dataframes
     for level in res.keys():
@@ -93,21 +97,20 @@ def save_hdf(path, data, dtype={}, compression_level=5):
     path : str
         Path to output file.
     data : dict
-        Dictionary of data frames to be saved. Dictionary keys
-        will be saved as 'groups' (e.g., MS level) and
-        data frame columns will be saved as 'datasets'
-        in the HDF5 container.
+        Dictionary of data frames to be saved. Dictionary keys will be saved as
+        'groups' (e.g., MS level) and data frame columns will be saved as
+        'datasets' in the HDF5 container.
     dtype : dict
         Specifies what data type to save each column, provided as column:dtype
         pairs. Defaults to 32-bit float if unspecified.
     compression_level : int
-        A value from 0-9 signaling the number of compression operations to apply.
-        Higher values result in greater compression at the expense of computational
-        overhead.
+        A value from 0-9 signaling the number of compression operations to
+        apply. Higher values result in greater compression at the expense of
+        computational overhead.
 
     Returns
     -------
-    None.
+    None
 
     """
 
@@ -133,15 +136,13 @@ def load_hdf(path, level='ms1'):
     path : str
         Path to input HDF5 file.
     level : str
-        Access this level (group) of the HDF5 container.
-        E.g., 'ms1' or 'ms2' for MS levels 1 or 2,
-        respectively.
+        Access this level (group) of the HDF5 container. E.g., 'ms1' or 'ms2'
+        for MS levels 1 or 2, respectively.
 
     Returns
     -------
     out : DataFrame
-        Feature coordinates and intensities for the
-        specified level.
+        Feature coordinates and intensities for the specified level.
 
     """
 
@@ -159,12 +160,11 @@ def save_mgf(path, data, charge='1+'):
     path : str
         Path to output file.
     data : DataFrame
-        Precursor m/z and intensities paired to
-        MS2 spectra.
+        Precursor m/z and intensities paired to MS2 spectra.
 
     Returns
     -------
-    None.
+    None
 
     """
 
@@ -183,4 +183,8 @@ def save_mgf(path, data, charge='1+'):
 
             # check for ms2 spectra
             if ms2 is not np.nan:
-                f.write(template.format(precursor_mz, precursor_int, charge, i, ms2.replace(';', '\n')))
+                f.write(template.format(precursor_mz,
+                                        precursor_int,
+                                        charge,
+                                        i,
+                                        ms2.replace(';', '\n')))

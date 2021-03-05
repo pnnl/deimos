@@ -12,8 +12,8 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
     data : DataFrame
         Input feature coordinates and intensities.
     features : str or list
-        Feature dimension(s) to create the dense grid
-        (omitted dimensions will be collapsed and summed accross).
+        Feature dimension(s) to create the dense grid (omitted dimensions will
+        be collapsed and summed accross).
 
     Returns
     -------
@@ -30,7 +30,8 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
     if len(features) < len(deimos.utils.detect_features(data)):
         data = deimos.utils.collapse(data, keep=features, how=np.sum)
 
-    idx = [np.unique(data.loc[:, f].values, return_inverse=True) for f in features]
+    idx = [np.unique(data.loc[:, f].values,
+                     return_inverse=True) for f in features]
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 

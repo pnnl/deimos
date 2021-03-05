@@ -9,27 +9,26 @@ import time
 def match(a, b, features=['mz', 'drift_time', 'retention_time'],
           tol=[5E-6, 0.015, 0.3], relative=[True, True, False]):
     """
-    Identify features in `b` within tolerance of those in `a`.
-    Matches are bidirectionally one-to-one by highest intensity.
+    Identify features in `b` within tolerance of those in `a`. Matches are
+    bidirectionally one-to-one by highest intensity.
 
     Parameters
     ----------
     a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are
-        matched to features in b.
+        Input feature coordinates and intensities. Features from a are matched
+        to features in b.
     features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
     relative : bool or list
-        Whether to use ppm or absolute values when determining m/z
-        tolerance.
+        Whether to use ppm or absolute values when determining m/z tolerance.
 
     Returns
     -------
     a, b : DataFrame
-        Features matched within tolerances. E.g., a[i..n] and
-        b[i..n] each represent matched features.
+        Features matched within tolerances. E.g., a[i..n] and b[i..n] each
+        represent matched features.
 
     """
 
@@ -85,7 +84,8 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     dist3d = dist3d / dist3d.max()
 
     # intensities
-    intensity = np.repeat(a['intensity'].values.reshape(-1, 1), b.shape[0], axis=1)
+    intensity = np.repeat(a['intensity'].values.reshape(-1, 1),
+                          b.shape[0], axis=1)
     intensity = np.multiply(intensity, idx)
 
     # max over features
@@ -122,21 +122,20 @@ def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
     Parameters
     ----------
     a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are
-        matched to features in b.
+        Input feature coordinates and intensities. Features from a are matched
+        to features in b.
     features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
     relative : bool or list
-        Whether to use ppm or absolute values when determining m/z
-        tolerance.
+        Whether to use ppm or absolute values when determining m/z tolerance.
 
     Returns
     -------
     a, b : DataFrame
-        Features matched within tolerances. E.g., a[i..n] and
-        b[i..n] each represent matched features.
+        Features matched within tolerances. E.g., a[i..n] and b[i..n] each
+        represent matched features.
 
     """
 
@@ -199,8 +198,8 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     align : str
         Feature to align.
     kwargs :
-        Keyword arguments for scikit-learn support vector
-        regressor (`sklearn.svm.SVR`).
+        Keyword arguments for scikit-learn support vector regressor
+        (`sklearn.svm.SVR`).
 
     Returns
     -------
@@ -235,7 +234,8 @@ def fit_spline(a, b, align='retention_time', **kwargs):
         # predict
         newy = svr.predict(newx.reshape(-1, 1))
 
-    return scipy.interpolate.interp1d(newx, newy, kind='linear', fill_value='extrapolate')
+    return scipy.interpolate.interp1d(newx, newy,
+                                      kind='linear', fill_value='extrapolate')
 
     # # linear edges
     # N = int(len(arr) * buffer)
@@ -276,22 +276,21 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
     features : str or list
         Features to align with.
     quantiles : array_like
-        Quantiles of feature intensities to iteratively perform
-        alignment.
+        Quantiles of feature intensities to iteratively perform alignment.
     processes : int
-        Number of parallel processes. If less than 2, a serial
-        mapping is applied.
+        Number of parallel processes. If less than 2, a serial mapping is
+        applied.
     partition_kwargs : dict
         Keyword arguments for `deimos.utils.partition`.
     match_kwargs : dict
-        Keyword arugments for `deimos.alignment.threshold`
-        and `deimos.alignment.match`.
+        Keyword arugments for `deimos.alignment.threshold` and
+        `deimos.alignment.match`.
 
     Returns
     -------
     clusters : DataFrame
-        Coordinates of detected clusters, average intensitites,
-        and number of datasets observed.
+        Coordinates of detected clusters, average intensitites, and number of
+        datasets observed.
 
     '''
 
@@ -309,8 +308,10 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
         partitions.fbounds = c_parts.fbounds
 
         # filter by tolerance
-        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.threshold, clusters,
-                                                  processes=processes, **match_kwargs)
+        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.threshold,
+                                                  clusters,
+                                                  processes=processes,
+                                                  **match_kwargs)
 
         # drop duplicates
         samp_pass = samp_pass[~samp_pass.index.duplicated(keep='first')]
@@ -333,8 +334,10 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
             c_parts = None
 
             # match
-            samp_match, clust_match = partitions.zipmap(deimos.alignment.match, clust_pass,
-                                                        processes=processes, **match_kwargs)
+            samp_match, clust_match = partitions.zipmap(deimos.alignment.match,
+                                                        clust_pass,
+                                                        processes=processes,
+                                                        **match_kwargs)
 
         # match stats
         if verbose:
@@ -400,11 +403,13 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
                 a = ab - b
 
                 for f in features:
-                    clusters.loc[idx, f] = (a * clusters.loc[idx, f].values + b * samp_match.loc[:, f].values) / ab
+                    clusters.loc[idx, f] = (a * clusters.loc[idx, f].values
+                                            + b * samp_match.loc[:, f].values) / ab
 
                 # uniqueify unmatched
                 if len(unmatched.index) > 0:
-                    unmatched, _, _ = helper(unmatched, unmatched, verbose=False)
+                    unmatched, _, _ = helper(unmatched, unmatched,
+                                             verbose=False)
                     unmatched['n'] = 1
                     unmatched['quantile'] = low
 
@@ -413,7 +418,8 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
                 print('new:\t\t{} ({:.1f}%)'.format(len(unmatched.index), p))
 
                 # combine
-                clusters = pd.concat((clusters, unmatched), axis=0, ignore_index=True)
+                clusters = pd.concat((clusters, unmatched), axis=0,
+                                     ignore_index=True)
 
             print('time:\t\t{:.2f}\n'.format(time.time() - start))
 
