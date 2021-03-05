@@ -1,12 +1,12 @@
-from . import align
-from . import calibrate
+from . import alignment
+from . import calibration
 from . import filters
 from . import grid
-from . import io
+from .io import *
 from . import isotopes
 from . import peakpick
 from . import plot
-from . import subset
+from .subset import *
 from . import utils
 
 __version__ = '0.1.0'
