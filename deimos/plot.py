@@ -113,7 +113,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     return ax
 
 
-def multipanel_ms1(data, method='linear', dpi=600, grid_kwargs={}):
+def multipanel(data, method='linear', dpi=600, grid_kwargs={}):
     def _sync_y_with_x(self, event):
         self.set_xlim(event.get_ylim(), emit=False)
 
@@ -166,34 +166,34 @@ def multipanel_ms1(data, method='linear', dpi=600, grid_kwargs={}):
     sync_x_with_y(axes['rt-mz'], axes['dt-rt'])
 
     # mz
-    tmp = deimos.utils.collapse(data, keep='mz')
+    tmp = deimos.collapse(data, keep='mz')
     stem(tmp['mz'], tmp['intensity'], ax=axes['mz'])
     plt.setp(axes['mz'].get_xticklabels(), ha="right", rotation=30)
 
     # dt
-    tmp = deimos.utils.collapse(data, keep='drift_time')
+    tmp = deimos.collapse(data, keep='drift_time')
     fill_between(tmp['drift_time'], tmp['intensity'], xlabel='Drift Time (ms)', ax=axes['dt'])
     plt.setp(axes['dt'].get_xticklabels(), ha="right", rotation=30)
 
     # rt
-    tmp = deimos.utils.collapse(data, keep='retention_time')
+    tmp = deimos.collapse(data, keep='retention_time')
     fill_between(tmp['retention_time'], tmp['intensity'], xlabel='Retention Time (min)', ax=axes['rt'])
     plt.setp(axes['rt'].get_xticklabels(), ha="right", rotation=30)
 
     # mz-dt
-    tmp = deimos.utils.collapse(data, keep=['mz', 'drift_time'])
+    tmp = deimos.collapse(data, keep=['mz', 'drift_time'])
     grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], **grid_kwargs)
     axes['mz-dt'].xaxis.label.set_visible(False)
     axes['mz-dt'].tick_params(labelbottom=False)
 
     # dt-rt
-    tmp = deimos.utils.collapse(data, keep=['drift_time', 'retention_time'])
+    tmp = deimos.collapse(data, keep=['drift_time', 'retention_time'])
     grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], **grid_kwargs)
     axes['dt-rt'].xaxis.label.set_visible(False)
     axes['dt-rt'].tick_params(labelbottom=False)
 
     # rt-mz
-    tmp = deimos.utils.collapse(data, keep=['retention_time', 'mz'])
+    tmp = deimos.collapse(data, keep=['retention_time', 'mz'])
     grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], **grid_kwargs)
     axes['rt-mz'].xaxis.label.set_visible(False)
     axes['rt-mz'].tick_params(labelbottom=False)
