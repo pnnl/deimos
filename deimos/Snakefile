@@ -1,7 +1,6 @@
 from os.path import *
 import deimos
 import numpy as np
-from os.path import *
 import pandas as pd
 import glob
 
@@ -23,8 +22,11 @@ rule mzml2hdf:
     output:
         join('output', 'parsed', '{id}.h5')
     run:
-        data = deimos.utils.read_mzml(input[0], accession=config['accession'])
-        deimos.utils.save_hdf(output[0], data)
+        # read/parse mzml
+        data = deimos.read_mzml(input[0], accession=config['accession'])
+
+        # save as hdf5
+        deimos.save_hdf(output[0], data)
 
 
 rule peakpick:
@@ -34,29 +36,35 @@ rule peakpick:
         join('output', 'peakpick', '{id}.h5')
     run:
         # ms1
-        data = deimos.utils.load_hdf(input[0], level='ms1')
-        partitions = deimos.utils.partition(data,
-                                            split_on=config['partition']['split_on'],
-                                            size=config['partition']['size'],
-                                            overlap=config['partition']['overlap'])
-        ms1_peaks = partitions.map(deimos.peakpick.auto,
+        # load data
+        data = deimos.load_hdf(input[0], level='ms1')
+
+        # partition in m/z
+        partitions = deimos.partition(data,
+                                      split_on=config['partition']['split_on'],
+                                      size=config['partition']['size'],
+                                      overlap=config['partition']['overlap'])
+
+        # perform peakpicking per partition
+        ms1_peaks = partitions.map(deimos.peakpick.non_max_suppression,
                                    features=config['features'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms1'])
 
         # ms2
-        data = deimos.utils.load_hdf(input[0], level='ms2')
-        partitions = deimos.utils.partition(data,
-                                            split_on=config['partition']['split_on'],
-                                            size=config['partition']['size'],
-                                            overlap=config['partition']['overlap'])
-        ms2_peaks = partitions.map(deimos.peakpick.auto,
+        # load data
+        data = deimos.load_hdf(input[0], level='ms2')
+
+        # partition in m/z
+        partitions = deimos.partition(data,
+                                      split_on=config['partition']['split_on'],
+                                      size=config['partition']['size'],
+                                      overlap=config['partition']['overlap'])
+
+        # perform peakpicking per partition
+        ms2_peaks = partitions.map(deimos.peakpick.non_max_suppression,
                                    features=config['features'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms2'])
-        deimos.utils.save_hdf(output[0], {'ms1': ms1_peaks,
+        deimos.save_hdf(output[0], {'ms1': ms1_peaks,
                                     'ms2': ms2_peaks})
-
-
-
-
