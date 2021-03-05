@@ -8,29 +8,29 @@ import time
 
 def match(a, b, features=['mz', 'drift_time', 'retention_time'],
           tol=[5E-6, 0.015, 0.3], relative=[True, True, False]):
-    """
+    '''
     Identify features in `b` within tolerance of those in `a`. Matches are
     bidirectionally one-to-one by highest intensity.
 
     Parameters
     ----------
-    a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are matched
-        to features in b.
+    a, b : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities. Features from `a` are
+        matched to features in `b`.
     features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
     relative : bool or list
-        Whether to use ppm or absolute values when determining m/z tolerance.
+        Whether to use relative or absolute tolerances per dimension.
 
     Returns
     -------
-    a, b : DataFrame
-        Features matched within tolerances. E.g., a[i..n] and b[i..n] each
+    a, b : :obj:`~pandas.DataFrame`
+        Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
         represent matched features.
 
-    """
+    '''
 
     if a is None or b is None:
         return None, None
@@ -113,31 +113,31 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
     return a, b
 
 
-def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
+def tolerance(a, b, features=['mz', 'drift_time', 'retention_time'],
               tol=[5E-6, 0.025, 0.3], relative=[True, True, False]):
-    """
-    Identify features in `b` within tolerance of those in `a`.
-    Matches are potentially many-to-one.
+    '''
+    Identify features in `b` within tolerance of those in `a`. Matches are
+    potentially many-to-one.
 
     Parameters
     ----------
-    a, b : DataFrame
-        Input feature coordinates and intensities. Features from a are matched
-        to features in b.
+    a, b : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities. Features from `a` are
+        matched to features in `b`.
     features : str or list
         Features to match against.
     tol : float or list
         Tolerance in each feature dimension to define a match.
     relative : bool or list
-        Whether to use ppm or absolute values when determining m/z tolerance.
+        Whether to use relative or absolute tolerances per dimension.
 
     Returns
     -------
-    a, b : DataFrame
-        Features matched within tolerances. E.g., a[i..n] and b[i..n] each
+    a, b : :obj:`~pandas.DataFrame`
+        Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
         represent matched features.
 
-    """
+    '''
 
     if a is None or b is None:
         return None, None
@@ -188,25 +188,25 @@ def threshold(a, b, features=['mz', 'drift_time', 'retention_time'],
 
 
 def fit_spline(a, b, align='retention_time', **kwargs):
-    """
+    '''
     Fit a support vector regressor to matched features.
 
     Parameters
     ----------
-    a, b : DataFrame
+    a, b : :obj:`~pandas.DataFrame`
         Matched input feature coordinates and intensities.
     align : str
         Feature to align.
-    kwargs :
-        Keyword arguments for scikit-learn support vector regressor
-        (`sklearn.svm.SVR`).
+    kwargs
+        Keyword arguments for support vector regressor
+        (:class:`sklearn.svm.SVR`).
 
     Returns
     -------
-    interp : interpolator
+    :obj:`~scipy.interpolate.interp1d`
         Interpolated fit of the SVR result.
 
-    """
+    '''
 
     # uniqueify
     x = a[align].values
@@ -265,9 +265,9 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
          quantiles=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], processes=4,
          partition_kwargs={}, match_kwargs={}):
     '''
-    Iteratively apply `deimos.alignment.threshold` and `deimos.alignment.match`
-    across multiple datasets, generating a growing set of "clusters", similar
-    to the "join aligner" method of MZmine.
+    Iteratively apply :func:`deimos.alignment.tolerance` and
+    :func:`deimos.alignment.match` across multiple datasets, generating a
+    growing set of "clusters", similar to the "join align" approach in MZmine.
 
     Parameters
     ----------
@@ -275,20 +275,20 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
         List of dataset paths to align.
     features : str or list
         Features to align with.
-    quantiles : array_like
+    quantiles : :obj:`numpy.array`
         Quantiles of feature intensities to iteratively perform alignment.
     processes : int
         Number of parallel processes. If less than 2, a serial mapping is
         applied.
     partition_kwargs : dict
-        Keyword arguments for `deimos.utils.partition`.
+        Keyword arguments for :func:`deimos.subset.partition`.
     match_kwargs : dict
-        Keyword arugments for `deimos.alignment.threshold` and
-        `deimos.alignment.match`.
+        Keyword arugments for :func:`deimos.alignment.tolerance` and
+        :func:`deimos.alignment.match`.
 
     Returns
     -------
-    clusters : DataFrame
+    :obj:`~pandas.DataFrame`
         Coordinates of detected clusters, average intensitites, and number of
         datasets observed.
 
@@ -308,7 +308,7 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
         partitions.fbounds = c_parts.fbounds
 
         # filter by tolerance
-        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.threshold,
+        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.tolerance,
                                                   clusters,
                                                   processes=processes,
                                                   **match_kwargs)

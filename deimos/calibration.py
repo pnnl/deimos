@@ -3,24 +3,27 @@ import numpy as np
 
 
 class ArrivalTimeCalibration:
-    """
+    '''
     Performs calibration and stores result to enable convenient application.
 
-    """
+    Attributes
+    ----------
+    buffer_mass : float
+        Mass of the buffer gas used in ion mobility experiment.
+    beta : float
+        Slope of calibration curve.
+    tfix : float
+        Intercept of calibration curve.
+    fit : dict of float
+        Fit parameters of calibration curve.
+
+    '''
 
     def __init__(self):
-        """
-        Initialization method.
+        '''
+        Initializes :obj:`~deimos.calibration.ArrivalTimeCalibration` object.
 
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
+        '''
 
         # initialize variables
         self.buffer_mass = None
@@ -29,18 +32,15 @@ class ArrivalTimeCalibration:
         self.fit = {'r': None, 'p': None, 'se': None}
 
     def _check(self):
-        """
+        '''
         Helper method to check for calibration parameters.
 
-        Parameters
-        ----------
-        None
+        Raises
+        ------
+        ValueError
+            If `self.tfix` or `self.beta` are None.
 
-        Returns
-        -------
-        None
-
-        """
+        '''
 
         if (self.beta is None) or (self.tfix is None):
             raise ValueError('Must perform calibration to yield beta and '
@@ -48,31 +48,33 @@ class ArrivalTimeCalibration:
 
     def calibrate(self, mz=None, ta=None, ccs=None, q=None,
                   beta=None, tfix=None, buffer_mass=28.013):
-        """
-        Performs calibration if 'mz', 'ta', 'ccs', and 'q' arrays are provided,
-        otherwise calibration parameters 'beta' and 'tfix' must be supplied
+        '''
+        Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
+        otherwise calibration parameters `beta` and `tfix` must be supplied
         directly.
 
         Parameters
         ----------
-        mz : array, optional
-            Calibration masses.
-        ta : array, optional
+        mz : :obj:`~numpy.array`
+            Calibration mass-to-charge ratios.
+        ta : :obj:`~numpy.array`
             Calibration arrival times.
-        ccs : array, optional
+        ccs : :obj:`~numpy.array`
             Calibration collision cross sections.
-        q : array, optional
+        q : :obj:`~numpy.array`
             Calibration nominal charges.
-        beta : float, optional
-            Provide calibration parameter 'beta' directly.
-        tfix : float, optional
-            Provide calibration parameter 'tfix' directly
+        beta : float
+            Provide calibration parameter "beta" (slope) directly.
+        tfix : float
+            Provide calibration parameter "tfix" (intercept) directly.
 
-        Returns
-        -------
-        None
+        Raises
+        ------
+        ValueError
+            If appropriate keyword arguments are not supplied (either `mz`,
+            `ta`, `ccs`, and `q`; or `beta` and `tfix`).
 
-        """
+        '''
 
         # buffer mass
         self.buffer_mass = buffer_mass
@@ -107,52 +109,50 @@ class ArrivalTimeCalibration:
                          'parameters.')
 
     def arrival2ccs(self, mz, ta, q=1):
-        """
-        Calculates collision cross section (CCS) from arrival time, mz, and
+        '''
+        Calculates collision cross section (CCS) from arrival time, m/z, and
         nominal charge, according to calibration parameters.
 
         Parameters
         ----------
         mz : float
-            Feature mass (m/z).
+            Feature mass-to-charge ratio.
         ta : float
             Feature arrival time (ms).
-        q : int, optional (default=1)
+        q : int
             Feature nominal charge.
 
         Returns
         -------
-        ccs : float
+        float
             Feature collision cross section (A^2).
 
-        """
+        '''
 
         self._check()
 
-        return q / self.beta * (ta - self.tfix)
-        / np.sqrt(mz / (mz + self.buffer_mass))
+        return q / self.beta * (ta - self.tfix) / np.sqrt(mz / (mz + self.buffer_mass))
 
     def ccs2arrival(self, mz, ccs, q=1):
-        """
-        Calculates arrival time from collsion cross section (CCS), mz, and
+        '''
+        Calculates arrival time from collsion cross section (CCS), m/z, and
         nominal charge, according to calibration parameters.
 
         Parameters
         ----------
         mz : float
-            Feature mass (m/z).
+            Feature mass-to-charge ratio.
         ccs : float
             Feature collision cross section (A^2).
-        q : int, optional (default=1)
+        q : int
             Feature nominal charge.
 
         Returns
         -------
-        ta : float
+        float
             Feature arrival time (ms).
 
-        """
+        '''
 
         self._check()
-        return self.beta / q
-        * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix
+        return self.beta / q * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix
