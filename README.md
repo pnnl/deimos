@@ -30,9 +30,34 @@ pip install deimos/
 pip install git+https://github.com/pnnl/deimos
 ```
 
-Command-line DEIMoS
--------------------
-For usage overview, simply invoke ``deimos --help`` or ``-h``. A Snakemake configuration file in [YAML](http://yaml.org/) format is required. DEIMoS will try to find ``config.yaml`` in the current directory, else a configuration file must be specified through the ``--config`` flag. A default [workflow configuration](resources/example_config.yaml) is provided, but this is intended to be modified and supplied by the user to accomodate workflow-specific needs.
+Command-line interface
+----------------------
+The CLI is able to process data from mzML through MS1 and MS2 peakpicking. For usage overview, simply invoke ``deimos --help`` or ``-h``. A Snakemake configuration file in [YAML](http://yaml.org/) format is required. DEIMoS will try to find ``config.yaml`` in the current directory, else a configuration file must be specified through the ``--config`` flag. A default [workflow configuration](resources/example_config.yaml) is provided, but this is intended to be modified and supplied by the user to accomodate workflow-specific needs.
+
+```bash
+$ deimos --h
+usage: deimos [-h] [-v] [--config PATH] [--dryrun] [--unlock] [--touch]
+              [--latency N] [--cores N] [--count N] [--start IDX]
+              [--cluster PATH] [--jobs N]
+
+DEIMoS: Data Extraction for Integrated Multidimensional Spectrometry
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -v, --version   print version and exit
+  --config PATH   path to yaml configuration file
+  --dryrun        perform a dry run
+  --unlock        unlock directory
+  --touch         touch output files only
+  --latency N     specify filesystem latency (seconds)
+  --cores N       number of cores used for execution (local execution only)
+  --count N       number of files to process (limits DAG size)
+  --start IDX     starting file index (for use with --count)
+
+cluster arguments:
+  --cluster PATH  path to cluster execution yaml configuration file
+  --jobs N        number of simultaneous jobs to submit to a slurm queue
+```
 
 Inputs ([.mzML](http://www.psidev.info/mzML) or .mzML.gz) will automatically be detected in the ``input/`` folder, and results will be populated in a corresponding ``output/`` folder, both relative to the current working directory. For example:
 
@@ -48,26 +73,9 @@ Inputs ([.mzML](http://www.psidev.info/mzML) or .mzML.gz) will automatically be 
 
 For running in cluster environments, please consult the [Snakemake](https://snakemake.readthedocs.io) workflow management system documentation concerning [profiles](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles).
 
-DEIMoS API
-----------
-For more flexibility, the same functionality can be achieved through DEIMoS' API. Recreating the command-line workflow through internal standards detection would involve the following:
-
-```python
-import deimos
-import numpy as np
-
-# load data
-data = deimos.utils.read_mzml('path/to/dataset.mzML.gz')
-
-# peakpicking in ms1
-peaks = deimos.peakpick.auto(data)
-deimos.utils.save_hdf('path/to/peaks.h5', {'ms1': peaks})
-
-# find standards
-masses = np.loadtxt('path/to/masses.txt')
-stds = deimos.alignment.internal_standards(peaks, masses=masses, tol=0.02)
-deimos.utils.save_hdf('path/to/standards.h5', {'ms1': stds})
-```
+Application programming interface
+---------------------------------
+For more flexibility, the same functionality can be achieved through DEIMoS's API. Please see the tutorial, which gives an overview of most functionality, provided as a [jupyter notebook](examples/tutorial.ipynb).
 
 Citing DEIMoS
 -------------
