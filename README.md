@@ -1,17 +1,17 @@
 DEIMoS
 =======
-DEIMoS, or Data Extraction for Integrated Multidimensional Spectrometry, is a Python application programming interface and command-line tool for mass spectrometry data analysis workflows, offering ease of development and access to efficient algorithmic implementations. Critically, DEIMoS operates on data of arbitrary dimension, regardless of acquisition instrumentation (e.g. feature finding in 3D using retention time, drift time / CCS, and m/z).
+DEIMoS, or Data Extraction for Integrated Multidimensional Spectrometry, is a Python application programming interface and command-line tool for mass spectrometry data analysis workflows, offering ease of development and access to efficient algorithmic implementations. Critically, DEIMoS operates on data of arbitrary dimension, regardless of acquisition instrumentation (e.g. feature finding in 3D using retention time, drift time / CCS, and _m/z_).
 
 Installation
 ------------
 Use [``conda``](https://www.anaconda.com/download/) to create a virtual environment with required dependencies. First, ensure ``conda`` and ``anaconda`` are updated:
-```bash
+```
 conda update conda
 conda update anaconda
 ```
 
 Create the virtual environment:
-```bash
+```
 conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels scikit-learn
 ```
 
@@ -21,7 +21,7 @@ conda activate deimos
 ```
 
 Install DEIMoS using [``pip``](https://pypi.org/project/pip/):
-```bash
+```
 # clone/install
 git clone https://github.com/pnnl/deimos.git
 pip install deimos/
@@ -61,7 +61,7 @@ cluster arguments:
 
 Inputs ([.mzML](http://www.psidev.info/mzML) or .mzML.gz) will automatically be detected in the ``input/`` folder, and results will be populated in a corresponding ``output/`` folder, both relative to the current working directory. For example:
 
-```bash
+```
 .
 ├── config.yaml
 ├── input
