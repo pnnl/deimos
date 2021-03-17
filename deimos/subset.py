@@ -73,14 +73,15 @@ def locate(data, by=['mz', 'drift_time', 'retention_time'],
     tol : float or list
         Tolerance in each dimension.
     return_index : bool
-        Return indices of subset if True.
+        Return boolean index of subset if True.
 
     Returns
     -------
     :obj:`~pandas.DataFrame`
         Subset of feature coordinates and intensities.
     :obj:`~numpy.array`
-        If `return_index` is True, indices of slice elements.
+        If `return_index` is True, boolean index of subset elements,
+        i.e. `data[index] = subset`.
 
     '''
 
@@ -146,14 +147,15 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
     high : float or list
         Upper bound(s) in each dimension.
     return_index : bool
-        Return indices of subset.
+        Return boolean index of subset if True.
 
     Returns
     -------
     :obj:`~pandas.DataFrame`
         Subset of feature coordinates and intensities.
     :obj:`~numpy.array`
-        If `return_index` is True, indices of slice elements.
+        If `return_index` is True, boolean index of subset elements,
+        i.e. `data[index] = subset`.
 
     '''
 
