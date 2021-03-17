@@ -28,7 +28,7 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
     features = deimos.utils.safelist(features)
 
     if len(features) < len(deimos.utils.detect_features(data)):
-        data = deimos.utils.collapse(data, keep=features, how=np.sum)
+        data = deimos.collapse(data, keep=features, how=np.sum)
 
     idx = [np.unique(data.loc[:, f].values,
                      return_inverse=True) for f in features]
@@ -42,7 +42,7 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
 
 
 def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
-            additional=None):
+            additional=None, preserve_explicit_zeros=False):
     '''
     Converts dense grid representation to a data frame.
 
@@ -54,8 +54,12 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
         N-dimensional dense grid of intensities.
     features : str or list
         Feature label(s) for each grid dimension.
-    additional : str or list
+    additional : dict or None
         Additional grids to process.
+    preserve_explicit_zeros : bool
+        Signal whether to keep zeros explicitly encoded in `grid`. If
+        :func:`~numpy.nan_to_num` has been used on `grid`, this may cause the
+        resulting :obj:`~pandas.DataFrame` to be extremely large.
 
     Returns
     -------
@@ -68,9 +72,15 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
     # column labels container
     cols = features.copy()
 
-    # flatten grid and threshold
+    # flatten grid
     grid = grid.flatten()
-    idx = grid > 0
+
+    # threshold
+    if preserve_explicit_zeros is True:
+        idx = ~np.isnan(grid)
+    else:
+        idx = grid > 0
+
     grid = grid[idx].reshape(-1, 1)
 
     # edges to grid
