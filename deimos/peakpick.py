@@ -30,6 +30,14 @@ def non_max_suppression(data, features=['mz', 'drift_time', 'retention_time'],
     :obj:`~pandas.DataFrame`
         Coordinates of detected peaks and associated apex intensitites.
 
+    Raises
+    ------
+    ValueError
+        If `scale_by`, `ref_res`, and `scale` are not all None or not all
+        supplied.
+    ValueError
+        If `features` and `bins` are not the same length.
+
     '''
 
     # safely cast to list

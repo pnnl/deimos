@@ -69,6 +69,9 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
 
     '''
 
+    # cast to list safely
+    features = deimos.utils.safelist(features)
+
     # column labels container
     cols = features.copy()
 

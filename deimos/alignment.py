@@ -30,6 +30,11 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
         Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
         represent matched features.
 
+    Raises
+    ------
+    ValueError
+        If `features`, `tol`, and `relative` are not the same length.
+
     '''
 
     if a is None or b is None:
@@ -137,6 +142,11 @@ def tolerance(a, b, features=['mz', 'drift_time', 'retention_time'],
         Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
         represent matched features.
 
+    Raises
+    ------
+    ValueError
+        If `features`, `tol`, and `relative` are not the same length.
+
     '''
 
     if a is None or b is None:
@@ -145,9 +155,10 @@ def tolerance(a, b, features=['mz', 'drift_time', 'retention_time'],
     # safely cast to list
     features = deimos.utils.safelist(features)
     tol = deimos.utils.safelist(tol)
+    relative = deimos.utils.safelist(relative)
 
     # check dims
-    deimos.utils.check_length([features, tol])
+    deimos.utils.check_length([features, tol, relative])
 
     # compute inter-feature distances
     idx = []
@@ -351,6 +362,9 @@ def join(paths, features=['mz', 'drift_time', 'retention_time'],
             print('unmatched:\t{} ({:.1f}%)'.format(len(unmatched.index), p))
 
         return samp_match, clust_match, unmatched
+
+    # safely cast to list
+    features = deimos.utils.safelist(features)
 
     # column indices
     colnames = features + ['intensity']

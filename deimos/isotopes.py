@@ -27,6 +27,11 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     :obj:`pandas.DataFrame`
         Features grouped by isotopic pattern.
 
+    Raises
+    ------
+    ValueError
+        If `features` and `tol` are not the same length.
+
     '''
 
     # safely cast to list
