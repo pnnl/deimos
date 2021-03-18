@@ -4,8 +4,13 @@ import pandas as pd
 import scipy
 
 
+def OrderedSet(x):
+    return list({k: None for k in x})
+
+
 def detect(data, features=['mz', 'drift_time', 'retention_time'],
-           tol=[0.1, 0.2, 0.3], delta=1.003355, max_isotopes=4, max_charge=1):
+           tol=[0.1, 0.2, 0.3], delta=1.003355, max_isotopes=4, max_charge=1,
+           max_error=50E-6):
     '''
     Perform isotope detection according to expected patterning.
 
@@ -16,11 +21,14 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     tol : float or list
         Tolerance in each dimension to be considered a match.
     delta : float
-        Expected spacing between isotopes (e.g. C13=1.003355).
+        Expected spacing between isotopes (e.g. C_13=1.003355).
     max_isotopes : int
         Maximum number of isotopes to search for per parent feature.
     max_charge : int
         Maximum charge to search for per parent feature.
+    max_error : float
+        Maximum relative error between search pattern and putative isotopic
+        feature.
 
     Returns
     -------
@@ -78,14 +86,14 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
             dx_i = dx_i * np.ones(len(a))
 
             isotopes.append(pd.DataFrame(np.vstack((a['mz'].values,
-                                                    a['sum_2'].values,
+                                                    a['intensity'].values,
                                                     z,
                                                     m,
                                                     dx_i,
                                                     b['mz'].values,
-                                                    b['sum_2'].values,
-                                                    a['idx'].values,
-                                                    b['idx'].values)).T,
+                                                    b['intensity'].values,
+                                                    a.index.values,
+                                                    b.index.values)).T,
                                          columns=['mz', 'intensity', 'charge',
                                                   'multiple', 'dx', 'mz_iso',
                                                   'intensity_iso', 'idx',
@@ -95,16 +103,25 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     isotopes = pd.concat(isotopes, axis=0, ignore_index=True)
 
     # stats
-    isotopes['error'] = 1E6 * np.abs((isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
+    isotopes['error'] = np.abs((isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
     isotopes['decay'] = isotopes['intensity_iso'] / isotopes['intensity']
 
     # cull non-decreasing
     isotopes = isotopes.loc[isotopes['intensity'] > isotopes['intensity_iso'], :]
 
     # cull high error
-    isotopes = isotopes.loc[isotopes['error'] < 50, :]
+    isotopes = isotopes.loc[isotopes['error'] < max_error, :]
 
     # cull children
     isotopes = isotopes.loc[~isotopes['idx'].isin(isotopes['idx_iso']), :]
 
-    return isotopes
+    # group by parent
+    grouped = isotopes.groupby(by=['mz', 'charge', 'idx', 'intensity'],
+                               as_index=False).agg(OrderedSet)
+    grouped['n'] = [len(x) for x in grouped['multiple'].values]
+
+    # grouped['n_sum'] = [sum(x) for x in grouped['multiple'].values]
+    # grouped['check'] = np.abs(grouped['n'] * (grouped['n'] + 1) / 2 - grouped['n_sum'])
+
+    return grouped.sort_values(by=['intensity', 'n'],
+                               ascending=False).reset_index(drop=True)
