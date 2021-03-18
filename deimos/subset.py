@@ -1,4 +1,4 @@
-from deimos.utils import safelist, check_length
+import deimos
 import pandas as pd
 import numpy as np
 from functools import partial
@@ -83,15 +83,20 @@ def locate(data, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `data[index] = subset`.
 
+    Raises
+    ------
+    ValueError
+        If `by`, `loc`, and `tol` are not the same length.
+
     '''
 
     # safely cast to list
-    by = safelist(by)
-    loc = safelist(loc)
-    tol = safelist(tol)
+    by = deimos.utils.safelist(by)
+    loc = deimos.utils.safelist(loc)
+    tol = deimos.utils.safelist(tol)
 
     # check dims
-    check_length([by, loc, tol])
+    deimos.utils.check_length([by, loc, tol])
 
     if data is None:
         if return_index is True:
@@ -157,15 +162,20 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `data[index] = subset`.
 
+    Raises
+    ------
+    ValueError
+        If `by`, `low`, and `high` are not the same length.
+
     '''
 
     # safely cast to list
-    by = safelist(by)
-    low = safelist(low)
-    high = safelist(high)
+    by = deimos.utils.safelist(by)
+    low = deimos.utils.safelist(low)
+    high = deimos.utils.safelist(high)
 
     # check dims
-    check_length([by, low, high])
+    deimos.utils.check_length([by, low, high])
 
     if data is None:
         if return_index is True:
