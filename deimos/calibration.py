@@ -115,21 +115,25 @@ class ArrivalTimeCalibration:
 
         Parameters
         ----------
-        mz : float
+        mz : float or list of float
             Feature mass-to-charge ratio.
-        ta : float
+        ta : float or list of float
             Feature arrival time (ms).
-        q : int
+        q : int or list of int
             Feature nominal charge.
 
         Returns
         -------
-        float
+        :obj:`~numpy.array`
             Feature collision cross section (A^2).
 
         '''
 
         self._check()
+
+        mz = np.array(mz)
+        ta = np.array(ta)
+        q = np.array(q)
 
         return q / self.beta * (ta - self.tfix) / np.sqrt(mz / (mz + self.buffer_mass))
 
@@ -140,19 +144,68 @@ class ArrivalTimeCalibration:
 
         Parameters
         ----------
-        mz : float
+        mz : float or list of float
             Feature mass-to-charge ratio.
-        ccs : float
+        ccs : float or list of float
             Feature collision cross section (A^2).
-        q : int
+        q : int or list of int
             Feature nominal charge.
 
         Returns
         -------
-        float
+        :obj:`~numpy.array`
             Feature arrival time (ms).
 
         '''
 
         self._check()
+
+        mz = np.array(mz)
+        ccs = np.array(ccs)
+        q = np.array(q)
+
         return self.beta / q * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix
+
+
+def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
+                  beta=None, tfix=None, buffer_mass=28.013):
+    '''
+    Convenience function for :class:`~deimos.calibration.ArrivalTimeCalibration`.
+    Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
+    otherwise calibration parameters `beta` and `tfix` must be supplied
+    directly.
+
+    Parameters
+    ----------
+    mz : :obj:`~numpy.array`
+        Calibration mass-to-charge ratios.
+    ta : :obj:`~numpy.array`
+        Calibration arrival times.
+    ccs : :obj:`~numpy.array`
+        Calibration collision cross sections.
+    q : :obj:`~numpy.array`
+        Calibration nominal charges.
+    beta : float
+        Provide calibration parameter "beta" (slope) directly.
+    tfix : float
+        Provide calibration parameter "tfix" (intercept) directly.
+
+    Returns
+    -------
+    :obj:`~deimos.calibration.ArrivalTimeCalibration`
+        Instance of calibrated `~deimos.calibration.ArrivalTimeCalibration`
+        object.
+
+    Raises
+    ------
+    ValueError
+        If appropriate keyword arguments are not supplied (either `mz`,
+        `ta`, `ccs`, and `q`; or `beta` and `tfix`).
+
+    '''
+
+    atc = ArrivalTimeCalibration()
+    atc.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
+                  buffer_mass=buffer_mass)
+
+    return atc
