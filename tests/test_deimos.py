@@ -46,8 +46,8 @@ def test_alignment_namespace(attr):
 
 
 @pytest.mark.parametrize('attr',
-                         [('ArrivalTimeCalibration',
-                           'calibrate_ccs')])
+                         [('ArrivalTimeCalibration'),
+                          ('calibrate_ccs')])
 def test_calibration_namespace(attr):
     assert hasattr(deimos.calibration, attr)
 
