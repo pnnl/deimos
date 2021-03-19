@@ -83,10 +83,8 @@ def match(a, b, features=['mz', 'drift_time', 'retention_time'],
 
     # normalize to 0-1
     mx = dist3d.max()
-    if mx == 0:
-        return None, None
-
-    dist3d = dist3d / dist3d.max()
+    if mx > 0:
+        dist3d = dist3d / dist3d.max()
 
     # intensities
     intensity = np.repeat(a['intensity'].values.reshape(-1, 1),
