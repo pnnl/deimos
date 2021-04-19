@@ -7,14 +7,14 @@ from tests import localfile
 def ms1_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
-    return deimos.peakpick.non_max_suppression(ms1,
-                                               features=['mz',
-                                                         'drift_time',
-                                                         'retention_time'],
-                                               bins=[2.7, 0.94, 3.64],
-                                               scale_by='mz',
-                                               ref_res=0.002445221,
-                                               scale='drift_time')
+    return deimos.peakpick.local_maxima(ms1,
+                                        features=['mz',
+                                                  'drift_time',
+                                                  'retention_time'],
+                                        bins=[2.7, 0.94, 3.64],
+                                        scale_by='mz',
+                                        ref_res=0.002445221,
+                                        scale='drift_time')
 
 
 # need to test more configurations

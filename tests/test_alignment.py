@@ -7,14 +7,14 @@ from tests import localfile
 def ms1_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
-    peaks = deimos.peakpick.non_max_suppression(ms1,
-                                                features=['mz',
-                                                          'drift_time',
-                                                          'retention_time'],
-                                                bins=[2.7, 0.94, 3.64],
-                                                scale_by='mz',
-                                                ref_res=0.002445221,
-                                                scale='drift_time')
+    peaks = deimos.peakpick.local_maxima(ms1,
+                                         features=['mz',
+                                                   'drift_time',
+                                                   'retention_time'],
+                                         bins=[2.7, 0.94, 3.64],
+                                         scale_by='mz',
+                                         ref_res=0.002445221,
+                                         scale='drift_time')
     return deimos.threshold(peaks, threshold=1E3)
 
 
@@ -22,11 +22,11 @@ def ms1_peaks():
 def ms2_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
-    peaks = deimos.peakpick.non_max_suppression(ms1,
-                                                features=['mz',
-                                                          'drift_time',
-                                                          'retention_time'],
-                                                bins=[2.7, 2.92, 3.64])
+    peaks = deimos.peakpick.local_maxima(ms1,
+                                         features=['mz',
+                                                   'drift_time',
+                                                   'retention_time'],
+                                         bins=[2.7, 2.92, 3.64])
     # correct ms2 difference
     peaks['drift_time'] += 0.12
     return deimos.threshold(peaks, threshold=1E3)
@@ -113,16 +113,16 @@ def test_tolerance(ms1_peaks):
                                                 'retention_time'],
                                       tol=[5E-6, 0.015, 0.3],
                                       relative=[True, True, False])
-    
+
     assert all(abs(a['mz'] - b['mz']) / a['mz'] <= 5E-6)
     assert all(abs(a['drift_time'] - b['drift_time']) / a['drift_time'] <= 0.015)
     assert all(abs(a['retention_time'] - b['retention_time']) <= 0.3)
 
 
 @pytest.mark.parametrize('a_none,b_none',
-                        [(True, True),
-                         (True, False),
-                         (False, True)])
+                         [(True, True),
+                          (True, False),
+                          (False, True)])
 def test_tolerance_pass_none(ms1_peaks, a_none, b_none):
     if a_none:
         a = None
