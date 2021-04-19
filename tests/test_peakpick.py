@@ -31,13 +31,13 @@ def ms1():
                            None,
                            None,
                            None)])
-def test_non_max_suppression(ms1, features, bins, scale_by, ref_res, scale):
+def test_local_maxima(ms1, features, bins, scale_by, ref_res, scale):
     # make smaller for testing
     subset = deimos.slice(ms1, by='mz', low=200, high=300)
 
-    peaks = deimos.peakpick.non_max_suppression(subset, features=features,
-                                                bins=bins, scale_by=scale_by,
-                                                ref_res=ref_res, scale=scale)
+    peaks = deimos.peakpick.local_maxima(subset, features=features,
+                                         bins=bins, scale_by=scale_by,
+                                         ref_res=ref_res, scale=scale)
 
     assert type(peaks) is pd.DataFrame
 
@@ -88,6 +88,6 @@ def test_non_max_suppression(ms1, features, bins, scale_by, ref_res, scale):
                            None)])
 def test_non_max_suppression_fail(ms1, features, bins, scale_by, ref_res, scale):
     with pytest.raises(ValueError):
-        deimos.peakpick.non_max_suppression(ms1, features=features,
-                                            bins=bins, scale_by=scale_by,
-                                            ref_res=ref_res, scale=scale)
+        deimos.peakpick.local_maxima(ms1, features=features,
+                                     bins=bins, scale_by=scale_by,
+                                     ref_res=ref_res, scale=scale)

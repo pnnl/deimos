@@ -2,9 +2,9 @@ import numpy as np
 import deimos
 
 
-def non_max_suppression(data, features=['mz', 'drift_time', 'retention_time'],
-                        bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None,
-                        scale=None):
+def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
+                 bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None,
+                 scale=None):
     '''
     N-dimensional non-maximum suppression peak detection method.
 

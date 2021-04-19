@@ -89,7 +89,7 @@ def test_isotopes_namespace(attr):
 
 
 @pytest.mark.parametrize('attr',
-                         [('non_max_suppression')])
+                         [('local_maxima')])
 def test_peakpick_namespace(attr):
     assert hasattr(deimos.peakpick, attr)
 
