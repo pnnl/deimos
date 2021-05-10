@@ -46,7 +46,7 @@ rule peakpick:
                                       overlap=config['partition']['overlap'])
 
         # perform peakpicking per partition
-        ms1_peaks = partitions.map(deimos.peakpick.non_max_suppression,
+        ms1_peaks = partitions.map(deimos.peakpick.local_maxima,
                                    features=config['features'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms1'])
@@ -62,7 +62,7 @@ rule peakpick:
                                       overlap=config['partition']['overlap'])
 
         # perform peakpicking per partition
-        ms2_peaks = partitions.map(deimos.peakpick.non_max_suppression,
+        ms2_peaks = partitions.map(deimos.peakpick.local_maxima,
                                    features=config['features'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms2'])
