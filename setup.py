@@ -1,8 +1,7 @@
 from setuptools import setup, find_packages
 
-with open('isicle/__init__.py') as f:
-    version = [x for x in f.readlines() if '__version__' in x][0]
-    version = version.split('=')[-1].strip()
+with open('deimos/__init__.py') as f:
+    exec([x for x in f.readlines() if '__version__' in x][0])
 
 with open('README.md') as f:
     readme = f.read()
