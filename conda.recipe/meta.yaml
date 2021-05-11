@@ -1,0 +1,42 @@
+{% set name = "deimos" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  path: ..
+
+extra:
+  channels:
+    - conda-forge
+    - bioconda
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+  entry_points:
+    - deimos = deimos.cli:main
+
+requirements:
+  host:
+    - python >=3.7
+    - pip
+  run:
+    - h5py
+    - matplotlib
+    - numpy
+    - pandas
+    - pymzml
+    - python >=3.7
+    - scikit-learn
+    - scipy
+    - snakemake
+    - statsmodels
+
+test:
+  imports:
+    - deimos
+  commands:
+    - deimos -h

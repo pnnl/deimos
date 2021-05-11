@@ -1,12 +1,12 @@
-import deimos.alignment
-import deimos.calibration
-import deimos.filters
-import deimos.grid
+from deimos import alignment
+from deimos import calibration
+from deimos import filters
+from deimos import grid
 from deimos.io import *
-import deimos.isotopes
-import deimos.peakpick
-import deimos.plot
+from deimos import isotopes
+from deimos import peakpick
+from deimos import plot
 from deimos.subset import *
-import deimos.utils
+from deimos import utils
 
-__version__ = '0.1.0'
+__version__ = "0.1.0"
