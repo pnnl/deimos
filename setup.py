@@ -16,7 +16,7 @@ pkgs = find_packages(exclude=('examples', 'docs', 'resources', 'tests'))
 
 setup(
     name='deimos',
-    version=version,
+    version=__version__,
     description='Data Extraction for Integrated Multidimensional Spectrometry',
     long_description=readme,
     author='Sean M. Colby',
