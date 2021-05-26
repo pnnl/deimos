@@ -246,28 +246,122 @@ def fit_spline(a, b, align='retention_time', **kwargs):
     return scipy.interpolate.interp1d(newx, newy,
                                       kind='linear', fill_value='extrapolate')
 
-    # # linear edges
-    # N = int(len(arr) * buffer)
-    # if N > 2:
-    #     # fit
-    #     lin1 = SVR(kernel='linear', **kwargs)
-    #     lin1.fit(arr[:N, 0].reshape(-1, 1), arr[:N, 1])
-    #     lin2 = SVR(kernel='linear', **kwargs)
-    #     lin2.fit(arr[-N:, 0].reshape(-1, 1), arr[-N:, 1])
 
-    #     # predict
-    #     ylin1 = lin1.predict(newx.reshape(-1, 1))
-    #     ylin2 = lin2.predict(newx.reshape(-1, 1))
+def sample_connectivity(samples):
+    '''
+    Identify features within tolerance of one another.
 
-    #     # overwrite
-    #     # newy[newx < arr[N, 0]] = ylin1[newx < arr[N, 0]]
-    #     newy[newx > arr[-N, 0]] = ylin2[newx > arr[-N, 0]]
+    Parameters
+    ----------
+    samples : list of :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities per sample.
 
-    #     # fit spline for continuity
-    #     spl = scipy.interpolate.UnivariateSpline(newx, newy, s=2, k=3)
-    #     newy = spl(newx)
+    Returns
+    -------
+    features : :obj:`~pandas.DataFrame`
+        Features concatenated over samples with sample indices.
+    connectivity :obj:`~numpy.array`
+        An n-by-n array of feature connectivity, where n equals the length
+        of concatenated sample data frames.
 
-    # return interpolator
+    '''
+    if samples is None:
+        return None, None
+    
+    if len(deimos.utils.safelist(samples)) < 2:
+        raise ValueError('Must supply list of sample data.')
+    
+    # list of data frames
+    for i in range(len(samples)):
+        samples[i]['sample_idx'] = i
+
+    features = pd.concat(samples)
+
+    vals = features['sample_idx'].values.reshape(-1, 1)
+    cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
+        
+    return features, cmat
+
+
+def agglomerative_clustering(samples, features=['mz', 'drift_time', 'retention_time'],
+                             tol=[20E-6, 0.03, 0.3], relative=[True, True, False]):
+    '''
+    Cluster features across samples within provided linkage tolerances. Recursively
+    merges the pair of clusters that minimally increases a given linkage distance. See
+    :class:`sklearn.cluster.AgglomerativeClustering`.
+
+    Parameters
+    ----------
+    samples : list of :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities per sample.
+    features : str or list
+        Features to match against.
+    tol : float or list
+        Tolerance in each feature dimension to define maximum cluster linkage
+        distance.
+    relative : bool or list
+        Whether to use relative or absolute tolerances per dimension.
+
+    Returns
+    -------
+    features : :obj:`~pandas.DataFrame`
+        Features concatenated over samples with cluster labels.
+    clustering : :obj:`~sklearn.cluster.AgglomerativeClustering`
+        Result of the agglomerative clustering operation.
+
+    Raises
+    ------
+    ValueError
+        If `features`, `tol`, and `relative` are not the same length.
+
+    '''
+
+    # safely cast to list
+    features = deimos.utils.safelist(features)
+    tol = deimos.utils.safelist(tol)
+    relative = deimos.utils.safelist(relative)
+
+    # check dims
+    deimos.utils.check_length([features, tol, relative])
+
+    # connectivity
+    features, cmat = sample_connectivity(samples)
+    
+    # compute inter-feature distances
+    distances = []
+    for i, f in enumerate(features):
+        # vectors
+        v1 = data[f].values.reshape(-1, 1)
+
+        # distances
+        d = scipy.spatial.distance.cdist(v1, v1)
+
+        if relative[i] is True:
+            # divisor
+            basis = np.repeat(v1, v1.shape[0], axis=1)
+            fix = np.repeat(v1, v1.shape[0], axis=1).T
+            basis = np.where(basis == 0, fix, basis)
+
+            # divide
+            d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
+
+        # check tol
+        distances.append(d / tol[i])
+    
+    # stack distances
+    distances = np.dstack(distances)
+    
+    # max distance
+    distances = np.max(distances, axis=-1)
+    
+    # perform clustering
+    clustering = AgglomerativeClustering(n_clusters=None,
+                                         linkage='single',
+                                         affinity='precomputed',
+                                         distance_threshold=1,
+                                         connectivity=cmat).fit(distances)
+    features['cluster'] = clustering.labels_
+    return features, clustering
 
 
 def join(paths, features=['mz', 'drift_time', 'retention_time'],
