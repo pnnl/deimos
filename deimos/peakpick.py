@@ -65,12 +65,13 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
 
     # improper scaling kwargs
     else:
-        raise ValueError('`scale_by`, `ref_res`, and `scale` must all be supplied')
+        raise ValueError(
+            '`scale_by`, `ref_res`, and `scale` must all be supplied')
 
-    # bounds
-    sigma2 = [round(2 * x) for x in bins]
-    sigma4 = [round(4 * x) for x in bins]
-    sigma8 = [round(8 * x) for x in bins]
+    # bounds rounded up to nearest odd
+    sigma2 = [np.round(x) // 2 * 4 + 1 for x in bins]
+    sigma4 = [np.round(x) // 2 * 8 + 1 for x in bins]
+    sigma8 = [np.round(x) // 2 * 16 + 1 for x in bins]
 
     # container
     additional = {}
@@ -94,6 +95,10 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
     # minimum
     additional['min_4'] = deimos.filters.minimum(H, sigma4)
     additional['min_8'] = deimos.filters.minimum(H, sigma8)
+
+    # kurtosis
+    for k, v in zip(features, deimos.filters.kurtosis(edges, H, sigma4)):
+        additional['k_{}'.format(k)] = v
 
     # peak detection
     H_max = deimos.filters.maximum(H, sigma4)
