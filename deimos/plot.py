@@ -4,6 +4,13 @@ import deimos
 import pandas as pd
 from scipy.interpolate import griddata
 import types
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.ticker import ScalarFormatter
+
+
+class ScalarFormatterForceFormat(ScalarFormatter):
+    def _set_format(self):  # Override function that finds format to use.
+        self.format = "%d"  # Give format here
 
 
 def _ceil(value):
@@ -37,8 +44,12 @@ def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
 
     # axis setup
     ax.set_ylim(0, None)
-    # ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    yfmt = ScalarFormatterForceFormat()
+    yfmt.set_powerlimits((0,0))
+    ax.yaxis.set_major_formatter(yfmt)
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+    oom = 10 ** np.floor(np.log10(y.max()))
+    ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
     # axis labels
     ax.set_xlabel(xlabel, fontweight='bold')
@@ -65,11 +76,15 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
 
     # axis setup
     ax.set_ylim(0, None)
-    # ax.yaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    yfmt = ScalarFormatterForceFormat()
+    yfmt.set_powerlimits((0,0))
+    ax.yaxis.set_major_formatter(yfmt)
     ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+    oom = 10 ** np.floor(np.log10(y.max()))
+    ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
     # axis labels
-    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_xlabel(xlabel, fontweight='bold', fontstyle='italic')
     ax.set_ylabel(ylabel, fontweight='bold')
 
     return ax
@@ -91,6 +106,7 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     # split features and values
     points = data.loc[:, features].values
     values = data.loc[:, ['intensity']].values.flatten()
+    values = values - values.min()
 
     # interpolation grid
     grid_x, grid_y = np.mgrid[data[features[0]].min():data[features[0]].max():gridsize,
@@ -100,10 +116,22 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     gridded = np.nan_to_num(griddata(points, values, (grid_x, grid_y), method=method))
 
     # plot
-    ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap, shading='auto')
-
-    # # axis format
-    # ax.xaxis.set_major_locator(tick.MaxNLocator(nbins=ticks, integer=True))
+    im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap, shading='auto')
+    
+    # colorbar
+    cax = inset_axes(ax, width="100%", height="5%", loc=4,
+                     bbox_to_anchor=(0.05, 0.97, 1.0, 1.0), bbox_transform=ax.transAxes)
+    cbar = plt.colorbar(im, cax=cax, orientation='horizontal')
+    cax.xaxis.set_ticks_position('top')
+    yfmt = ScalarFormatterForceFormat()
+    yfmt.set_powerlimits((0,0))
+    cax.xaxis.set_major_formatter(yfmt)
+    
+    # custom ticks
+    oom = np.floor(np.log10(0.95 * gridded.max()))
+    cmax = 0.95 * gridded.max() // 10 ** oom
+    cax.xaxis.set_ticks([0, cmax * 10 ** oom])
+    cax.xaxis.set_ticklabels(['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
 
     # axis labels
     names = _rename(features)
@@ -167,18 +195,18 @@ def multipanel(data, method='linear', dpi=600, grid_kwargs={}):
 
     # mz
     tmp = deimos.collapse(data, keep='mz')
-    stem(tmp['mz'], tmp['intensity'], ax=axes['mz'])
-    plt.setp(axes['mz'].get_xticklabels(), ha="right", rotation=30)
+    stem(tmp['mz'], tmp['intensity'], xlabel='m/z', ax=axes['mz'])
+    plt.setp(axes['mz'].get_xticklabels(), ha="center", rotation=0)
 
     # dt
     tmp = deimos.collapse(data, keep='drift_time')
     fill_between(tmp['drift_time'], tmp['intensity'], xlabel='Drift Time (ms)', ax=axes['dt'])
-    plt.setp(axes['dt'].get_xticklabels(), ha="right", rotation=30)
+    plt.setp(axes['dt'].get_xticklabels(), ha="center", rotation=0)
 
     # rt
     tmp = deimos.collapse(data, keep='retention_time')
     fill_between(tmp['retention_time'], tmp['intensity'], xlabel='Retention Time (min)', ax=axes['rt'])
-    plt.setp(axes['rt'].get_xticklabels(), ha="right", rotation=30)
+    plt.setp(axes['rt'].get_xticklabels(), ha="center", rotation=0)
 
     # mz-dt
     tmp = deimos.collapse(data, keep=['mz', 'drift_time'])
