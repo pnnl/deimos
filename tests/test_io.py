@@ -1,7 +1,7 @@
-import pytest
 import deimos
 import os
 import pandas as pd
+import pytest
 from tests import localfile
 
 

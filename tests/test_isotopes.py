@@ -1,5 +1,5 @@
-import pytest
 import deimos
+import pytest
 from tests import localfile
 
 
@@ -8,9 +8,9 @@ def ms1_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
     return deimos.peakpick.local_maxima(ms1,
-                                        features=['mz',
-                                                  'drift_time',
-                                                  'retention_time'],
+                                        dims=['mz',
+                                              'drift_time',
+                                              'retention_time'],
                                         bins=[2.7, 0.94, 3.64],
                                         scale_by='mz',
                                         ref_res=0.002445221,
@@ -20,9 +20,9 @@ def ms1_peaks():
 # need to test more configurations
 def test_detect(ms1_peaks):
     isotopes = deimos.isotopes.detect(ms1_peaks,
-                                      features=['mz',
-                                                'drift_time',
-                                                'retention_time'],
+                                      dims=['mz',
+                                            'drift_time',
+                                            'retention_time'],
                                       tol=[0.1, 0.2, 0.3],
                                       delta=1.003355,
                                       max_isotopes=5,

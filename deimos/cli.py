@@ -1,8 +1,8 @@
 import argparse
 from deimos import __version__
 from multiprocessing import cpu_count
-from snakemake import snakemake
 from pkg_resources import resource_filename
+from snakemake import snakemake
 
 
 def main():

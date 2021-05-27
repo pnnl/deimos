@@ -1,11 +1,12 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import deimos
+import numpy as np
 import pandas as pd
 from scipy.interpolate import griddata
 import types
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 
 class ScalarFormatterForceFormat(ScalarFormatter):
@@ -22,7 +23,7 @@ def _ceil(value):
 
 
 def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
-                 ax=None, ticks=5, dpi=600):
+                 ax=None, dpi=600):
     # sort
     idx = np.argsort(x)
     x = x[idx]
@@ -45,9 +46,10 @@ def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
     # axis setup
     ax.set_ylim(0, None)
     yfmt = ScalarFormatterForceFormat()
-    yfmt.set_powerlimits((0,0))
+    yfmt.set_powerlimits((0, 0))
     ax.yaxis.set_major_formatter(yfmt)
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+    ax.ticklabel_format(style='sci', axis='y',
+                        scilimits=(0, 0), useMathText=True)
     oom = 10 ** np.floor(np.log10(y.max()))
     ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
@@ -59,7 +61,7 @@ def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
 
 
 def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
-         width=0.1, ax=None, ticks=4, dpi=600):
+         width=0.1, ax=None, dpi=600):
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
@@ -77,9 +79,10 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
     # axis setup
     ax.set_ylim(0, None)
     yfmt = ScalarFormatterForceFormat()
-    yfmt.set_powerlimits((0,0))
+    yfmt.set_powerlimits((0, 0))
     ax.yaxis.set_major_formatter(yfmt)
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0, 0), useMathText=True)
+    ax.ticklabel_format(style='sci', axis='y',
+                        scilimits=(0, 0), useMathText=True)
     oom = 10 ** np.floor(np.log10(y.max()))
     ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
@@ -90,13 +93,13 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
     return ax
 
 
-def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, cmap='gray_r',
-         ticks=4, ax=None, dpi=600):
+def grid(features, dims=['mz', 'drift_time'], method='linear', gridsize=1000j,
+         cmap='gray_r', ax=None, dpi=600):
     # safely cast to list
-    features = deimos.utils.safelist(features)
+    dims = deimos.utils.safelist(dims)
 
     # check dims
-    if len(features) != 2:
+    if len(dims) != 2:
         raise ValueError('grid plots only supported in 2 dimensions')
 
     # initialize figure
@@ -104,29 +107,32 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
     # split features and values
-    points = data.loc[:, features].values
-    values = data.loc[:, ['intensity']].values.flatten()
+    points = features.loc[:, dims].values
+    values = features.loc[:, ['intensity']].values.flatten()
     values = values - values.min()
 
     # interpolation grid
-    grid_x, grid_y = np.mgrid[data[features[0]].min():data[features[0]].max():gridsize,
-                              data[features[1]].min():data[features[1]].max():gridsize]
+    grid_x, grid_y = np.mgrid[features[dims[0]].min():features[dims[0]].max():gridsize,
+                              features[dims[1]].min():features[dims[1]].max():gridsize]
 
     # grid data
-    gridded = np.nan_to_num(griddata(points, values, (grid_x, grid_y), method=method))
+    gridded = np.nan_to_num(
+        griddata(points, values, (grid_x, grid_y), method=method))
 
     # plot
-    im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1, cmap=cmap, shading='auto')
-    
+    im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1,
+                       cmap=cmap, shading='auto')
+
     # colorbar
     cax = inset_axes(ax, width="100%", height="5%", loc=4,
-                     bbox_to_anchor=(0.05, 0.97, 1.0, 1.0), bbox_transform=ax.transAxes)
-    cbar = plt.colorbar(im, cax=cax, orientation='horizontal')
+                     bbox_to_anchor=(0.05, 0.97, 1.0, 1.0),
+                     bbox_transform=ax.transAxes)
+    plt.colorbar(im, cax=cax, orientation='horizontal')
     cax.xaxis.set_ticks_position('top')
     yfmt = ScalarFormatterForceFormat()
-    yfmt.set_powerlimits((0,0))
+    yfmt.set_powerlimits((0, 0))
     cax.xaxis.set_major_formatter(yfmt)
-    
+
     # custom ticks
     oom = np.floor(np.log10(0.95 * gridded.max()))
     cmax = 0.95 * gridded.max() // 10 ** oom
@@ -134,14 +140,14 @@ def grid(data, features=['mz', 'drift_time'], method='linear', gridsize=1000j, c
     cax.xaxis.set_ticklabels(['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
 
     # axis labels
-    names = _rename(features)
+    names = _rename(dims)
     ax.set_xlabel(names[0], fontweight='bold')
     ax.set_ylabel(names[1], fontweight='bold')
 
     return ax
 
 
-def multipanel(data, method='linear', dpi=600, grid_kwargs={}):
+def multipanel(features, method='linear', dpi=600, grid_kwargs={}):
     def _sync_y_with_x(self, event):
         self.set_xlim(event.get_ylim(), emit=False)
 
@@ -194,43 +200,48 @@ def multipanel(data, method='linear', dpi=600, grid_kwargs={}):
     sync_x_with_y(axes['rt-mz'], axes['dt-rt'])
 
     # mz
-    tmp = deimos.collapse(data, keep='mz')
+    tmp = deimos.collapse(features, keep='mz')
     stem(tmp['mz'], tmp['intensity'], xlabel='m/z', ax=axes['mz'])
     plt.setp(axes['mz'].get_xticklabels(), ha="center", rotation=0)
 
     # dt
-    tmp = deimos.collapse(data, keep='drift_time')
-    fill_between(tmp['drift_time'], tmp['intensity'], xlabel='Drift Time (ms)', ax=axes['dt'])
+    tmp = deimos.collapse(features, keep='drift_time')
+    fill_between(tmp['drift_time'], tmp['intensity'],
+                 xlabel='Drift Time (ms)', ax=axes['dt'])
     plt.setp(axes['dt'].get_xticklabels(), ha="center", rotation=0)
 
     # rt
-    tmp = deimos.collapse(data, keep='retention_time')
-    fill_between(tmp['retention_time'], tmp['intensity'], xlabel='Retention Time (min)', ax=axes['rt'])
+    tmp = deimos.collapse(features, keep='retention_time')
+    fill_between(tmp['retention_time'], tmp['intensity'],
+                 xlabel='Retention Time (min)', ax=axes['rt'])
     plt.setp(axes['rt'].get_xticklabels(), ha="center", rotation=0)
 
     # mz-dt
-    tmp = deimos.collapse(data, keep=['mz', 'drift_time'])
-    grid(tmp, features=['mz', 'drift_time'], ax=axes['mz-dt'], **grid_kwargs)
+    tmp = deimos.collapse(features, keep=['mz', 'drift_time'])
+    grid(tmp, dims=['mz', 'drift_time'], ax=axes['mz-dt'], **grid_kwargs)
     axes['mz-dt'].xaxis.label.set_visible(False)
     axes['mz-dt'].tick_params(labelbottom=False)
 
     # dt-rt
-    tmp = deimos.collapse(data, keep=['drift_time', 'retention_time'])
-    grid(tmp, features=['drift_time', 'retention_time'], ax=axes['dt-rt'], **grid_kwargs)
+    tmp = deimos.collapse(features, keep=['drift_time', 'retention_time'])
+    grid(tmp, dims=['drift_time', 'retention_time'],
+         ax=axes['dt-rt'], **grid_kwargs)
     axes['dt-rt'].xaxis.label.set_visible(False)
     axes['dt-rt'].tick_params(labelbottom=False)
 
     # rt-mz
-    tmp = deimos.collapse(data, keep=['retention_time', 'mz'])
-    grid(tmp, features=['retention_time', 'mz'], ax=axes['rt-mz'], **grid_kwargs)
+    tmp = deimos.collapse(features, keep=['retention_time', 'mz'])
+    grid(tmp, dims=['retention_time', 'mz'],
+         ax=axes['rt-mz'], **grid_kwargs)
     axes['rt-mz'].xaxis.label.set_visible(False)
     axes['rt-mz'].tick_params(labelbottom=False)
 
     return axes
 
 
-def _rename(features):
-    names = ['m/z' if x == 'mz' else x for x in features]
-    names = ['Retention Time (min)' if x == 'retention_time' else x for x in names]
+def _rename(dims):
+    names = ['m/z' if x == 'mz' else x for x in dims]
+    names = ['Retention Time (min)' if x
+             == 'retention_time' else x for x in names]
     names = ['Drift Time (ms)' if x == 'drift_time' else x for x in names]
     return names

@@ -1,6 +1,6 @@
-import pytest
 import deimos
 import numpy as np
+import pytest
 from tests import localfile
 
 
@@ -10,27 +10,27 @@ def ms1():
                            level='ms1')
 
 
-@pytest.mark.parametrize('features,dims',
+@pytest.mark.parametrize('dims,shape',
                          [(['mz', 'drift_time', 'retention_time'], (164659, 18, 41)),
                           (['mz', 'drift_time'], (164659, 18)),
                           (['retention_time'], (41,))])
-def test_data2grid(ms1, features, dims):
-    edges, grid = deimos.grid.data2grid(ms1, features=features)
+def test_data2grid(ms1, dims, shape):
+    edges, grid = deimos.grid.data2grid(ms1, dims=dims)
 
     # Index checks
-    assert len(edges) == len(dims)
+    assert len(edges) == len(shape)
 
-    for edge, expected in zip(edges, dims):
+    for edge, expected in zip(edges, shape):
         assert len(edge) == expected
 
     # Grid checks
-    assert grid.shape == dims
+    assert grid.shape == shape
 
 
-@pytest.mark.parametrize('features,additional,zeros',
+@pytest.mark.parametrize('dims,additional,zeros',
                          [(['mz', 'drift_time', 'retention_time'], False, True),
                           (['mz', 'drift_time', 'retention_time'], True, False)])
-def test_grid2df(ms1, features, additional, zeros):
+def test_grid2df(ms1, dims, additional, zeros):
     edges, grid = deimos.grid.data2grid(ms1)
 
     if additional is True:
@@ -39,12 +39,12 @@ def test_grid2df(ms1, features, additional, zeros):
         aux = None
 
     df = deimos.grid.grid2df(edges, grid,
-                             features=features, additional=aux,
+                             dims=dims, additional=aux,
                              preserve_explicit_zeros=zeros)
 
-    # Check feature dimensions are present
-    for f in features:
-        assert f in df.columns
+    # Check dimensions are present
+    for d in dims:
+        assert d in df.columns
 
     # Check additional is present/absent
     if additional is True:

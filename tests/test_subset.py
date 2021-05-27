@@ -1,7 +1,7 @@
-import pytest
 import deimos
 import numpy as np
 import pandas as pd
+import pytest
 from tests import localfile
 
 
@@ -187,7 +187,7 @@ class TestPartitions:
         partitions = deimos.Partitions(ms1, split_on=split_on, size=size,
                                        overlap=overlap)
 
-        assert partitions.data.equals(ms1)
+        assert partitions.features.equals(ms1)
         assert partitions.split_on == split_on
         assert partitions.size == size
 
@@ -265,12 +265,12 @@ class TestPartitions:
 
         pres_a, pres_b = partitions.zipmap(deimos.alignment.tolerance, ms2,
                                            processes=processes,
-                                           features=['mz', 'drift_time', 'retention_time'],
+                                           dims=['mz', 'drift_time', 'retention_time'],
                                            tol=[5E-6, 0.025, 0.3],
                                            relative=[True, True, False])
 
         res_a, res_b = deimos.alignment.tolerance(ms1, ms2,
-                                                  features=['mz', 'drift_time', 'retention_time'],
+                                                  dims=['mz', 'drift_time', 'retention_time'],
                                                   tol=[5E-6, 0.025, 0.3],
                                                   relative=[True, True, False])
 

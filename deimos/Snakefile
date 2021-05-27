@@ -1,8 +1,8 @@
-from os.path import *
 import deimos
-import numpy as np
-import pandas as pd
 import glob
+import numpy as np
+from os.path import *
+import pandas as pd
 
 
 # infer wildcards from inputs
@@ -47,7 +47,7 @@ rule peakpick:
 
         # perform peakpicking per partition
         ms1_peaks = partitions.map(deimos.peakpick.local_maxima,
-                                   features=config['features'],
+                                   dims=config['dims'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms1'])
 
@@ -63,7 +63,7 @@ rule peakpick:
 
         # perform peakpicking per partition
         ms2_peaks = partitions.map(deimos.peakpick.local_maxima,
-                                   features=config['features'],
+                                   dims=config['dims'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms2'])
         deimos.save_hdf(output[0], {'ms1': ms1_peaks,

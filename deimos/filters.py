@@ -1,6 +1,6 @@
-import scipy.ndimage as ndi
-import numpy as np
 import deimos
+import numpy as np
+import scipy.ndimage as ndi
 
 
 def stdev(a, size):
@@ -192,7 +192,8 @@ def count(a, size, nonzero=False):
 
 def kurtosis(edges, a, size):
     '''
-    N-dimensional convolution of a standard deviation filter.
+    N-dimensional convolution of a kurtosis filter. Kurtosis
+    is determined per dimension.
 
     Parameters
     ----------

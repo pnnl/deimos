@@ -1,9 +1,9 @@
-import pymzml
-import h5py
 from collections import OrderedDict, defaultdict
-import warnings
-import pandas as pd
+import h5py
 import numpy as np
+import pandas as pd
+import pymzml
+import warnings
 
 
 def read_mzml(path, accession={'drift_time': 'MS:1002476',
@@ -147,7 +147,7 @@ def load_hdf(path, level='ms1'):
         return pd.DataFrame({k: g[k] for k in list(g.keys())})
 
 
-def save_mgf(path, data, charge='1+'):
+def save_mgf(path, features, charge='1+'):
     '''
     Saves data to MGF format.
 
@@ -155,7 +155,7 @@ def save_mgf(path, data, charge='1+'):
     ----------
     path : str
         Path to output file.
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Precursor m/z and intensities paired to MS2 spectra.
 
     '''
@@ -168,7 +168,7 @@ def save_mgf(path, data, charge='1+'):
                 'END IONS\n')
 
     with open(path, 'w') as f:
-        for i, row in data.iterrows():
+        for i, row in features.iterrows():
             precursor_mz = row['mz']
             precursor_int = row['intensity']
             ms2 = row['ms2']

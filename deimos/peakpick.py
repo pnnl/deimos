@@ -1,8 +1,8 @@
-import numpy as np
 import deimos
+import numpy as np
 
 
-def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
+def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
                  bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None,
                  scale=None):
     '''
@@ -10,10 +10,10 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    features : str or list
-        Feature dimensions to perform peak detection in (omitted dimensions
+    dims : str or list
+        Dimensions to perform peak detection in (omitted dimensions
         will be collapsed and summed accross).
     bins : float or list
         Number of bins representing 1 sigma in each dimension.
@@ -36,27 +36,27 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
         If `scale_by`, `ref_res`, and `scale` are not all None or not all
         supplied.
     ValueError
-        If `features` and `bins` are not the same length.
+        If `dims` and `bins` are not the same length.
 
     '''
 
     # safely cast to list
-    features = deimos.utils.safelist(features)
+    dims = deimos.utils.safelist(dims)
     bins = deimos.utils.safelist(bins)
 
     # check dims
-    deimos.utils.check_length([features, bins])
+    deimos.utils.check_length([dims, bins])
 
     # scaling
     if None not in [scale_by, ref_res, scale]:
         scale = deimos.utils.safelist(scale)
-        sf = np.min(np.diff(np.unique(data[scale_by]))) / ref_res
+        sf = np.min(np.diff(np.unique(features[scale_by]))) / ref_res
 
-        # enumerate features
-        for i, f in enumerate(features):
+        # enumerate dimensions
+        for i, d in enumerate(dims):
 
             # scale
-            if f in scale:
+            if d in scale:
                 bins[i] *= sf
 
     # no scaling
@@ -77,7 +77,7 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
     additional = {}
 
     # grid data
-    edges, H = deimos.grid.data2grid(data, features=features)
+    edges, H = deimos.grid.data2grid(features, dims=dims)
 
     # data counts
     additional['npoints_2'] = deimos.filters.count(H, sigma2)
@@ -97,7 +97,7 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
     additional['min_8'] = deimos.filters.minimum(H, sigma8)
 
     # kurtosis
-    for k, v in zip(features, deimos.filters.kurtosis(edges, H, sigma4)):
+    for k, v in zip(dims, deimos.filters.kurtosis(edges, H, sigma4)):
         additional['k_{}'.format(k)] = v
 
     # peak detection
@@ -108,12 +108,12 @@ def local_maxima(data, features=['mz', 'drift_time', 'retention_time'],
     del H_max, H
 
     # convert to dataframe
-    peaks = deimos.grid.grid2df(edges, peaks, features=features,
+    peaks = deimos.grid.grid2df(edges, peaks, dims=dims,
                                 additional=additional)
 
     # add bins info
-    for i, f in enumerate(features):
-        peaks['sigma_{}_2'.format(f)] = sigma2[i]
-        peaks['sigma_{}_4'.format(f)] = sigma4[i]
+    for i, d in enumerate(dims):
+        peaks['sigma_{}_2'.format(d)] = sigma2[i]
+        peaks['sigma_{}_4'.format(d)] = sigma4[i]
 
     return peaks

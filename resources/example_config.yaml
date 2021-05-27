@@ -1,4 +1,4 @@
-features: ['mz', 'drift_time', 'retention_time']
+dims: ['mz', 'drift_time', 'retention_time']
 
 accession: {'drift_time': 'MS:1002476',
             'retention_time': 'MS:1000016'}

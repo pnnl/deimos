@@ -1,18 +1,18 @@
+import deimos
 import numpy as np
 import pandas as pd
-import deimos
 
 
-def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
+def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
     '''
     Converts data frame representation to a dense, N-dimensional grid.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    features : str or list
-        Feature dimension(s) to create the dense grid (omitted dimensions will
+    dims : str or list
+        Dimension(s) to create the dense grid (omitted dimensions will
         be collapsed and summed accross).
 
     Returns
@@ -25,23 +25,23 @@ def data2grid(data, features=['mz', 'drift_time', 'retention_time']):
     '''
 
     # safely cast to list
-    features = deimos.utils.safelist(features)
+    dims = deimos.utils.safelist(dims)
 
-    if len(features) < len(deimos.utils.detect_features(data)):
-        data = deimos.collapse(data, keep=features, how=np.sum)
+    if len(dims) < len(deimos.utils.detect_dims(features)):
+        features = deimos.collapse(features, keep=dims, how=np.sum)
 
-    idx = [np.unique(data.loc[:, f].values,
-                     return_inverse=True) for f in features]
+    idx = [np.unique(features.loc[:, d].values,
+                     return_inverse=True) for d in dims]
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 
     grid = np.full([len(x) for x in idx], np.nan, dtype=np.float32)
-    grid[tuple(idx_i)] = data.loc[:, 'intensity'].values
+    grid[tuple(idx_i)] = features.loc[:, 'intensity'].values
 
     return idx, grid
 
 
-def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
+def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
             additional=None, preserve_explicit_zeros=False):
     '''
     Converts dense grid representation to a data frame.
@@ -52,8 +52,8 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
         Edges coordinates along each grid axis.
     grid : :obj:`~numpy.array`
         N-dimensional dense grid of intensities.
-    features : str or list
-        Feature label(s) for each grid dimension.
+    dims : str or list
+        Label(s) for each grid dimension.
     additional : dict or None
         Additional grids to process.
     preserve_explicit_zeros : bool
@@ -70,10 +70,10 @@ def grid2df(edges, grid, features=['mz', 'drift_time', 'retention_time'],
     '''
 
     # cast to list safely
-    features = deimos.utils.safelist(features)
+    dims = deimos.utils.safelist(dims)
 
     # column labels container
-    cols = features.copy()
+    cols = dims.copy()
 
     # flatten grid
     grid = grid.flatten()

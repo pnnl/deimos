@@ -1,18 +1,18 @@
 import deimos
-import pandas as pd
-import numpy as np
 from functools import partial
 import multiprocessing as mp
+import numpy as np
+import pandas as pd
 
 
-def threshold(data, by='intensity', threshold=0):
+def threshold(features, by='intensity', threshold=0):
     '''
     Thresholds input :obj:`~pandas.DataFrame` using `by` keyword, greater than
     value passed to `threshold`.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     by : str
         Variable to threshold by.
@@ -26,20 +26,20 @@ def threshold(data, by='intensity', threshold=0):
 
     '''
 
-    return data.loc[data[by] > threshold, :].reset_index(drop=True)
+    return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
+def collapse(features, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
     '''
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     keep : str or list
-        Features to keep during collapse operation.
+        Dimensions to keep during collapse operation.
     how : function or str
         Aggregation function for collapse operation.
 
@@ -51,20 +51,20 @@ def collapse(data, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
 
     '''
 
-    return data.groupby(by=keep,
-                        as_index=False,
-                        sort=False).agg({'intensity': how})
+    return features.groupby(by=keep,
+                            as_index=False,
+                            sort=False).agg({'intensity': how})
 
 
-def locate(data, by=['mz', 'drift_time', 'retention_time'],
+def locate(features, by=['mz', 'drift_time', 'retention_time'],
            loc=[0, 0, 0], tol=[0, 0, 0], return_index=False):
     '''
-    Given a feature coordinate and tolerances, return a subset
-    of the data.
+    Given a coordinate and tolerances, return a subset of the
+    data.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     by : str or list
         Feature(s) by which to subset the data.
@@ -81,7 +81,7 @@ def locate(data, by=['mz', 'drift_time', 'retention_time'],
         Subset of feature coordinates and intensities.
     :obj:`~numpy.array`
         If `return_index` is True, boolean index of subset elements,
-        i.e. `data[index] = subset`.
+        i.e. `features[index] = subset`.
 
     Raises
     ------
@@ -98,52 +98,52 @@ def locate(data, by=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([by, loc, tol])
 
-    if data is None:
+    if features is None:
         if return_index is True:
             return None, None
         else:
             return None
 
     # store index
-    rindex = data.index.values
+    rindex = features.index.values
 
     # extend columns
-    cols = data.columns
+    cols = features.columns
     cidx = [cols.get_loc(x) for x in by]
 
     # subset by each dim
-    data = data.values
-    idx = np.full(data.shape[0], True, dtype=bool)
+    features = features.values
+    idx = np.full(features.shape[0], True, dtype=bool)
     for i, x, dx in zip(cidx, loc, tol):
-        idx *= (data[:, i] <= x + dx) & (data[:, i] >= x - dx)
+        idx *= (features[:, i] <= x + dx) & (features[:, i] >= x - dx)
 
-    data = data[idx]
+    features = features[idx]
     rindex = rindex[idx]
 
     if return_index is True:
         # data found
-        if data.shape[0] > 0:
-            return pd.DataFrame(data, index=rindex, columns=cols), idx
+        if features.shape[0] > 0:
+            return pd.DataFrame(features, index=rindex, columns=cols), idx
 
         # no data
         return None, idx
     else:
         # data found
-        if data.shape[0] > 0:
-            return pd.DataFrame(data, index=rindex, columns=cols)
+        if features.shape[0] > 0:
+            return pd.DataFrame(features, index=rindex, columns=cols)
 
         # no data
         return None
 
 
-def slice(data, by=['mz', 'drift_time', 'retention_time'],
+def slice(features, by=['mz', 'drift_time', 'retention_time'],
           low=[0, 0, 0], high=[0, 0, 0], return_index=False):
     '''
     Given a feature coordinate and bounds, return a subset of the data.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     by : str or list
         Feature(s) by which to subset the data
@@ -160,7 +160,7 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
         Subset of feature coordinates and intensities.
     :obj:`~numpy.array`
         If `return_index` is True, boolean index of subset elements,
-        i.e. `data[index] = subset`.
+        i.e. `features[index] = subset`.
 
     Raises
     ------
@@ -177,39 +177,39 @@ def slice(data, by=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([by, low, high])
 
-    if data is None:
+    if features is None:
         if return_index is True:
             return None, None
         else:
             return None
 
     # store index
-    rindex = data.index.values
+    rindex = features.index.values
 
     # extend columns
-    cols = data.columns
+    cols = features.columns
     cidx = [cols.get_loc(x) for x in by]
 
     # subset by each dim
-    data = data.values
-    idx = np.full(data.shape[0], True, dtype=bool)
+    features = features.values
+    idx = np.full(features.shape[0], True, dtype=bool)
     for i, lb, ub in zip(cidx, low, high):
-        idx *= (data[:, i] <= ub) & (data[:, i] >= lb)
+        idx *= (features[:, i] <= ub) & (features[:, i] >= lb)
 
-    data = data[idx]
+    features = features[idx]
     rindex = rindex[idx]
 
     if return_index is True:
         # data found
-        if data.shape[0] > 0:
-            return pd.DataFrame(data, index=rindex, columns=cols), idx
+        if features.shape[0] > 0:
+            return pd.DataFrame(features, index=rindex, columns=cols), idx
 
         # no data
         return None, idx
     else:
         # data found
-        if data.shape[0] > 0:
-            return pd.DataFrame(data, index=rindex, columns=cols)
+        if features.shape[0] > 0:
+            return pd.DataFrame(features, index=rindex, columns=cols)
 
         # no data
         return None
@@ -221,7 +221,7 @@ class Partitions:
 
     Attributes
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     split_on : str
         Dimension to partition the data.
@@ -232,13 +232,13 @@ class Partitions:
 
     '''
 
-    def __init__(self, data, split_on='mz', size=1000, overlap=0.05):
+    def __init__(self, features, split_on='mz', size=1000, overlap=0.05):
         '''
         Initialize :obj:`~deimos.subset.Partitions` instance.
 
         Parameters
         ----------
-        data : :obj:`~pandas.DataFrame`
+        features : :obj:`~pandas.DataFrame`
             Input feature coordinates and intensities.
         split_on : str
             Dimension to partition the data.
@@ -249,7 +249,7 @@ class Partitions:
 
         '''
 
-        self.data = data
+        self.features = features
         self.split_on = split_on
         self.size = size
         self.overlap = overlap
@@ -263,7 +263,7 @@ class Partitions:
         '''
 
         # unique to split on
-        idx = np.unique(self.data[self.split_on].values)
+        idx = np.unique(self.features[self.split_on].values)
 
         # number of partitions
         partitions = np.ceil(len(idx) / self.size)
@@ -311,7 +311,7 @@ class Partitions:
         '''
 
         for a, b in self.bounds:
-            yield slice(self.data, by=self.split_on, low=a, high=b)
+            yield slice(self.features, by=self.split_on, low=a, high=b)
 
     def map(self, func, processes=1, **kwargs):
         '''
@@ -409,13 +409,13 @@ class Partitions:
         return result['a'], result['b']
 
 
-def partition(data, split_on='mz', size=1000, overlap=0.05):
+def partition(features, split_on='mz', size=1000, overlap=0.05):
     '''
     Partitions data along a feature dimension.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     split_on : str
         Dimension to partition the data.
@@ -431,4 +431,4 @@ def partition(data, split_on='mz', size=1000, overlap=0.05):
 
     '''
 
-    return Partitions(data, split_on, size, overlap)
+    return Partitions(features, split_on, size, overlap)

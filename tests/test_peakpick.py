@@ -1,6 +1,6 @@
-import pytest
 import deimos
 import pandas as pd
+import pytest
 from tests import localfile
 
 
@@ -10,7 +10,7 @@ def ms1():
                            level='ms1')
 
 
-@pytest.mark.parametrize('features,bins,scale_by,ref_res,scale',
+@pytest.mark.parametrize('dims,bins,scale_by,ref_res,scale',
                          [(['mz', 'drift_time', 'retention_time'],
                            [2.7, 0.94, 3.64],
                            None,
@@ -31,21 +31,21 @@ def ms1():
                            None,
                            None,
                            None)])
-def test_local_maxima(ms1, features, bins, scale_by, ref_res, scale):
+def test_local_maxima(ms1, dims, bins, scale_by, ref_res, scale):
     # make smaller for testing
     subset = deimos.slice(ms1, by='mz', low=200, high=300)
 
-    peaks = deimos.peakpick.local_maxima(subset, features=features,
+    peaks = deimos.peakpick.local_maxima(subset, dims=dims,
                                          bins=bins, scale_by=scale_by,
                                          ref_res=ref_res, scale=scale)
 
     assert type(peaks) is pd.DataFrame
 
-    for f in deimos.utils.safelist(features) + ['intensity']:
-        assert f in peaks.columns
+    for d in deimos.utils.safelist(dims) + ['intensity']:
+        assert d in peaks.columns
 
 
-@pytest.mark.parametrize('features,bins,scale_by,ref_res,scale',
+@pytest.mark.parametrize('dims,bins,scale_by,ref_res,scale',
                          [(['mz', 'drift_time', 'retention_time'],
                            [2.7, 0.94, 3.64],
                            'mz',
@@ -86,8 +86,8 @@ def test_local_maxima(ms1, features, bins, scale_by, ref_res, scale):
                            'mz',
                            0.002445221,
                            None)])
-def test_non_max_suppression_fail(ms1, features, bins, scale_by, ref_res, scale):
+def test_non_max_suppression_fail(ms1, dims, bins, scale_by, ref_res, scale):
     with pytest.raises(ValueError):
-        deimos.peakpick.local_maxima(ms1, features=features,
+        deimos.peakpick.local_maxima(ms1, dims=dims,
                                      bins=bins, scale_by=scale_by,
                                      ref_res=ref_res, scale=scale)

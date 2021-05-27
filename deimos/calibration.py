@@ -1,5 +1,5 @@
-from scipy.stats import linregress
 import numpy as np
+from scipy.stats import linregress
 
 
 class ArrivalTimeCalibration:

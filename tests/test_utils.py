@@ -1,7 +1,7 @@
-import pytest
 import deimos
 import numpy as np
 from pandas.core.series import Series
+import pytest
 from tests import localfile
 
 
@@ -45,8 +45,8 @@ def test_check_length_fail(lists):
 @pytest.mark.parametrize('contains',
                          [(['mz', 'drift_time', 'retention_time'])])
 def test_detect_features(ms1, contains):
-    features = deimos.utils.detect_features(ms1)
-    for f in contains:
-        assert f in features
+    dims = deimos.utils.detect_dims(ms1)
+    for d in contains:
+        assert d in dims
 
-    assert 'intensity' not in features
+    assert 'intensity' not in dims

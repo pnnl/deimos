@@ -1,5 +1,5 @@
-import pytest
 import deimos
+import pytest
 from tests import localfile
 
 
@@ -8,9 +8,9 @@ def ms1_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
     peaks = deimos.peakpick.local_maxima(ms1,
-                                         features=['mz',
-                                                   'drift_time',
-                                                   'retention_time'],
+                                         dims=['mz',
+                                               'drift_time',
+                                               'retention_time'],
                                          bins=[2.7, 0.94, 3.64],
                                          scale_by='mz',
                                          ref_res=0.002445221,
@@ -23,9 +23,9 @@ def ms2_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
                           level='ms1')
     peaks = deimos.peakpick.local_maxima(ms1,
-                                         features=['mz',
-                                                   'drift_time',
-                                                   'retention_time'],
+                                         dims=['mz',
+                                               'drift_time',
+                                               'retention_time'],
                                          bins=[2.7, 2.92, 3.64])
     # correct ms2 difference
     peaks['drift_time'] += 0.12
@@ -34,9 +34,9 @@ def ms2_peaks():
 
 def test_match(ms1_peaks):
     a, b = deimos.alignment.match(ms1_peaks, ms1_peaks,
-                                  features=['mz',
-                                            'drift_time',
-                                            'retention_time'],
+                                  dims=['mz',
+                                        'drift_time',
+                                        'retention_time'],
                                   tol=[5E-6, 0.015, 0.3],
                                   relative=[True, True, False])
 
@@ -77,9 +77,9 @@ def test_match_pass_none(ms1_peaks, a_none, b_none):
         b = ms1_peaks
 
     a_, b_ = deimos.alignment.match(a, b,
-                                    features=['mz',
-                                              'drift_time',
-                                              'retention_time'],
+                                    dims=['mz',
+                                          'drift_time',
+                                          'retention_time'],
                                     tol=[5E-6, 0.015, 0.3],
                                     relative=[True, True, False])
 
@@ -96,9 +96,9 @@ def test_match_return_none(ms1_peaks):
     b = deimos.slice(ms1_peaks, by='mz', low=mid_mz + 1, high=max_mz)
 
     a_, b_ = deimos.alignment.match(a, b,
-                                    features=['mz',
-                                              'drift_time',
-                                              'retention_time'],
+                                    dims=['mz',
+                                          'drift_time',
+                                          'retention_time'],
                                     tol=[5E-6, 0.015, 0.3],
                                     relative=[True, True, False])
 
@@ -108,9 +108,9 @@ def test_match_return_none(ms1_peaks):
 
 def test_tolerance(ms1_peaks):
     a, b = deimos.alignment.tolerance(ms1_peaks, ms1_peaks,
-                                      features=['mz',
-                                                'drift_time',
-                                                'retention_time'],
+                                      dims=['mz',
+                                            'drift_time',
+                                            'retention_time'],
                                       tol=[5E-6, 0.015, 0.3],
                                       relative=[True, True, False])
 
@@ -135,9 +135,9 @@ def test_tolerance_pass_none(ms1_peaks, a_none, b_none):
         b = ms1_peaks
 
     a_, b_ = deimos.alignment.tolerance(a, b,
-                                        features=['mz',
-                                                  'drift_time',
-                                                  'retention_time'],
+                                        dims=['mz',
+                                              'drift_time',
+                                              'retention_time'],
                                         tol=[5E-6, 0.015, 0.3],
                                         relative=[True, True, False])
 
@@ -154,9 +154,9 @@ def test_tolerance_return_none(ms1_peaks):
     b = deimos.slice(ms1_peaks, by='mz', low=mid_mz + 1, high=max_mz)
 
     a_, b_ = deimos.alignment.tolerance(a, b,
-                                        features=['mz',
-                                                  'drift_time',
-                                                  'retention_time'],
+                                        dims=['mz',
+                                              'drift_time',
+                                              'retention_time'],
                                         tol=[5E-6, 0.015, 0.3],
                                         relative=[True, True, False])
 

@@ -8,7 +8,7 @@ def OrderedSet(x):
     return list({k: None for k in x})
 
 
-def detect(data, features=['mz', 'drift_time', 'retention_time'],
+def detect(features, dims=['mz', 'drift_time', 'retention_time'],
            tol=[0.1, 0.2, 0.3], delta=1.003355, max_isotopes=4, max_charge=1,
            max_error=50E-6):
     '''
@@ -16,8 +16,10 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
 
     Parameters
     ----------
-    features : str or list
-        Feature dimensions to perform isotope detection in.
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    dims : str or list
+        Dimensions to perform isotope detection in.
     tol : float or list
         Tolerance in each dimension to be considered a match.
     delta : float
@@ -38,29 +40,31 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     Raises
     ------
     ValueError
-        If `features` and `tol` are not the same length.
+        If `dims` and `tol` are not the same length.
 
     '''
 
     # safely cast to list
-    features = deimos.utils.safelist(features)
+    dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
 
     # check dims
-    deimos.utils.check_length([features, tol])
+    deimos.utils.check_length([dims, tol])
 
     # isolate mz dimension
-    mz_idx = features.index('mz')
-    else_idx = [i for i, j in enumerate(features) if i != mz_idx]
+    mz_idx = dims.index('mz')
+    else_idx = [i for i, j in enumerate(dims) if i != mz_idx]
 
     isotopes = []
     idx = []
+
+    # tolerance in other dimensions
     for i in else_idx:
-        arr = data[features[i]].values.reshape((-1, 1))
-        d = scipy.spatial.distance.cdist(arr, arr)
+        arr = features[dims[i]].values.reshape((-1, 1))
+        dist = scipy.spatial.distance.cdist(arr, arr)
 
         # less than tolerance
-        idx.append(d <= tol[i])
+        idx.append(dist <= tol[i])
 
     # stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1)
@@ -69,18 +73,19 @@ def detect(data, features=['mz', 'drift_time', 'retention_time'],
     idx = np.tril(idx, k=-1)
 
     # isotopic distances
-    arr = data[features[mz_idx]].values.reshape((-1, 1))
+    arr = features[dims[mz_idx]].values.reshape((-1, 1))
     d = scipy.spatial.distance.cdist(arr, arr)
     d = np.multiply(d, idx)
 
+    # enumerate putative spacings
     for charge in range(1, max_charge + 1):
         for mult in range(1, max_isotopes + 1):
 
             dx_i = mult * (delta / charge)
             r, c = np.where((d > dx_i - tol[mz_idx])
                             & (d < dx_i + tol[mz_idx]))
-            a = data.iloc[c, :]
-            b = data.iloc[r, :]
+            a = features.iloc[c, :]
+            b = features.iloc[r, :]
             z = charge * np.ones(len(a))
             m = mult * np.ones(len(a))
             dx_i = dx_i * np.ones(len(a))

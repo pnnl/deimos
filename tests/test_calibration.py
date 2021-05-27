@@ -1,7 +1,6 @@
-import pytest
 import deimos
 import numpy as np
-from tests import localfile
+import pytest
 
 
 @pytest.fixture()

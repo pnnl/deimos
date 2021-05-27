@@ -1,5 +1,5 @@
-import pytest
 import deimos
+import pytest
 
 
 def test_has_version():
@@ -40,6 +40,8 @@ def test_toplevel_imports(attr):
                          [('match'),
                           ('tolerance'),
                           ('fit_spline'),
+                          ('sample_connectivity'),
+                          ('agglomerative_clustering'),
                           ('join')])
 def test_alignment_namespace(attr):
     assert hasattr(deimos.alignment, attr)
@@ -117,7 +119,7 @@ def test_subset_namespace(attr):
 @pytest.mark.parametrize('attr',
                          [('safelist'),
                           ('check_length'),
-                          ('detect_features')])
+                          ('detect_dims')])
 def test_utils_namespace(attr):
     assert hasattr(deimos.utils, attr)
 

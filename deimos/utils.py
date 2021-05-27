@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def safelist(x):
@@ -45,13 +45,13 @@ def check_length(lists):
         raise ValueError('Per-dimension inputs must have same dimension.')
 
 
-def detect_features(data):
+def detect_dims(features):
     '''
-    Detects non-intensity feature columns in the input.
+    Detects non-intensity columns in the input.
 
     Parameters
     ----------
-    data : :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
 
     Returns
@@ -61,6 +61,6 @@ def detect_features(data):
 
     '''
 
-    features = list(data.columns)
-    features.remove('intensity')
-    return features
+    dims = list(features.columns)
+    dims.remove('intensity')
+    return dims
