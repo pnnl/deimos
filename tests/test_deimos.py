@@ -31,7 +31,9 @@ def test_has_module(module):
                           ('locate'),
                           ('slice'),
                           ('Partitions'),
-                          ('partition')])
+                          ('partition'),
+                          ('MultiSamplePartitions'),
+                          ('multi_sample_partition')])
 def test_toplevel_imports(attr):
     assert hasattr(deimos, attr)
 
@@ -40,7 +42,6 @@ def test_toplevel_imports(attr):
                          [('match'),
                           ('tolerance'),
                           ('fit_spline'),
-                          ('sample_connectivity'),
                           ('agglomerative_clustering'),
                           ('join')])
 def test_alignment_namespace(attr):
@@ -111,7 +112,9 @@ def test_plot_namespace(attr):
                           ('locate'),
                           ('slice'),
                           ('Partitions'),
-                          ('partition')])
+                          ('partition'),
+                          ('MultiSamplePartitions'),
+                          ('multi_sample_partition')])
 def test_subset_namespace(attr):
     assert hasattr(deimos.subset, attr)
 

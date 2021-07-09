@@ -8,26 +8,24 @@ from tests import localfile
 @pytest.fixture()
 def ms1():
     return deimos.load_hdf(localfile('resources/example_data.h5'),
-                           level='ms1')
+                           key='ms1')
 
 
 @pytest.fixture()
 def ms2():
     return deimos.load_hdf(localfile('resources/example_data.h5'),
-                           level='ms2')
+                           key='ms2')
 
 
 def test_read_mzml():
     raise NotImplementedError
 
 
-@pytest.mark.parametrize('dtype,compression_level',
-                         [({}, 5),
-                          ({'intensity': int}, 4)])
-def test_save_hdf(ms1, ms2, dtype, compression_level):
+def test_save_hdf(ms1, ms2):
     deimos.save_hdf(localfile('resources/test_save.h5'),
-                    {'ms1': ms1, 'ms2': ms2},
-                    compression_level=compression_level)
+                    ms1, key='ms1')
+    deimos.save_hdf(localfile('resources/test_save.h5'),
+                    ms2, key='ms2')
 
     os.remove(localfile('resources/test_save.h5'))
 

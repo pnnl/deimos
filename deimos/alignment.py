@@ -249,55 +249,18 @@ def fit_spline(a, b, align='retention_time', **kwargs):
                                       kind='linear', fill_value='extrapolate')
 
 
-def sample_connectivity(samples):
+def _agglomerative_clustering(features,
+                              dims=['mz', 'drift_time', 'retention_time'],
+                              tol=[20E-6, 0.03, 0.3],
+                              relative=[True, True, False]):
     '''
-    Generate connectivity matrix for input samples such that intra-sample
-    connectivity is masked.
+    Cluster features within provided linkage tolerances. Recursively merges
+    the pair of clusters that minimally increases a given linkage distance.
+    See :class:`sklearn.cluster.AgglomerativeClustering`.
 
     Parameters
     ----------
-    samples : list of :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities per sample.
-
-    Returns
-    -------
-    features : :obj:`~pandas.DataFrame`
-        Features concatenated over samples with sample indices.
-    connectivity :obj:`~numpy.array`
-        An n-by-n array of feature connectivity, where n equals the length
-        of concatenated sample data frames.
-
-    '''
-    if samples is None:
-        return None, None
-
-    if len(deimos.utils.safelist(samples)) < 2:
-        raise ValueError('Must supply list of sample data.')
-
-    # list of data frames
-    for i in range(len(samples)):
-        samples[i]['sample_idx'] = i
-
-    features = pd.concat(samples)
-
-    vals = features['sample_idx'].values.reshape(-1, 1)
-    cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
-
-    return features, cmat
-
-
-def agglomerative_clustering(samples,
-                             dims=['mz', 'drift_time', 'retention_time'],
-                             tol=[20E-6, 0.03, 0.3],
-                             relative=[True, True, False]):
-    '''
-    Cluster features across samples within provided linkage tolerances.
-    Recursively merges the pair of clusters that minimally increases a given
-    linkage distance. See :class:`sklearn.cluster.AgglomerativeClustering`.
-
-    Parameters
-    ----------
-    samples : list of :obj:`~pandas.DataFrame`
+    features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
         Input feature coordinates and intensities per sample.
     dims : str or list
         Dimensions considered in clustering.
@@ -330,7 +293,11 @@ def agglomerative_clustering(samples,
     deimos.utils.check_length([dims, tol, relative])
 
     # connectivity
-    features, cmat = sample_connectivity(samples)
+    if 'sample_idx' not in features.columns:
+        cmat = None
+    else:
+        vals = features['sample_idx'].values.reshape(-1, 1)
+        cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
 
     # compute inter-feature distances
     distances = []
@@ -367,7 +334,66 @@ def agglomerative_clustering(samples,
                                          distance_threshold=1,
                                          connectivity=cmat).fit(distances)
     features['cluster'] = clustering.labels_
-    return features, clustering
+    return features
+
+
+def agglomerative_clustering(features,
+                             dims=['mz', 'drift_time', 'retention_time'],
+                             tol=[20E-6, 0.03, 0.3],
+                             relative=[True, True, False],
+                             processes=1,
+                             partition_kwargs={}):
+    '''
+    Cluster features within provided linkage tolerances. Recursively merges
+    the pair of clusters that minimally increases a given linkage distance.
+    See :class:`sklearn.cluster.AgglomerativeClustering`.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
+        Input feature coordinates and intensities per sample.
+    dims : str or list
+        Dimensions considered in clustering.
+    tol : float or list
+        Tolerance in each feature dimension to define maximum cluster linkage
+        distance.
+    relative : bool or list
+        Whether to use relative or absolute tolerances per dimension.
+    processes : int
+        Number of partitions to process in parallel.
+    partition_kwargs : dict
+        Arguments passed to :func:`~deimos.subset.multi_sample_partition`.
+    
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Features concatenated over samples with cluster labels.
+
+    Raises
+    ------
+    ValueError
+        If `dims`, `tol`, and `relative` are not the same length.
+
+    '''
+
+    # partition data
+    partitions = deimos.subset.multi_sample_partition(features, **partition_kwargs)
+
+    # map agglomerative clustering routine
+    res = partitions.map(_agglomerative_clustering,
+                         dims=dims,
+                         tol=tol,
+                         relative=relative,
+                         processes=processes)
+
+    # drop intra-dataset duplicates
+    res = res.sort_values(by='intensity', ascending=False).drop_duplicates(subset=['cluster', 'partition_idx', 'sample_idx']).reset_index(drop=True)
+    
+    # unique cluster indices
+    res['cluster'] = res.groupby(['partition_idx', 'cluster']).ngroup()
+
+    return res
 
 
 def join(paths, dims=['mz', 'drift_time', 'retention_time'],

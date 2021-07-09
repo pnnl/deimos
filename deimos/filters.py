@@ -159,7 +159,7 @@ def signal_to_noise_ratio(a, size):
     c1 = ndi.filters.uniform_filter(a, size, mode='constant')
     c2 = ndi.filters.uniform_filter(np.square(a), size, mode='constant')
     std = np.abs(np.lib.scimath.sqrt(c2 - np.square(c1)))
-    return np.square(np.divide(c1, std, out=np.zeros_like(c1, dtype=np.float32), where=std != 0))
+    return np.square(np.divide(c1, std, out=np.zeros_like(c1, dtype=float), where=std != 0))
 
 
 def count(a, size, nonzero=False):

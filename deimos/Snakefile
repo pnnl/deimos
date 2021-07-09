@@ -37,7 +37,7 @@ rule peakpick:
     run:
         # ms1
         # load data
-        data = deimos.load_hdf(input[0], level='ms1')
+        data = deimos.load_hdf(input[0], key='ms1')
 
         # partition in m/z
         partitions = deimos.partition(data,
@@ -50,10 +50,11 @@ rule peakpick:
                                    dims=config['dims'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms1'])
+        deimos.save_hdf(output[0], ms1_peaks, key='ms1')
 
         # ms2
         # load data
-        data = deimos.load_hdf(input[0], level='ms2')
+        data = deimos.load_hdf(input[0], key='ms2')
 
         # partition in m/z
         partitions = deimos.partition(data,
@@ -66,5 +67,4 @@ rule peakpick:
                                    dims=config['dims'],
                                    processes=config['partition']['processes'],
                                    **config['peakpick']['ms2'])
-        deimos.save_hdf(output[0], {'ms1': ms1_peaks,
-                                    'ms2': ms2_peaks})
+        deimos.save_hdf(output[0], ms2_peaks, key='ms2')

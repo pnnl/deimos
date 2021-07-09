@@ -6,7 +6,7 @@ from tests import localfile
 @pytest.fixture()
 def ms1_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
-                          level='ms1')
+                          key='ms1')
     peaks = deimos.peakpick.local_maxima(ms1,
                                          dims=['mz',
                                                'drift_time',
@@ -21,7 +21,7 @@ def ms1_peaks():
 @pytest.fixture()
 def ms2_peaks():
     ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
-                          level='ms1')
+                          key='ms1')
     peaks = deimos.peakpick.local_maxima(ms1,
                                          dims=['mz',
                                                'drift_time',

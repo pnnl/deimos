@@ -1,6 +1,8 @@
 from collections import OrderedDict, defaultdict
+import dask.dataframe as dd
 import h5py
 import numpy as np
+import os
 import pandas as pd
 import pymzml
 import warnings
@@ -55,12 +57,12 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
             arr = np.empty((spec.mz.shape[0],
                             len(accession)
                             + len(spec.selected_precursors[0]) + 2),
-                           dtype=np.float32)
+                           dtype=float)
 
         # no precursor
         else:
             arr = np.empty((spec.mz.shape[0], len(accession) + 2),
-                           dtype=np.float32)
+                           dtype=float)
 
         # fill
         arr[:, 0] = spec.mz
@@ -88,9 +90,84 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     return res
 
 
-def save_hdf(path, data, dtype={}, compression_level=5):
+def save_hdf(path, data, key='ms1'):
     '''
     Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
+
+    Parameters
+    ----------
+    path : str
+        Path to output file.
+    data : :obj:`~pandas.DataFrame`
+        :obj:`~pandas.DataFrame to be saved.
+    key : str
+        Save to this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively.
+
+    '''
+
+    data.to_hdf(path, key, mode='a', format='table')
+
+
+def load_hdf(path, key='ms1', columns=None):
+    '''
+    Loads data frame from HDF5 container.
+
+    Parameters
+    ----------
+    path : str
+        Path to input HDF5 file.
+    key : str
+        Access this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively.
+    columns : list
+        A list of columns names to return.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Feature coordinates and intensities for the specified level.
+
+    '''
+
+    return pd.read_hdf(path, key=key, columns=columns)
+
+
+def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7):
+    '''
+    Loads data frame from HDF5 container using Dask.
+
+    Parameters
+    ----------
+    paths : list of str
+        Paths to input HDF5 files.
+    key : str
+        Access this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively.
+    columns : list
+        A list of columns names to return.
+
+    Returns
+    -------
+    :obj:`~dask.dataframe.DataFrame`
+        Feature coordinates and intensities for the specified level.
+
+    '''
+
+    df = [dd.read_hdf(x, key=key, chunksize=int(chunksize)) for x in paths]
+
+    # label each sample
+    for i in range(len(paths)):
+        df[i]['sample_idx'] = i # force unique label in toy case
+        df[i]['sample_id'] = os.path.splitext(os.path.basename(paths[i]))[0]
+
+    # concat results
+    return dd.concat(df, axis=0)
+
+
+def _save_hdf(path, data, dtype={}, compression_level=5):
+    '''
+    Deprecated version. Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
 
     Parameters
     ----------
@@ -115,7 +192,7 @@ def save_hdf(path, data, dtype={}, compression_level=5):
             f.create_group(level)
             for c in data[level].columns:
                 if c not in dtype.keys():
-                    dtype[c] = np.float32
+                    dtype[c] = float
 
                 f[level].create_dataset(c, data=data[level][c].values,
                                         dtype=dtype[c],
@@ -123,9 +200,9 @@ def save_hdf(path, data, dtype={}, compression_level=5):
                                         compression_opts=compression_level)
 
 
-def load_hdf(path, level='ms1'):
+def _load_hdf(path, level='ms1'):
     '''
-    Loads data frame from HDF5 container.
+    Deprecated version. Loads data frame from HDF5 container.
 
     Parameters
     ----------
