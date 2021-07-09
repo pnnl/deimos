@@ -123,6 +123,8 @@ def grid(features, dims=['mz', 'drift_time'], method='linear', gridsize=1000j,
     im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1,
                        cmap=cmap, shading='auto')
 
+    plt.tight_layout()
+
     # colorbar
     cax = inset_axes(ax, width="100%", height="5%", loc=4,
                      bbox_to_anchor=(0.05, 0.97, 1.0, 1.0),
