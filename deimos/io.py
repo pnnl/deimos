@@ -90,7 +90,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     return res
 
 
-def save_hdf(path, data, key='ms1'):
+def save_hdf(path, data, key='ms1', compression_level=5):
     '''
     Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
 
@@ -103,10 +103,15 @@ def save_hdf(path, data, key='ms1'):
     key : str
         Save to this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
         for MS levels 1 or 2, respectively.
+    compression_level : int
+        A value from 0-9 signaling the number of compression operations to
+        apply. Higher values result in greater compression at the expense of
+        computational overhead.
 
     '''
 
-    data.to_hdf(path, key, mode='a', format='table')
+    data.to_hdf(path, key, mode='a', format='table', complib='blosc',
+                complevel=compression_level)
 
 
 def load_hdf(path, key='ms1', columns=None):
