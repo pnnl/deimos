@@ -251,7 +251,8 @@ def fit_spline(a, b, align='retention_time', **kwargs):
 
 def sample_connectivity(samples):
     '''
-    Identify features within tolerance of one another.
+    Generate connectivity matrix for input samples such that intra-sample
+    connectivity is masked.
 
     Parameters
     ----------
