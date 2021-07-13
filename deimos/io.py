@@ -138,7 +138,7 @@ def load_hdf(path, key='ms1', columns=None):
     return pd.read_hdf(path, key=key, columns=columns)
 
 
-def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7):
+def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7, meta=None):
     '''
     Loads data frame from HDF5 container using Dask.
 
@@ -151,6 +151,10 @@ def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7):
         for MS levels 1 or 2, respectively.
     columns : list
         A list of columns names to return.
+    chunksize : int
+        Dask partition chunksize.
+    meta : dict
+        Dictionary of meta data per path.
 
     Returns
     -------
@@ -159,12 +163,16 @@ def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7):
 
     '''
 
-    df = [dd.read_hdf(x, key=key, chunksize=int(chunksize)) for x in paths]
+    df = [dd.read_hdf(x, key=key, chunksize=int(chunksize), columns=columns) for x in paths]
 
     # label each sample
     for i in range(len(paths)):
         df[i]['sample_idx'] = i # force unique label in toy case
         df[i]['sample_id'] = os.path.splitext(os.path.basename(paths[i]))[0]
+
+        if meta is not None:
+            for k, v in meta.items():
+                df[i][k] = v[i]
 
     # concat results
     return dd.concat(df, axis=0)
