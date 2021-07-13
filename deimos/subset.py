@@ -1,3 +1,4 @@
+import dask.dataframe as dd
 import deimos
 from functools import partial
 import multiprocessing as mp
@@ -449,7 +450,7 @@ class MultiSamplePartitions:
         self.size = size
         self.tol = tol
         
-        if isinstance(x, dd.dataframe.DataFrame):
+        if isinstance(features, dd.DataFrame):
             self.dask = True
         else:
             self.dask = False
