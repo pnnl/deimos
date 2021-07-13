@@ -341,6 +341,9 @@ def agglomerative_clustering(features,
                              dims=['mz', 'drift_time', 'retention_time'],
                              tol=[20E-6, 0.03, 0.3],
                              relative=[True, True, False],
+                             meta=None,
+                             aggregate=None,
+                             min_cluster_size=None,
                              processes=1,
                              partition_kwargs={}):
     '''
@@ -359,11 +362,18 @@ def agglomerative_clustering(features,
         distance.
     relative : bool or list
         Whether to use relative or absolute tolerances per dimension.
+    meta : list of str
+        Meta data columns.
+    aggregate : list of str
+        Sequential list of meta data columns to aggregate over. Each must be
+        present in `meta`, and len(`meta`) > len(`aggregate`).
+    min_cluster_size : list of int
+        Filter clusters by minimum size at corresponding aggregation level.
+        Must be same length as aggregate.
     processes : int
         Number of partitions to process in parallel.
     partition_kwargs : dict
         Arguments passed to :func:`~deimos.subset.multi_sample_partition`.
-    
 
     Returns
     -------
@@ -374,26 +384,65 @@ def agglomerative_clustering(features,
     ------
     ValueError
         If `dims`, `tol`, and `relative` are not the same length.
+    ValueError
+        If len(`meta`) <= len(`aggregate`).
+    KeyError
+        If `aggregate` entry not in `meta`.
+    ValueError
+        If `aggregate` and `min_cluster_size` are not the same length.
 
     '''
-
-    # partition data
-    partitions = deimos.subset.multi_sample_partition(features, **partition_kwargs)
-
-    # map agglomerative clustering routine
-    res = partitions.map(_agglomerative_clustering,
-                         dims=dims,
-                         tol=tol,
-                         relative=relative,
-                         processes=processes)
-
-    # drop intra-dataset duplicates
-    res = res.sort_values(by='intensity', ascending=False).drop_duplicates(subset=['cluster', 'partition_idx', 'sample_idx']).reset_index(drop=True)
     
-    # unique cluster indices
-    res['cluster'] = res.groupby(['partition_idx', 'cluster']).ngroup()
+    def apply_func(group):
+        # partition data
+        partitions = deimos.subset.multi_sample_partition(group, **partition_kwargs)
 
-    return res
+        # map agglomerative clustering routine
+        res = partitions.map(deimos.alignment._agglomerative_clustering,
+                             dims=dims,
+                             tol=tol,
+                             relative=relative,
+                             processes=processes)
+
+        # drop intra-dataset duplicates
+        res = res.sort_values(by='intensity', ascending=False).drop_duplicates(subset=['cluster',
+                                                                                       'partition_idx',
+                                                                                       'sample_idx']).reset_index(drop=True)
+        
+        # unique cluster indices
+        res['cluster'] = res.groupby(by=['partition_idx', 'cluster']).ngroup().reset_index(drop=True)
+        
+        # cluster counts
+        res['n'] = res.groupby(by='cluster')['partition_idx'].transform('size').reset_index(drop=True)
+        
+        return res.drop(columns='partition_idx')
+        
+    res = features.copy()
+    
+    if None not in [meta, aggregate, min_cluster_size]:
+        meta = deimos.utils.safelist(meta)
+        aggregate = deimos.utils.safelist(aggregate)
+        min_cluster_size = deimos.utils.safelist(min_cluster_size)
+        
+        deimos.utils.check_length([aggregate, min_cluster_size])
+        
+        if len(meta) <= len(aggregate):
+            raise ValueError('`meta` list must be longer than `aggregate` list.')
+        if not all([x in meta for x in aggregate]):
+            raise KeyError('Entries in `aggregate` must be present in `meta`.')
+        
+        meta_object = [(c, 'object') for c in res.columns] + [('cluster', 'int'), ('n', 'int')]
+
+        for agg_over, min_size in zip(aggregate, min_cluster_size):
+            meta.remove(agg_over)
+            
+            res = res.groupby(by=meta).apply(apply_func, meta=meta_object).reset_index(drop=True)
+            res = res.query('n >= {}'.format(min_size)).drop(columns='n').reset_index(drop=True)
+    
+    else:
+        res = apply_func(res).drop(columns='n')
+
+    return res.compute()
 
 
 def join(paths, dims=['mz', 'drift_time', 'retention_time'],
