@@ -483,14 +483,18 @@ class MultiSamplePartitions:
         for i, dx in zip(range(1, len(idx)), dxs):
             if (current_count + counts[i] <= self.size) or (dx <= self.tol):
                 current_bin.append(idx[i])
-                current_count += counts[i]
-                
+                current_count += counts[i]                    
+
             else:
                 bins.append(np.array(current_bin))
                 self._counts.append(current_count)
 
                 current_bin = [idx[i]]
                 current_count = counts[i]
+        
+        # add last unadded bin
+        bins.append(np.array(current_bin))
+        self._counts.append(current_count)
 
         self.bounds = np.array([[x.min(), x.max()] for x in bins])
 
