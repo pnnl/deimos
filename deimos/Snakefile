@@ -13,7 +13,8 @@ lookup = {k: v for k, v in zip(IDS, fns)}
 
 rule all:
     input:
-        expand(join('output', 'peakpick', '{id}.h5'), id=IDS)
+        expand(join('output', 'peakpick', '{id}.h5'), id=IDS),
+        expand(join('output', 'peakpick_ms2', '{id}.h5'), id=IDS)
 
 
 rule mzml2hdf:
@@ -35,7 +36,6 @@ rule peakpick:
     output:
         join('output', 'peakpick', '{id}.h5')
     run:
-        # ms1
         # load data
         data = deimos.load_hdf(input[0], key='ms1')
 
@@ -52,7 +52,12 @@ rule peakpick:
                                    **config['peakpick']['ms1'])
         deimos.save_hdf(output[0], ms1_peaks, key='ms1')
 
-        # ms2
+rule peakpick_ms2:
+    input:
+        rules.mzml2hdf.output
+    output:
+        join('output', 'peakpick_ms2', '{id}.h5')
+    run:
         # load data
         data = deimos.load_hdf(input[0], key='ms2')
 
