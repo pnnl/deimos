@@ -79,26 +79,26 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     # grid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
 
-    # data counts
-    additional['npoints_2'] = deimos.filters.count(H, sigma2)
-    additional['nonzero_2'] = deimos.filters.count(H, sigma2, nonzero=True)
-    additional['npoints_4'] = deimos.filters.count(H, sigma4)
-    additional['nonzero_4'] = deimos.filters.count(H, sigma4, nonzero=True)
+    # # data counts
+    # additional['npoints_2'] = deimos.filters.count(H, sigma2)
+    # additional['nonzero_2'] = deimos.filters.count(H, sigma2, nonzero=True)
+    # additional['npoints_4'] = deimos.filters.count(H, sigma4)
+    # additional['nonzero_4'] = deimos.filters.count(H, sigma4, nonzero=True)
 
     # nan to num
     H = np.nan_to_num(H)
 
-    # sum
-    additional['sum_2'] = deimos.filters.sum(H, sigma2)
-    additional['sum_4'] = deimos.filters.sum(H, sigma4)
+    # # sum
+    # additional['sum_2'] = deimos.filters.sum(H, sigma2)
+    # additional['sum_4'] = deimos.filters.sum(H, sigma4)
 
-    # minimum
-    additional['min_4'] = deimos.filters.minimum(H, sigma4)
-    additional['min_8'] = deimos.filters.minimum(H, sigma8)
+    # # minimum
+    # additional['min_4'] = deimos.filters.minimum(H, sigma4)
+    # additional['min_8'] = deimos.filters.minimum(H, sigma8)
 
-    # kurtosis
-    for k, v in zip(dims, deimos.filters.kurtosis(edges, H, sigma4)):
-        additional['k_{}'.format(k)] = v
+    # # kurtosis
+    # for k, v in zip(dims, deimos.filters.kurtosis(edges, H, sigma4)):
+    #     additional['k_{}'.format(k)] = v
 
     # peak detection
     H_max = deimos.filters.maximum(H, sigma4)
@@ -111,9 +111,9 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     peaks = deimos.grid.grid2df(edges, peaks, dims=dims,
                                 additional=additional)
 
-    # add bins info
-    for i, d in enumerate(dims):
-        peaks['sigma_{}_2'.format(d)] = sigma2[i]
-        peaks['sigma_{}_4'.format(d)] = sigma4[i]
+    # # add bins info
+    # for i, d in enumerate(dims):
+    #     peaks['sigma_{}_2'.format(d)] = sigma2[i]
+    #     peaks['sigma_{}_4'.format(d)] = sigma4[i]
 
     return peaks
