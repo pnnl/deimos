@@ -44,7 +44,7 @@ def maximum(a, size):
 
     '''
 
-    return ndi.maximum_filter(a, size=size, mode='constant', cval=0)
+    return ndi.maximum_filter(a, size=size, mode='constant', cval=np.max(a) + 1)
 
 
 def minimum(a, size):
