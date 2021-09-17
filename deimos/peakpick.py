@@ -68,10 +68,10 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
         raise ValueError(
             '`scale_by`, `ref_res`, and `scale` must all be supplied')
 
-    # bounds rounded up to nearest odd
-    sigma2 = [np.round(x) // 2 * 4 + 1 for x in bins]
-    sigma4 = [np.round(x) // 2 * 8 + 1 for x in bins]
-    sigma8 = [np.round(x) // 2 * 16 + 1 for x in bins]
+    # footprint rounded up to nearest odd
+    # sigma2 = [np.ceil(x * 2) // 2 * 2 + 1 for x in bins]
+    sigma4 = [np.ceil(x * 4) // 2 * 2 + 1 for x in bins]
+    # sigma8 = [np.ceil(x * 8) // 2 * 2 + 1 for x in bins]
 
     # container
     additional = {}
