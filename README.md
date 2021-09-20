@@ -12,7 +12,7 @@ conda update anaconda
 
 Create the virtual environment:
 ```
-conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels scikit-learn
+conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels scikit-learn dask pytables
 ```
 
 Activate the virtual environment:

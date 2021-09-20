@@ -24,11 +24,13 @@ requirements:
     - python >=3.7
     - pip
   run:
+    - dask
     - h5py
     - matplotlib
     - numpy
     - pandas
     - pymzml
+    - pytables
     - python >=3.7
     - scikit-learn
     - scipy
