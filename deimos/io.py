@@ -167,7 +167,7 @@ def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7, meta=None):
 
     # label each sample
     for i in range(len(paths)):
-        df[i]['sample_idx'] = i # force unique label in toy case
+        df[i]['sample_idx'] = i  # force unique label in toy case
         df[i]['sample_id'] = os.path.splitext(os.path.basename(paths[i]))[0]
 
         if meta is not None:

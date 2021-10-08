@@ -21,7 +21,7 @@ setup(
     long_description=readme,
     author='Sean M. Colby',
     author_email='sean.colby@pnnl.gov',
-    url='https://github.com/pnnl/deimos',
+    url='https://github.com/smcolby/deimos',
     install_requires=requirements,
     python_requires='>=3.7',
     license=license,
