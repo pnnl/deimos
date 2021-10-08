@@ -1,4 +1,6 @@
+import deimos
 import numpy as np
+from scipy.interpolate import interp1d
 from scipy.stats import linregress
 
 
@@ -67,6 +69,8 @@ class ArrivalTimeCalibration:
             Provide calibration parameter "beta" (slope) directly.
         tfix : float
             Provide calibration parameter "tfix" (intercept) directly.
+        buffer_mass : float
+            Mass of the buffer gas.
 
         Raises
         ------
@@ -82,13 +86,14 @@ class ArrivalTimeCalibration:
         # calibrant arrays supplied
         if (mz is not None) and (ta is not None) and (ccs is not None) \
            and (q is not None):
-            mz = np.array(mz)
-            ta = np.array(ta)
-            ccs = np.array(ccs)
-            q = np.array(q)
+            self.mz = np.array(mz)
+            self.ta = np.array(ta)
+            self.ccs = np.array(ccs)
+            self.q = np.array(q)
 
             # linear regression
-            beta, tfix, r, p, se = linregress(np.sqrt(mz / (mz + self.buffer_mass)) * ccs / q, ta)
+            beta, tfix, r, p, se = linregress(np.sqrt(self.mz / (self.mz + self.buffer_mass)) * self.ccs / self.q,
+                                              self.ta)
 
             # store params
             self.beta = beta
@@ -189,6 +194,8 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
         Provide calibration parameter "beta" (slope) directly.
     tfix : float
         Provide calibration parameter "tfix" (intercept) directly.
+    buffer_mass : float
+        Mass of the buffer gas.
 
     Returns
     -------
@@ -209,3 +216,71 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
                   buffer_mass=buffer_mass)
 
     return atc
+
+
+def tunemix(features,
+            mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+            ccs=[108.4, 139.8, 179.9, 254.2, 283.6, 317.7],
+            q=[1, 1, 1, 1, 1, 1], buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
+    '''
+    Provided tune mix data with known calibration ions (i.e. known m/z, CCS, and nominal charge),
+    determine the arrival time for each to define a CCS calibration.
+
+    Parameters
+    ----------
+    mz : :obj:`~numpy.array`
+        Calibration mass-to-charge ratios.
+    ccs : :obj:`~numpy.array`
+        Calibration collision cross sections.
+    q : :obj:`~numpy.array`
+        Calibration nominal charges.
+    buffer_mass : float
+        Mass of the buffer gas.
+    mz_tol : float
+        Tolerance in ppm to isolate tune ion.
+    dt_tol : float
+        Fractional tolerance to define drift time window bounds.
+
+    Returns
+    -------
+    :obj:`~deimos.calibration.ArrivalTimeCalibration`
+        Instance of calibrated `~deimos.calibration.ArrivalTimeCalibration`
+        object.
+
+    '''
+
+    # cast to numpy array
+    mz = np.array(mz)
+    ccs = np.array(ccs)
+    q = np.array(q)
+    
+    # check lengths
+    deimos.utils.check_length([mz, ccs, q])
+    
+    # iterate tune ions
+    ta = []
+    for mz_i, ccs_i, q_i in zip(mz, ccs, q):
+        # slice ms1
+        subset = deimos.slice(features, by='mz',
+                              low=mz_i - 0.1 * mz_tol,
+                              high=mz_i + mz_i * 0.9 * mz_tol)
+        
+        # extract dt info
+        dt_profile = deimos.collapse(subset, keep='drift_time')
+        dt_i = dt_profile.sort_values(by='intensity', ascending=False)['drift_time'].values[0]   
+        dt_profile = deimos.locate(dt_profile, by='drift_time', loc=dt_i, tol=dt_tol * dt_i).sort_values(by='drift_time')
+        
+        # interpolate spline
+        x = dt_profile['drift_time'].values
+        y = dt_profile['intensity'].values
+        
+        spl = interp1d(x, y, kind='quadratic')
+        newx = np.arange(x.min(), x.max(), 0.001)
+        newy = spl(newx)        
+        dt_j = newx[np.argmax(newy)]
+        
+        ta.append(dt_j)
+    
+    # calibrate
+    ta = np.array(ta)
+    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass)

@@ -284,6 +284,9 @@ def _agglomerative_clustering(features,
 
     '''
 
+    if features is None:
+        return None
+
     # safely cast to list
     dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
@@ -328,12 +331,16 @@ def _agglomerative_clustering(features,
     distances = np.max(distances, axis=-1)
 
     # perform clustering
-    clustering = AgglomerativeClustering(n_clusters=None,
-                                         linkage='single',
-                                         affinity='precomputed',
-                                         distance_threshold=1,
-                                         connectivity=cmat).fit(distances)
-    features['cluster'] = clustering.labels_
+    try:
+        clustering = AgglomerativeClustering(n_clusters=None,
+                                            linkage='complete',
+                                            affinity='precomputed',
+                                            distance_threshold=1,
+                                            connectivity=cmat).fit(distances)
+        features['cluster'] = clustering.labels_
+    except:
+        features['cluster'] = np.arange(len(features.index))
+
     return features
 
 
@@ -344,6 +351,7 @@ def agglomerative_clustering(features,
                              meta=None,
                              aggregate=None,
                              min_cluster_size=None,
+                             combine=None,
                              processes=1,
                              partition_kwargs={}):
     '''
@@ -370,6 +378,10 @@ def agglomerative_clustering(features,
     min_cluster_size : list of int
         Filter clusters by minimum size at corresponding aggregation level.
         Must be same length as aggregate.
+    combine : list of bool
+        Indicate whether to combine result of aggregation operation, yielding
+        a single representative feature per cluster, computed as median.
+        Improves computational efficiency if combining over technical replicates.
     processes : int
         Number of partitions to process in parallel.
     partition_kwargs : dict
@@ -423,22 +435,35 @@ def agglomerative_clustering(features,
         meta = deimos.utils.safelist(meta)
         aggregate = deimos.utils.safelist(aggregate)
         min_cluster_size = deimos.utils.safelist(min_cluster_size)
+        combine = deimos.utils.safelist(combine)
         
-        deimos.utils.check_length([aggregate, min_cluster_size])
+        deimos.utils.check_length([aggregate, min_cluster_size, combine])
         
-        if len(meta) <= len(aggregate):
-            raise ValueError('`meta` list must be longer than `aggregate` list.')
+        if len(meta) < len(aggregate):
+            raise ValueError('`aggregate` list must not be longer than `aggregate` list.')
         if not all([x in meta for x in aggregate]):
             raise KeyError('Entries in `aggregate` must be present in `meta`.')
         
         meta_object = [(c, 'object') for c in res.columns] + [('cluster', 'int'), ('n', 'int')]
 
-        for agg_over, min_size in zip(aggregate, min_cluster_size):
+        for agg_over, min_size, to_combine in zip(aggregate, min_cluster_size, combine):
+            print('aggregating over', agg_over)
             meta.remove(agg_over)
             
-            res = res.groupby(by=meta).apply(apply_func, meta=meta_object).reset_index(drop=True)
+            if len(meta) > 0:
+                res = res.groupby(by=meta).apply(apply_func, meta=meta_object).reset_index(drop=True)
+            else:
+                res = apply_func(res)
+
             res = res.query('n >= {}'.format(min_size)).drop(columns='n').reset_index(drop=True)
-    
+
+            if to_combine is True:
+                res['dummy'] = -1 * res['intensity']
+                res = res.sort_values(by='dummy').drop_duplicates(subset=meta + ['cluster'])
+                res = res.drop(columns='dummy')
+            
+            res = res.drop(columns='n').reset_index(drop=True)
+
     else:
         res = apply_func(res).drop(columns='n')
 
