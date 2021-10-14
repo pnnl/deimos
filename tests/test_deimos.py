@@ -9,6 +9,7 @@ def test_has_version():
 @pytest.mark.parametrize('module',
                          [('alignment'),
                           ('calibration'),
+                          ('deconvolution'),
                           ('filters'),
                           ('grid'),
                           ('io'),
@@ -29,6 +30,7 @@ def test_has_module(module):
                           ('threshold'),
                           ('collapse'),
                           ('locate'),
+                          ('locate_asym'),
                           ('slice'),
                           ('Partitions'),
                           ('partition'),
@@ -53,6 +55,14 @@ def test_alignment_namespace(attr):
                           ('calibrate_ccs')])
 def test_calibration_namespace(attr):
     assert hasattr(deimos.calibration, attr)
+
+
+@pytest.mark.parametrize('attr',
+                         [('get_1D_profiles'),
+                          ('MS2Deconvolution'),
+                          ('deconvolve_ms2')])
+def test_calibration_namespace(attr):
+    assert hasattr(deimos.deconvolution, attr)
 
 
 @pytest.mark.parametrize('attr',
@@ -110,6 +120,7 @@ def test_plot_namespace(attr):
                          [('threshold'),
                           ('collapse'),
                           ('locate'),
+                          ('locate_asym'),
                           ('slice'),
                           ('Partitions'),
                           ('partition'),
@@ -135,6 +146,7 @@ def test_utils_namespace(attr):
                           (deimos.threshold, deimos.subset.threshold),
                           (deimos.collapse, deimos.subset.collapse),
                           (deimos.locate, deimos.subset.locate),
+                          (deimos.locate_asym, deimos.subset.locate_asym),
                           (deimos.slice, deimos.subset.slice),
                           (deimos.Partitions, deimos.subset.Partitions),
                           (deimos.partition, deimos.subset.partition)])
