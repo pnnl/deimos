@@ -1,5 +1,6 @@
 from deimos import alignment
 from deimos import calibration
+from deimos import deconvolution
 from deimos import filters
 from deimos import grid
 from deimos.io import *
