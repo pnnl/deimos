@@ -42,5 +42,9 @@ def test_load_hdf(ms1, ms2):
     assert len(ms2.index) == 1991829
 
 
+def test_load_hdf_multi():
+    raise NotImplementedError
+
+
 def test_save_mgf():
     raise NotImplementedError
