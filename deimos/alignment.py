@@ -249,7 +249,7 @@ def fit_spline(a, b, align='retention_time', **kwargs):
                                       kind='linear', fill_value='extrapolate')
 
 
-def _agglomerative_clustering(features,
+def agglomerative_clustering(features,
                               dims=['mz', 'drift_time', 'retention_time'],
                               tol=[20E-6, 0.03, 0.3],
                               relative=[True, True, False]):
@@ -265,7 +265,7 @@ def _agglomerative_clustering(features,
     dims : str or list
         Dimensions considered in clustering.
     tol : float or list
-        Tolerance in each feature dimension to define maximum cluster linkage
+        Tolerance in each dimension to define maximum cluster linkage
         distance.
     relative : bool or list
         Whether to use relative or absolute tolerances per dimension.
@@ -274,8 +274,6 @@ def _agglomerative_clustering(features,
     -------
     features : :obj:`~pandas.DataFrame`
         Features concatenated over samples with cluster labels.
-    clustering : :obj:`~sklearn.cluster.AgglomerativeClustering`
-        Result of the agglomerative clustering operation.
 
     Raises
     ------
@@ -344,7 +342,7 @@ def _agglomerative_clustering(features,
     return features
 
 
-def agglomerative_clustering(features,
+def _agglomerative_clustering(features,
                              dims=['mz', 'drift_time', 'retention_time'],
                              tol=[20E-6, 0.03, 0.3],
                              relative=[True, True, False],
