@@ -68,7 +68,7 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     by : str or list
-        Feature(s) by which to subset the data.
+        Dimension(s) by which to subset the data.
     loc : float or list
         Coordinate location.
     tol : float or list
@@ -137,6 +137,68 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
         return None
 
 
+def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
+                loc=[0, 0, 0], low=[0, 0, 0], high=[0, 0, 0],
+                relative=[False, False, False], return_index=False):
+    '''
+    Given a coordinate and asymmetrical tolerances, return a subset of the
+    data.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : str or list
+        Dimension(s) by which to subset the data.
+    loc : float or list
+        Coordinate location.
+    low : float or list
+        Lower tolerance(s) in each dimension.
+    high : float or list
+        Upper tolerance(s) in each dimension.
+    relative : bool or list
+        Whether to use relative or absolute tolerance per dimension.
+    return_index : bool
+        Return boolean index of subset if True.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Subset of feature coordinates and intensities.
+    :obj:`~numpy.array`
+        If `return_index` is True, boolean index of subset elements,
+        i.e. `features[index] = subset`.
+
+    Raises
+    ------
+    ValueError
+        If `by`, `loc`, and `tol` are not the same length.
+
+    '''
+
+    # safely cast to list
+    by = deimos.utils.safelist(by)
+    loc = deimos.utils.safelist(loc)
+    low = deimos.utils.safelist(low)
+    high = deimos.utils.safelist(high)
+    relative = deimos.utils.safelist(relative)
+
+    # check dims
+    deimos.utils.check_length([by, low, low, high, relative])
+
+    lb = []
+    ub = []
+    for x, lower, upper, rel in zip(loc, low, high, relative):
+        if rel is True:
+            lb.append(x * (1 + lower))
+            ub.append(x * (1 + upper))
+        else:
+            lb.append(x + lower)
+            ub.append(x + upper)
+    
+    return deimos.subset.slice(features, by=by, low=lb, high=ub, return_index=return_index)
+
+
 def slice(features, by=['mz', 'drift_time', 'retention_time'],
           low=[0, 0, 0], high=[0, 0, 0], return_index=False):
     '''
@@ -147,7 +209,7 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
     by : str or list
-        Feature(s) by which to subset the data
+        Dimensions(s) by which to subset the data
     low : float or list
         Lower bound(s) in each dimension.
     high : float or list

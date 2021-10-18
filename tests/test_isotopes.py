@@ -11,10 +11,7 @@ def ms1_peaks():
                                         dims=['mz',
                                               'drift_time',
                                               'retention_time'],
-                                        bins=[2.7, 0.94, 3.64],
-                                        scale_by='mz',
-                                        ref_res=0.002445221,
-                                        scale='drift_time')
+                                        bins=[2.7, 0.94, 3.64])
 
 
 # need to test more configurations
