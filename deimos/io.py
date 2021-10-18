@@ -76,12 +76,14 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
         # populate precursor information
         if spec.selected_precursors:
             for i, (k, v) in enumerate(spec.selected_precursors[0].items()):
-                cols.append(pdict[k])
+                if k != 'precursor id':
+                    cols.append(pdict[k])
+                else:
+                    cols.append(k)
                 arr[:, 2 + len(accession) + i] = v
 
         # append dataframe
-        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr,
-                                                              columns=cols))
+        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr, columns=cols))
 
     # concatenate dataframes
     for level in res.keys():
