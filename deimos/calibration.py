@@ -345,9 +345,9 @@ class ms2DriftCalibration:
         meta_df = pd.DataFrame(columns=decon_data.columns)
         for mz_i in self.mz:
             subset = decon_data[decon_data['mz_ms1'].between(mz_i-2, mz_i+2)]
-            if orbitrap == True:
-                # TODO compare to orbitrap here
-                # subset['OrbitrapScore'] = cosine_score()
+            # if orbitrap == True:
+            # TODO compare to orbitrap here
+            # subset['OrbitrapScore'] = cosine_score()
             subset2 = subset[subset['mz_ms2'].between(mz_i-2, mz_i+2)]
             meta_df = meta_df.append(subset2)
         self.df = meta_df
@@ -404,7 +404,8 @@ def add_voltage_to_deconvolution(decon_data, voltage):
     voltage : int
         int value of voltage
     '''
-    return decon_data['voltage'] = voltage
+    decon_data['voltage'] = voltage
+    return decon_data
 
 
 def stitch_deconvolutions(list_of_decons):
