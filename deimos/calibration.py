@@ -327,7 +327,7 @@ class ms2DriftCalibration:
             self.mz = np.array(mz)
         return
 
-    def subset_tune(self, decon_data, orbitrap=False):
+    def subset_mz(self, decon_data, orbitrap=False):
         '''
         Provided data with known calibration ions (i.e. known m/z),
         subset the deconvolution output by those ions.
@@ -343,7 +343,7 @@ class ms2DriftCalibration:
         decon_data['bias'] = 1
 
         meta_df = pd.DataFrame(columns=decon_data.columns)
-        for mz_i in mz:
+        for mz_i in self.mz:
             subset = decon_data[decon_data['mz_ms1'].between(mz_i-2, mz_i+2)]
             if orbitrap == True:
                 # TODO compare to orbitrap here
@@ -353,7 +353,7 @@ class ms2DriftCalibration:
         self.df = meta_df
         return
 
-    def regress_tune(self):
+    def regress_drift(self):
         '''
 
         Parameters
@@ -390,8 +390,8 @@ def tunemix_calibrate(decon_data, mode, **kwargs):
     mdc = ms2DriftCalibration()
     mdc.set_mode(mode)
     mdc.set_mz()
-    mdc.subset_tune(decon_data, **kwargs)
-    mdc.regress_tune()
+    mdc.subset_mz(decon_data, **kwargs)
+    mdc.regress_drift()
     return mdc
 
 
