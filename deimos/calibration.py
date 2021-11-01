@@ -230,58 +230,26 @@ class MS2DriftCalibration:
         self.mz = None
         self.df = None
         self.b = None
-        self.calibrants = None
-
-    def add_calibrant_pairs(self, ms1_dt, ms2_dt, voltage):
         self.calibrants = pd.DataFrame()
-        temp.df = pd.DataFrame({'ms1': ms1_dt, 'ms2': ms2_dt, 'voltage': np.oneslike(voltage)})
-        self.calibrants.append(temp)
 
-    def subset_mz(self, decon_data, orbitrap=False):
-        '''
-        Provided data with known calibration ions (i.e. known m/z),
-        subset the deconvolution output by those ions.
-
-        Parameters
-        ----------
-
-
-        Returns
-        -------
-
-        '''
-        decon_data['bias'] = 1
-
-        meta_df = pd.DataFrame(columns=decon_data.columns)
-        for mz_i in self.mz:
-            subset = decon_data[decon_data['mz_ms1'].between(mz_i-2, mz_i+2)]
-            # if orbitrap == True:
-            # TODO compare to orbitrap here
-            # subset['OrbitrapScore'] = cosine_score()
-            subset2 = subset[subset['mz_ms2'].between(mz_i-2, mz_i+2)]
-            meta_df = meta_df.append(subset2)
-        self.df = meta_df
+    def add_calibrant_pairs(self, ms1_dt=None, ms2_dt=None, voltage=None):
+        if (ms1_dt is not None) and (ms2_dt is not None) and (voltage is not None):
+            deimos.utils.check_length([ms1_dt, ms2_dt])
+            df = pd.DataFrame({'ms1': ms1_dt, 'ms2': ms2_dt, 'voltage': np.full_like(
+                ms1_dt, voltage, dtype=np.double), 'bias': np.ones_like(ms1_dt)})
+            self.calibrants = self.calibrants.append(df)
+        else:
+            raise('Must specify ms1_dt, ms2_dt, and voltage')
         return
 
-    def regress_drift(self):
+    def regress(self):
+        '''
+        Does 3D regression for drift times, voltage, and bias stored in memory.
         '''
 
-        Parameters
-        ----------
-
-        Returns
-        -------
-
-
-        Raises
-        ------
-
-
-        '''
-
-        df = self.df.copy()
-        x = df['drift_time_ms2'].values
-        y = df['drift_time_ms1'].values
+        df = self.calibrants.copy()
+        x = df['ms2'].values
+        y = df['ms1'].values
         z = df['voltage'].values
         bias = df['bias'].values
         X = np.hstack(x, z, bias)
@@ -289,30 +257,55 @@ class MS2DriftCalibration:
         self.b = b
         return
 
-    def shift_drift(self, dt, voltage):
+    def calibrate(self, dt, voltage):
         '''
-        Provided an ms2 or ms2_peaks object, update the drift_time column with the calibration object.
+        Provided a drift time and voltage at which drift time should be shifted by.
 
         Parameters
         ----------
-        ms2 : pd.DataFrame
-            (1) deimos.load_hdf(key='ms2') output or
-            (2) deimos.peakpick.local_maxima() output or
-            (3) deimos.threshold() output
+        dt : np.float
+        voltage : np.double
 
         Returns
         -------
-        ms2 : pd.DataFrame
-            same as input with modified `drift_time` column
+        shifted_dt : np.float
         '''
-        #ms2_df = ms2.copy()
-        #ms2['drift_time'] = ms2['drift_time'].apply(lambda dt: [dt, voltage].dot(tmc.b))
-        [dt, voltage].dot(self.b)
-        return ms2
+        shifted_dt = [dt, voltage, 1].dot(self.b)
+        return shifted_dt
 
 
-def calibrate_ms2_drift(decon):
-    return
+def calibrate_ms2_drift(ms1_dt=None, ms2_dt=None, calibration_voltage=None, input_dt=None, input_voltage=None, batch=False, orbitrap=False):
+    '''
+    Parameters
+    ----------
+    ms1_dt : np.array() if batch=False, or list of np.array() if batch=True
+    ms2_dt : np.array() if batch=False, or list of np.array() if batch=True
+    calibration_voltage : np.double or np.int, if batch=False
+                          list or np.array() of np.double or np.int, if batch=True
+    input_dt : list or np.array() of np.float or np.double
+    input_voltage : list or np.array() of np.double or np.int
+    batch : bool
+        True if
+        Batch=True when >1 voltage (list) supplied and supplying calibrant pairs in list of np.arrays().
+    orbitrap : bool
+
+    Returns
+    -------
+    output_dt : np.array() of np.float or np.double
+    '''
+    ms2dc = MS2DriftCalibration()
+    if batch == False:
+        ms2dc.add_calibrant_pairs(ms1_dt=ms1_dt, ms2_dt=ms2_dt, voltage=calibration_voltage)
+    elif batch == True:
+        for ms1_sub, ms2_sub, volt_sub in zip(ms1_dt, ms2_dt, calibration_voltage):
+            ms2dc.add_calibrant_pairs(ms1_dt=ms1_sub, ms2_dt=ms2_sub, voltage=volt_sub)
+    else:
+        raise('Must specify if ms1_dt, ms2_dt, and voltage supplied is for a batch (batch=True) or individual set (batch=False).')
+    ms2dc.regress()
+    output_dt = np.array()
+    for dt, voltage in zip(input_dt, input_voltage):
+        output_dt = np.concatenate(output_dt, ms2dc.calibrate())
+    return output_dt
 
 
 class TuneMixCalibrants:
@@ -432,6 +425,9 @@ class TuneMixCalibrants:
         self.set_mz_tol(mz_tol)
         self.set_dt_tol(dt_tol)
         if self.mode is not None:
+            if (mz is not None) and (ccs is not None) and (q is not None):
+                # check lengths
+                deimos.utils.check_length([mz, ccs, q])
             self.set_mz(mz)
             self.set_ccs(ccs)
             self.set_q(q)
@@ -445,7 +441,7 @@ class TuneMixCalibrants:
         elif mz is not None:
             self.set_mz(mz)
         else:
-            raise("Must specify ionization mode ('positive' or 'negative') or mz (np.array()) to look for, at a minimum."")
+            raise("Must specify ionization mode ('positive' or 'negative') or supply mz (np.array() or list) to look for, at a minimum."")
         return
 
     def iterate_ions(self):
@@ -477,60 +473,37 @@ class TuneMixCalibrants:
         self.dt = np.array(dt_list)
         return
 
-    def calibrate_ccs():
-        deimos.calibration.calibrate_ccs(
-            mz=self.mz, ta=self.dt, ccs=self.ccs, q=self.q, buffer_mass=self.bm)
+    def calibrate_ccs(self):
+        return deimos.calibration.calibrate_ccs(mz=self.mz, ta=self.dt, ccs=self.ccs, q=self.q, buffer_mass=self.bm)
 
-    def calibrate_ms2_drift():
-        deimos.calibration.calibrate_ms2_drift()
-
-
-def tunemix_calibrate_ms2_drift(features, mode=None, **kwargs):
-    '''
-    Parameters
-    ----------
-    decon_data : pd.DataFrame
-        output from `deimos.calibration.stitch_deconvolutions`
-    '''
-    tmc = TuneMixCalibrants(features)
-    tmc.set_input(mode=mode, **kwargs)
-    tmc.iterate_ions()
-
-    return tmc
+    def calibrate_ms2_drift(self):
+        # TODO add deconvolution here
+        return deimos.calibration.calibrate_ms2_drift()
 
 
 def tunemix_calibrate_ccs(features, mode=None, **kwargs):
     '''
     Parameters
     ----------
-    decon_data : pd.DataFrame
-        output from `deimos.calibration.stitch_deconvolutions`
+    features : pd.DataFrame
+
     '''
     tmc = TuneMixCalibrants(features)
     tmc.set_input(mode=mode, **kwargs)
     tmc.iterate_ions()
-
+    tmc.calibrate_ccs()
     return tmc
 
 
-def add_voltage_to_deconvolution(decon_data, voltage):
+def tunemix_calibrate_ms2_drift(features, mode=None, **kwargs):
     '''
     Parameters
     ----------
-    decon_data : pd.DataFrame
-        deimos.deconvolution.deconvolve_ms2 output
-    voltage : int
-        int value of voltage
-    '''
-    decon_data['voltage'] = voltage
-    return decon_data
+    features : pd.DataFrame
 
-
-def stitch_deconvolutions(list_of_decons):
     '''
-    Parameters
-    ----------
-    list_of_decons : list of pd.DataFrame
-        list of `deimos.calibration.add_voltage_to_deconvolution` output
-    '''
-    return pd.concat(list_of_decons)
+    tmc = TuneMixCalibrants(features)
+    tmc.set_input(mode=mode, **kwargs)
+    tmc.iterate_ions()
+    tmc.calibrate_ms2_drift()
+    return tmc
