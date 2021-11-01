@@ -254,8 +254,7 @@ class MS2DriftCalibration:
         z = df['voltage'].values.reshape(-1, 1)
         bias = df['bias'].values.reshape(-1, 1)
         X = np.hstack((x, z, bias))
-        b = np.linalg.pinv(X).dot(y)
-        self.b = b
+        self.b = np.linalg.pinv(X).dot(y)
         return
 
     def shift(self, dt, voltage):
@@ -271,8 +270,7 @@ class MS2DriftCalibration:
         -------
         shifted_dt : np.float
         '''
-        shifted_dt = np.array([dt, voltage, 1]).dot(self.b)
-        return shifted_dt
+        return np.array([dt, voltage, 1]).dot(self.b)
 
 
 def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None):
@@ -297,9 +295,9 @@ def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None):
 
 
 def calibrate_drift(ms2dc, input_dt=None, input_voltage=None):
-    output_dt = np.array()
+    output_dt = np.array([])
     for dt in input_dt:
-        output_dt = np.concatenate(output_dt, ms2dc.shift(dt, input_voltage))
+        output_dt = np.append(output_dt, ms2dc.shift(dt, input_voltage))
     return output_dt
 
 
