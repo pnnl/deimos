@@ -257,7 +257,7 @@ class MS2DriftCalibration:
         self.b = b
         return
 
-    def calibrate(self, dt, voltage):
+    def shift(self, dt, voltage):
         '''
         Provided a drift time and voltage at which drift time should be shifted by.
 
@@ -274,49 +274,47 @@ class MS2DriftCalibration:
         return shifted_dt
 
 
-def calibrate_ms2_drift(ms1_dt=None, ms2_dt=None, calibration_voltage=None, input_dt=None, input_voltage=None, batch=False, orbitrap=False):
+def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None:
     '''
     Parameters
     ----------
-    ms1_dt : np.array() if batch=False, or list of np.array() if batch=True
-    ms2_dt : np.array() if batch=False, or list of np.array() if batch=True
-    calibration_voltage : np.double or np.int, if batch=False
-                          list or np.array() of np.double or np.int, if batch=True
-    input_dt : list or np.array() of np.float or np.double
-    input_voltage : list or np.array() of np.double or np.int
-    batch : bool
-        True if
-        Batch=True when >1 voltage (list) supplied and supplying calibrant pairs in list of np.arrays().
-    orbitrap : bool
+    ms1_dt : list of np.array()
+    ms2_dt : list of np.array()
+    calibration_voltages : np.array() of np.double or np.int
+    input_dt : np.array() of np.float or np.double
+    input_voltage : np.array() of np.double or np.int
 
     Returns
     -------
     output_dt : np.array() of np.float or np.double
     '''
     ms2dc = MS2DriftCalibration()
-    if batch == False:
-        ms2dc.add_calibrant_pairs(ms1_dt=ms1_dt, ms2_dt=ms2_dt, voltage=calibration_voltage)
-    elif batch == True:
-        for ms1_sub, ms2_sub, volt_sub in zip(ms1_dt, ms2_dt, calibration_voltage):
-            ms2dc.add_calibrant_pairs(ms1_dt=ms1_sub, ms2_dt=ms2_sub, voltage=volt_sub)
-    else:
-        raise('Must specify if ms1_dt, ms2_dt, and voltage supplied is for a batch (batch=True) or individual set (batch=False).')
+    for ms1_sub, ms2_sub, volt_sub in zip(ms1_dt, ms2_dt, calibration_voltages):
+        ms2dc.add_calibrant_pairs(ms1_dt=ms1_sub, ms2_dt=ms2_sub, voltage=volt_sub)
     ms2dc.regress()
+    return ms2dc
+
+
+def calibrate_drift(ms2dc, input_dt=None, input_voltage=None):
     output_dt = np.array()
     for dt, voltage in zip(input_dt, input_voltage):
-        output_dt = np.concatenate(output_dt, ms2dc.calibrate())
+        output_dt = np.concatenate(output_dt, ms2dc.shift(dt, voltage))
     return output_dt
 
 
 class TuneMixCalibrants:
     def __init__(self, features):
         '''
-        Initializes :obj:`~deimos.calibration.ms2DriftCalibration` object.
+        Initializes :obj:`~deimos.calibration.MS2DriftCalibration` object.
 
         '''
 
         # initialize variables
-        self.features = features.copy()
+        if isinstance(features, list):
+            self.features = [feat.copy() for feat in features]
+        else:
+            self.features = features.copy()
+        self.volts = None
         self.mode = None
         self.mz = None
         self.ccs = None
@@ -403,7 +401,11 @@ class TuneMixCalibrants:
         self.dtt = dt_tol
         return
 
-    def set_input(mode=None, mz=None, ccs=None, q=None, buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
+    def set_volts(self, voltages):
+        self.volts = voltages
+        return
+
+    def set_input(mode=None, voltages=None, mz=None, ccs=None, q=None, buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
         '''
         Parameters
         ----------
@@ -424,6 +426,7 @@ class TuneMixCalibrants:
         self.set_buffer_mass(buffer_mass)
         self.set_mz_tol(mz_tol)
         self.set_dt_tol(dt_tol)
+        self.set_volts(voltages)
         if self.mode is not None:
             if (mz is not None) and (ccs is not None) and (q is not None):
                 # check lengths
@@ -444,7 +447,7 @@ class TuneMixCalibrants:
             raise("Must specify ionization mode ('positive' or 'negative') or supply mz (np.array() or list) to look for, at a minimum.")
         return
 
-    def iterate_ions(self):
+    def iterate_ions_ccs(self):
         features = self.features.copy()
         # iterate tune ions
         dt_list = []
@@ -473,12 +476,23 @@ class TuneMixCalibrants:
         self.dt = np.array(dt_list)
         return
 
+    def iterate_ions_drift(self):
+        features = self.features.copy()
+        self.features = []
+        for feat_df in features:
+            feat_df = feat_df.copy()
+            for mz_i in self.mz:
+                subset = feat_df[feat_df['mz_ms1'].between(mz_i-2, mz_i+2)]
+                subset2 = subset[subset['mz_ms2'].between(mz_i-2, mz_i+2)]
+                feat_df = feat_df.append(subset2)
+            self.features.append(feat_df)
+        return
+
     def calibrate_ccs(self):
         return deimos.calibration.calibrate_ccs(mz=self.mz, ta=self.dt, ccs=self.ccs, q=self.q, buffer_mass=self.bm)
 
-    def calibrate_ms2_drift(self):
-        # TODO add deconvolution here
-        return deimos.calibration.calibrate_ms2_drift()
+    def generate_ms2_drift_calibration(self):
+        return deimos.calibration.generate_ms2_drift_calibration(ms1_dt=[np.array(feats['drift_time_ms1']) for feats in self.features], ms2_dt=[np.array(feats['drift_time_ms2']) for feats in self.features], calibration_voltages=self.volts)
 
 
 def tunemix_calibrate_ccs(features, mode=None, **kwargs):
@@ -490,20 +504,21 @@ def tunemix_calibrate_ccs(features, mode=None, **kwargs):
     '''
     tmc = TuneMixCalibrants(features)
     tmc.set_input(mode=mode, **kwargs)
-    tmc.iterate_ions()
-    tmc.calibrate_ccs()
-    return tmc
+    tmc.iterate_ions_ccs()
+    ccsc = tmc.calibrate_ccs()
+    return ccsc
 
 
-def tunemix_calibrate_ms2_drift(features, mode=None, **kwargs):
+def tunemix_calibrate_ms2_drift(features, voltages, mode=None, **kwargs):
     '''
     Parameters
     ----------
-    features : pd.DataFrame
+    features : list of pd.DataFrames
+    voltages : list of np.double or np.int
 
     '''
     tmc = TuneMixCalibrants(features)
-    tmc.set_input(mode=mode, **kwargs)
-    tmc.iterate_ions()
-    tmc.calibrate_ms2_drift()
-    return tmc
+    tmc.set_input(mode=mode, voltages=voltages, **kwargs)
+    tmc.iterate_ions_drift()
+    ms2dc = tmc.generate_ms2_drift_calibration()
+    return ms2dc
