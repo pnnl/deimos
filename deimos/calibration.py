@@ -441,7 +441,7 @@ class TuneMixCalibrants:
         elif mz is not None:
             self.set_mz(mz)
         else:
-            raise("Must specify ionization mode ('positive' or 'negative') or supply mz (np.array() or list) to look for, at a minimum."")
+            raise("Must specify ionization mode ('positive' or 'negative') or supply mz (np.array() or list) to look for, at a minimum.")
         return
 
     def iterate_ions(self):
