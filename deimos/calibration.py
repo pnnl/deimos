@@ -360,7 +360,7 @@ class TuneMixCalibrants:
                 self.mz = np.array([118.086255, 322.048121, 622.028960,
                                     922.009798, 1221.990636, 1521.971475])
             elif self.mode == 'negative':
-                self.mz = np.array([112.985587, 301.998139, 601.978977,
+                self.mz = np.array([301.998139, 601.978977,
                                     1033.988109, 1333.968947, 1633.949786])
         elif mz is not None:
             self.mz = np.array(mz)
@@ -375,9 +375,9 @@ class TuneMixCalibrants:
         '''
         if ccs is None:
             if self.mode == 'positive':
-                self.ccs = np.array()
+                self.ccs = np.array([120.8, 152.8, 201.6, 241.8, 279.9, 314.4])
             elif self.mode == 'negative':
-                self.ccs = np.array()
+                self.ccs = np.array([139.8, 179.9, 254.2, 283.6, 317.7])
         elif ccs is not None:
             self.ccs = np.array(ccs)
         return
@@ -391,9 +391,9 @@ class TuneMixCalibrants:
         '''
         if q is None:
             if self.mode == 'positive':
-                self.q = np.array()
+                self.q = np.array([1, 1, 1, 1, 1, 1])
             elif self.mode == 'negative':
-                self.q = np.array()
+                self.q = np.array([1, 1, 1, 1, 1])
         else:
             self.q = np.array(q)
         return
