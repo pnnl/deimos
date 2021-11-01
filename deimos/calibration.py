@@ -1,5 +1,6 @@
 import deimos
 import numpy as np
+import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.stats import linregress
 
@@ -248,11 +249,11 @@ class MS2DriftCalibration:
         '''
 
         df = self.calibrants.copy()
-        x = df['ms2'].values
-        y = df['ms1'].values
-        z = df['voltage'].values
-        bias = df['bias'].values
-        X = np.hstack(x, z, bias)
+        x = df['ms2'].values.reshape(-1, 1)
+        y = df['ms1'].values.reshape(-1, 1)
+        z = df['voltage'].values.reshape(-1, 1)
+        bias = df['bias'].values.reshape(-1, 1)
+        X = np.hstack((x, z, bias))
         b = np.linalg.pinv(X).dot(y)
         self.b = b
         return
@@ -270,11 +271,11 @@ class MS2DriftCalibration:
         -------
         shifted_dt : np.float
         '''
-        shifted_dt = [dt, voltage, 1].dot(self.b)
+        shifted_dt = np.array([dt, voltage, 1]).dot(self.b)
         return shifted_dt
 
 
-def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None:
+def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None):
     '''
     Parameters
     ----------
@@ -289,7 +290,7 @@ def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None:
     output_dt : np.array() of np.float or np.double
     '''
     ms2dc = MS2DriftCalibration()
-    for ms1_sub, ms2_sub, volt_sub in zip(ms1_dt, ms2_dt, calibration_voltages):
+    for ms1_sub, ms2_sub, volt_sub in zip(ms1_dt, ms2_dt, voltages):
         ms2dc.add_calibrant_pairs(ms1_dt=ms1_sub, ms2_dt=ms2_sub, voltage=volt_sub)
     ms2dc.regress()
     return ms2dc
@@ -297,8 +298,8 @@ def generate_ms2_drift_calibration(ms1_dt=None, ms2_dt=None, voltages=None:
 
 def calibrate_drift(ms2dc, input_dt=None, input_voltage=None):
     output_dt = np.array()
-    for dt, voltage in zip(input_dt, input_voltage):
-        output_dt = np.concatenate(output_dt, ms2dc.shift(dt, voltage))
+    for dt in input_dt:
+        output_dt = np.concatenate(output_dt, ms2dc.shift(dt, input_voltage))
     return output_dt
 
 
@@ -346,7 +347,7 @@ class TuneMixCalibrants:
         mz : list
             List of float mz values to use in calibration of drift time
         '''
-        if (mz is None) and (mode is not None):
+        if mz is None:
             if self.mode == 'positive':
                 self.mz = np.array([118.086255, 322.048121, 622.028960,
                                     922.009798, 1221.990636, 1521.971475])
@@ -405,7 +406,7 @@ class TuneMixCalibrants:
         self.volts = voltages
         return
 
-    def set_input(mode=None, voltages=None, mz=None, ccs=None, q=None, buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
+    def set_input(self, mode=None, voltages=None, mz=None, ccs=None, q=None, buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
         '''
         Parameters
         ----------
@@ -492,7 +493,7 @@ class TuneMixCalibrants:
         return deimos.calibration.calibrate_ccs(mz=self.mz, ta=self.dt, ccs=self.ccs, q=self.q, buffer_mass=self.bm)
 
     def generate_ms2_drift_calibration(self):
-        return deimos.calibration.generate_ms2_drift_calibration(ms1_dt=[np.array(feats['drift_time_ms1']) for feats in self.features], ms2_dt=[np.array(feats['drift_time_ms2']) for feats in self.features], calibration_voltages=self.volts)
+        return deimos.calibration.generate_ms2_drift_calibration(ms1_dt=[np.array(feats['drift_time_ms1']) for feats in self.features], ms2_dt=[np.array(feats['drift_time_ms2']) for feats in self.features], voltages=self.volts)
 
 
 def tunemix_calibrate_ccs(features, mode=None, **kwargs):
@@ -518,7 +519,7 @@ def tunemix_calibrate_ms2_drift(features, voltages, mode=None, **kwargs):
 
     '''
     tmc = TuneMixCalibrants(features)
-    tmc.set_input(mode=mode, voltages=voltages, **kwargs)
+    tmc.set_input(voltages=voltages, mode=mode, **kwargs)
     tmc.iterate_ions_drift()
     ms2dc = tmc.generate_ms2_drift_calibration()
     return ms2dc
