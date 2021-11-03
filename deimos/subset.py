@@ -184,7 +184,7 @@ def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
     relative = deimos.utils.safelist(relative)
 
     # check dims
-    deimos.utils.check_length([by, low, low, high, relative])
+    deimos.utils.check_length([by, loc, low, high, relative])
 
     lb = []
     ub = []
@@ -195,7 +195,7 @@ def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
         else:
             lb.append(x + lower)
             ub.append(x + upper)
-    
+
     return deimos.subset.slice(features, by=by, low=lb, high=ub, return_index=return_index)
 
 
@@ -452,7 +452,7 @@ class Partitions:
         else:
             with mp.Pool(processes=processes) as p:
                 result = list(p.starmap(partial(func, **kwargs),
-                              zip(self, partitions)))
+                                        zip(self, partitions)))
 
         result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
 
@@ -511,14 +511,14 @@ class MultiSamplePartitions:
         self.split_on = split_on
         self.size = size
         self.tol = tol
-        
+
         if isinstance(features, dd.DataFrame):
             self.dask = True
         else:
             self.dask = False
 
         self._compute_splits()
-        
+
     def _compute_splits(self):
         '''
         Determines data splits for partitioning.
@@ -526,7 +526,7 @@ class MultiSamplePartitions:
         '''
 
         self.counter = 0
-        
+
         if self.dask:
             idx = self.features.groupby(by=self.split_on).size().compute().sort_index()
         else:
@@ -534,7 +534,7 @@ class MultiSamplePartitions:
 
         counts = idx.values
         idx = idx.index
-        
+
         dxs = np.diff(idx) / idx[:-1]
 
         bins = []
@@ -545,7 +545,7 @@ class MultiSamplePartitions:
         for i, dx in zip(range(1, len(idx)), dxs):
             if (current_count + counts[i] <= self.size) or (dx <= self.tol):
                 current_bin.append(idx[i])
-                current_count += counts[i]                    
+                current_count += counts[i]
 
             else:
                 bins.append(np.array(current_bin))
@@ -553,7 +553,7 @@ class MultiSamplePartitions:
 
                 current_bin = [idx[i]]
                 current_count = counts[i]
-        
+
         # add last unadded bin
         bins.append(np.array(current_bin))
         self._counts.append(current_count)
@@ -562,29 +562,28 @@ class MultiSamplePartitions:
 
     def __iter__(self):
         return self
-    
+
     def __next__(self):
         if self.counter < len(self.bounds):
             q = '({} >= {}) & ({} <= {})'.format(self.split_on,
                                                  self.bounds[self.counter][0],
                                                  self.split_on,
                                                  self.bounds[self.counter][1])
-            
+
             if self.dask:
                 subset = self.features.query(q).compute()
             else:
                 subset = self.features.query(q)
-            
+
             self.counter += 1
             if len(subset.index) > 1:
                 subset['partition_idx'] = self.counter
                 return subset
             else:
                 return None
-    
-        
+
         raise StopIteration
-    
+
     def map(self, func, processes=1, **kwargs):
         '''
         Maps `func` to each partition, then returns the combined result.
