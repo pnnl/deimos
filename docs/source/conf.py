@@ -17,7 +17,6 @@
 
 # -- Project information -----------------------------------------------------
 
-import deimos
 project = 'deimos'
 copyright = '2021, Sean M. Colby'
 author = 'Sean M. Colby'
