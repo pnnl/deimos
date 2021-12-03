@@ -2,7 +2,7 @@
 License
 =======
 
-Copyright (c) 2020, Battelle Memorial Institute
+Copyright (c) 2019-2021, Battelle Memorial Institute
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
