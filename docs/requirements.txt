@@ -1,4 +1,3 @@
 sphinx >=3
 sphinxcontrib-napoleon
-sphinxcontrib-viewcode
 sphinx_rtd_theme
