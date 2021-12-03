@@ -18,7 +18,7 @@ import deimos
 # -- Project information -----------------------------------------------------
 
 project = 'deimos'
-copyright = '2021, Pacific Northwest National Laboratory'
+copyright = '2019-2021, Pacific Northwest National Laboratory'
 author = 'Sean M. Colby'
 
 
