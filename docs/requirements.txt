@@ -1,0 +1,8 @@
+sphinx >=3
+sphinxcontrib-napoleon
+sphinxcontrib-autodoc
+sphinxcontrib-autosummary
+sphinxcontrib-intersphinx
+sphinxcontrib-todo
+sphinxcontrib-viewcode
+sphinx_rtd_theme
