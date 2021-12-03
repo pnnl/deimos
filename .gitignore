@@ -4,6 +4,8 @@ output/
 .snakemake/
 *.sbatch
 *.out
+docs/build/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
