@@ -65,7 +65,7 @@ def minimum(a, size):
 
     '''
 
-    return ndi.maximum_filter(-a, size=size, mode='constant', cval=0)
+    return ndi.minimum_filter(a, size=size, mode='constant', cval=0)
 
 
 def sum(a, size):
@@ -113,7 +113,7 @@ def mean(a, size):
 
     '''
 
-    a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
+    # a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
     return ndi.uniform_filter(a, size=size, mode='constant', cval=0)
 
 
