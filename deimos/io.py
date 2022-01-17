@@ -1,4 +1,4 @@
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 import dask.dataframe as dd
 import h5py
 import numpy as np
@@ -35,7 +35,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     accession = OrderedDict(accession)
 
     # result container
-    res = defaultdict(list)
+    res = {}
 
     # precursor rename
     pdict = {'mz': 'precursor_mz',
@@ -44,6 +44,12 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
 
     # parse
     for spec in data:
+        # check ms level
+        level = 'ms{}'.format(spec.ms_level)
+        
+        if level not in res:
+            res[level] = []
+
         # dimension check
         if len(spec.mz) != len(spec.i):
             warnings.warn("m/z and intensity array dimension mismatch")
@@ -83,7 +89,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
                 arr[:, 2 + len(accession) + i] = v
 
         # append dataframe
-        res['ms{}'.format(spec.ms_level)].append(pd.DataFrame(arr, columns=cols))
+        res[level].append(pd.DataFrame(arr, columns=cols))
 
     # concatenate dataframes
     for level in res.keys():
