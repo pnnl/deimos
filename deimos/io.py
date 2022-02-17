@@ -34,67 +34,96 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     # ordered dict
     accession = OrderedDict(accession)
 
+    # precursor rename
+    pdict = {'precursor id': 'precursor_id',
+            'mz': 'precursor_mz',
+            'i': 'precursor_intensity',
+            'charge': 'precursor_charge'}
+
+    # define columns with known integer values
+    integer_cols = ['frame', 'scan', 'intensity']
+
+    # column name container
+    cols = {}
+
     # result container
     res = {}
 
-    # precursor rename
-    pdict = {'mz': 'precursor_mz',
-             'i': 'precursor_intensity',
-             'charge': 'precursor_charge'}
-
-    # parse
-    for spec in data:
-        # check ms level
-        level = 'ms{}'.format(spec.ms_level)
+    # enumerate spectra
+    for i, spec in enumerate(data):    
+        # number of rows
+        n = spec.mz.shape[0]
         
-        if level not in res:
-            res[level] = []
-
+        # no measurements
+        if n == 0:
+            continue
+            
         # dimension check
         if len(spec.mz) != len(spec.i):
             warnings.warn("m/z and intensity array dimension mismatch")
             continue
-
-        # init
-        cols = ['mz', 'intensity']
-
+            
+        # scan/frame info
+        id_dict = spec.id_dict
+            
         # check for precursor
+        precursor_info = {}
+        has_precursor = False
         if spec.selected_precursors:
-            arr = np.empty((spec.mz.shape[0],
-                            len(accession)
-                            + len(spec.selected_precursors[0]) + 2),
-                           dtype=float)
+            has_precursor = True
+            precursor_info = {pdict[k]: v for k, v in spec.selected_precursors[0].items() if v is not None}
+        
+        # get ms level
+        level = 'ms{}'.format(spec.ms_level)
+        
+        # append to result container
+        if level not in res:
+            res[level] = []
 
-        # no precursor
-        else:
-            arr = np.empty((spec.mz.shape[0], len(accession) + 2),
-                           dtype=float)
-
-        # fill
-        arr[:, 0] = spec.mz
-        arr[:, 1] = spec.i
+        # columns
+        cols[level] = list(id_dict.keys()) \
+                    + list(accession.keys()) \
+                    + ['mz', 'intensity'] \
+                    + list(precursor_info.keys())
+        m = len(cols[level])
+        
+        # array init
+        arr = np.empty((n, m), dtype=float)
+        inx = 0
+                    
+        # populate scan/frame info
+        for k, v in id_dict.items():
+            arr[:, inx] = v
+            inx += 1
 
         # populate accession fields
-        for i, (k, v) in enumerate(accession.items()):
-            cols.append(k)
-            arr[:, 2 + i] = spec.get(v)
+        for k, v in accession.items():
+            arr[:, inx] = spec.get(v)
+            inx += 1
+            
+        # populate m/z
+        arr[:, inx] = spec.mz
+        inx += 1
+            
+        # populate intensity
+        arr[:, inx] = spec.i
+        inx += 1
 
         # populate precursor information
-        if spec.selected_precursors:
-            for i, (k, v) in enumerate(spec.selected_precursors[0].items()):
-                if k != 'precursor id':
-                    cols.append(pdict[k])
-                else:
-                    cols.append(k)
-                arr[:, 2 + len(accession) + i] = v
+        if has_precursor:
+            for k, v in precursor_info.items():
+                arr[:, inx] = v
+                inx += 1
 
-        # append dataframe
-        res[level].append(pd.DataFrame(arr, columns=cols))
+        # append array
+        res[level].append(arr)
 
-    # concatenate dataframes
+    # concatenate
+    to_int = [x for x in cols[level] if x in integer_cols]
     for level in res.keys():
-        res[level] = pd.concat(res[level], axis=0, ignore_index=True)
-
+        res[level] = pd.DataFrame(np.concatenate(res[level], axis=0), columns=cols[level])
+        res[level][to_int] = res[level][to_int].astype(int)
+    
     return res
 
 
