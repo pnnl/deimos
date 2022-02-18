@@ -34,12 +34,6 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     # ordered dict
     accession = OrderedDict(accession)
 
-    # precursor rename
-    pdict = {'precursor id': 'precursor_id',
-            'mz': 'precursor_mz',
-            'i': 'precursor_intensity',
-            'charge': 'precursor_charge'}
-
     # define columns with known integer values
     integer_cols = ['frame', 'scan', 'intensity']
 
@@ -50,7 +44,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     res = {}
 
     # enumerate spectra
-    for i, spec in enumerate(data):    
+    for i, spec in enumerate(data):
         # number of rows
         n = spec.mz.shape[0]
         
@@ -71,7 +65,7 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
         has_precursor = False
         if spec.selected_precursors:
             has_precursor = True
-            precursor_info = {pdict[k]: v for k, v in spec.selected_precursors[0].items() if v is not None}
+            precursor_info = {'precursor_mz': spec.selected_precursors[0].get('mz', None)}
         
         # get ms level
         level = 'ms{}'.format(spec.ms_level)
