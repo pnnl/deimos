@@ -35,7 +35,7 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 
-    grid = np.full([len(x) for x in idx], np.nan, dtype=float)
+    grid = np.zeros([len(x) for x in idx], dtype=float)
     grid[tuple(idx_i)] = features.loc[:, 'intensity'].values
 
     return idx, grid
