@@ -85,8 +85,8 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     # additional['npoints_4'] = deimos.filters.count(H, sigma4)
     # additional['nonzero_4'] = deimos.filters.count(H, sigma4, nonzero=True)
 
-    # nan to num
-    H = np.nan_to_num(H)
+    # # nan to num
+    # H = np.nan_to_num(H)
 
     # # sum
     # additional['sum_2'] = deimos.filters.sum(H, sigma2)
@@ -101,14 +101,10 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     #     additional['k_{}'.format(k)] = v
 
     # peak detection
-    H_max = deimos.filters.maximum(H, sigma4)
-    peaks = np.where(H == H_max, H, 0)
-
-    # clean up
-    del H_max, H
+    H = np.where(H == deimos.filters.maximum(H, sigma4), H, 0)
 
     # convert to dataframe
-    peaks = deimos.grid.grid2df(edges, peaks, dims=dims,
+    peaks = deimos.grid.grid2df(edges, H, dims=dims,
                                 additional=additional)
 
     # # add bins info
