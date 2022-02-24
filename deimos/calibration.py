@@ -4,7 +4,7 @@ from scipy.interpolate import interp1d
 from scipy.stats import linregress
 
 
-class ArrivalTimeCalibration:
+class CCSCalibration:
     '''
     Performs calibration and stores result to enable convenient application.
 
@@ -23,7 +23,7 @@ class ArrivalTimeCalibration:
 
     def __init__(self):
         '''
-        Initializes :obj:`~deimos.calibration.ArrivalTimeCalibration` object.
+        Initializes :obj:`~deimos.calibration.CCSCalibration` object.
 
         '''
 
@@ -208,7 +208,7 @@ class ArrivalTimeCalibration:
 def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
                   beta=None, tfix=None, buffer_mass=28.013, power=False):
     '''
-    Convenience function for :class:`~deimos.calibration.ArrivalTimeCalibration`.
+    Convenience function for :class:`~deimos.calibration.CCSCalibration`.
     Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
     otherwise calibration parameters `beta` and `tfix` must be supplied
     directly.
@@ -235,8 +235,8 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 
     Returns
     -------
-    :obj:`~deimos.calibration.ArrivalTimeCalibration`
-        Instance of calibrated `~deimos.calibration.ArrivalTimeCalibration`
+    :obj:`~deimos.calibration.CCSCalibration`
+        Instance of calibrated `~deimos.calibration.CCSCalibration`
         object.
 
     Raises
@@ -247,11 +247,11 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 
     '''
 
-    atc = ArrivalTimeCalibration()
-    atc.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
+    ccs_cal = CCSCalibration()
+    ccs_cal.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
                   buffer_mass=buffer_mass, power=power)
 
-    return atc
+    return ccs_cal
 
 
 def tunemix(features,
@@ -283,8 +283,8 @@ def tunemix(features,
 
     Returns
     -------
-    :obj:`~deimos.calibration.ArrivalTimeCalibration`
-        Instance of calibrated `~deimos.calibration.ArrivalTimeCalibration`
+    :obj:`~deimos.calibration.CCSCalibration`
+        Instance of calibrated `~deimos.calibration.CCSCalibration`
         object.
 
     '''
