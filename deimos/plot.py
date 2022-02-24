@@ -6,7 +6,7 @@ import types
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 class ScalarFormatterForceFormat(ScalarFormatter):
@@ -123,23 +123,25 @@ def grid(features, dims=['mz', 'drift_time'], method='linear', gridsize=1000j,
     im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1,
                        cmap=cmap, shading='auto')
 
-    plt.tight_layout()
-
+    # colorbar axis
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('top', size='5%', pad=0.05)
+    
     # colorbar
-    cax = inset_axes(ax, width="100%", height="5%", loc=4,
-                     bbox_to_anchor=(0.05, 0.97, 1.0, 1.0),
-                     bbox_transform=ax.transAxes)
-    plt.colorbar(im, cax=cax, orientation='horizontal')
-    cax.xaxis.set_ticks_position('top')
+    cbar = plt.colorbar(im, cax=cax, orientation='horizontal')
+    
+    # custom ticks
+    cbar.ax.xaxis.set_ticks_position('top')
+    
     yfmt = ScalarFormatterForceFormat()
     yfmt.set_powerlimits((0, 0))
-    cax.xaxis.set_major_formatter(yfmt)
-
-    # custom ticks
+    cbar.ax.xaxis.set_major_formatter(yfmt)
+    
     oom = np.floor(np.log10(0.95 * gridded.max()))
     cmax = 0.95 * gridded.max() // 10 ** oom
-    cax.xaxis.set_ticks([0, cmax * 10 ** oom])
-    cax.xaxis.set_ticklabels(['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
+    
+    cbar.ax.xaxis.set_ticks([0, cmax * 10 ** oom])
+    cbar.ax.xaxis.set_ticklabels(['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
 
     # axis labels
     names = _rename(dims)
@@ -176,7 +178,8 @@ def multipanel(features, method='linear', dpi=600, grid_kwargs={}):
 
     # init figure, axes
     fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi, facecolor='white')
-    gs = fig.add_gridspec(2, 3)
+    gs = fig.add_gridspec(2, 3, height_ratios=[1.1, 1])
+    
     axes = {}
     axes['mz'] = fig.add_subplot(gs[1, 0])
     axes['dt'] = fig.add_subplot(gs[1, 1])
