@@ -49,7 +49,8 @@ class ArrivalTimeCalibration:
                              'tfix.')
 
     def calibrate(self, mz=None, ta=None, ccs=None, q=None,
-                  beta=None, tfix=None, buffer_mass=28.013):
+                  beta=None, tfix=None, buffer_mass=28.013,
+                  power=False):
         '''
         Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
         otherwise calibration parameters `beta` and `tfix` must be supplied
@@ -71,6 +72,9 @@ class ArrivalTimeCalibration:
             Provide calibration parameter "tfix" (intercept) directly.
         buffer_mass : float
             Mass of the buffer gas.
+        power : bool
+            Indicate whether to use linearize power function for calibration,
+            i.e. in traveling wave ion moblility spectrometry.
 
         Raises
         ------
@@ -82,6 +86,9 @@ class ArrivalTimeCalibration:
 
         # buffer mass
         self.buffer_mass = buffer_mass
+        
+        # power function indicator
+        self.power = power
 
         # calibrant arrays supplied
         if (mz is not None) and (ta is not None) and (ccs is not None) \
@@ -90,10 +97,20 @@ class ArrivalTimeCalibration:
             self.ta = np.array(ta)
             self.ccs = np.array(ccs)
             self.q = np.array(q)
+            
+            # derived variables
+            self.reduced_mass = (self.mz * self.q * self.buffer_mass) \
+                                / (self.mz * self.q + self.buffer_mass)
+            self.gamma = np.sqrt(self.reduced_mass) / self.q
+            self.reduced_ccs =  self.ccs * self.gamma
 
             # linear regression
-            beta, tfix, r, p, se = linregress(np.sqrt(self.mz / (self.mz + self.buffer_mass)) * self.ccs / self.q,
-                                              self.ta)
+            if self.power:
+                beta, tfix, r, p, se = linregress(np.log(self.reduced_ccs),
+                                                  np.log(self.ta))
+            else:
+                beta, tfix, r, p, se = linregress(self.reduced_ccs,
+                                                  self.ta)
 
             # store params
             self.beta = beta
@@ -139,8 +156,16 @@ class ArrivalTimeCalibration:
         mz = np.array(mz)
         ta = np.array(ta)
         q = np.array(q)
-
-        return q / self.beta * (ta - self.tfix) / np.sqrt(mz / (mz + self.buffer_mass))
+        
+        # derived variables
+        reduced_mass = (mz * q * self.buffer_mass) \
+                       / (mz * q + self.buffer_mass)
+        gamma = np.sqrt(reduced_mass) / q
+        
+        if self.power:
+            return np.exp((np.log(ta) - self.tfix) / self.beta) / gamma
+        else:
+            return (ta - self.tfix) / (self.beta * gamma)
 
     def ccs2arrival(self, mz, ccs, q=1):
         '''
@@ -168,12 +193,20 @@ class ArrivalTimeCalibration:
         mz = np.array(mz)
         ccs = np.array(ccs)
         q = np.array(q)
-
-        return self.beta / q * np.sqrt(mz / (mz + self.buffer_mass)) * ccs + self.tfix
+        
+        # derived variables
+        reduced_mass = (mz * q * self.buffer_mass) \
+                       / (mz * q + self.buffer_mass)
+        gamma = np.sqrt(reduced_mass) / q
+        
+        if self.power:
+            return np.exp(self.beta * np.log(gamma * ccs) + self.tfix)
+        else:
+            return self.beta * gamma * ccs + self.tfix
 
 
 def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
-                  beta=None, tfix=None, buffer_mass=28.013):
+                  beta=None, tfix=None, buffer_mass=28.013, power=False):
     '''
     Convenience function for :class:`~deimos.calibration.ArrivalTimeCalibration`.
     Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
@@ -196,6 +229,9 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
         Provide calibration parameter "tfix" (intercept) directly.
     buffer_mass : float
         Mass of the buffer gas.
+    power : bool
+        Indicate whether to use linearize power function for calibration,
+        i.e. in traveling wave ion moblility spectrometry.
 
     Returns
     -------
@@ -213,7 +249,7 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 
     atc = ArrivalTimeCalibration()
     atc.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
-                  buffer_mass=buffer_mass)
+                  buffer_mass=buffer_mass, power=power)
 
     return atc
 
@@ -221,7 +257,8 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 def tunemix(features,
             mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
             ccs=[108.4, 139.8, 179.9, 254.2, 283.6, 317.7],
-            q=[1, 1, 1, 1, 1, 1], buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04):
+            q=[1, 1, 1, 1, 1, 1], buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04,
+            power=False):
     '''
     Provided tune mix data with known calibration ions (i.e. known m/z, CCS, and nominal charge),
     determine the arrival time for each to define a CCS calibration.
@@ -240,6 +277,9 @@ def tunemix(features,
         Tolerance in ppm to isolate tune ion.
     dt_tol : float
         Fractional tolerance to define drift time window bounds.
+    power : bool
+        Indicate whether to use linearize power function for calibration,
+        i.e. in traveling wave ion moblility spectrometry.
 
     Returns
     -------
@@ -283,4 +323,4 @@ def tunemix(features,
     
     # calibrate
     ta = np.array(ta)
-    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass)
+    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass, power=power)
