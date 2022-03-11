@@ -99,9 +99,7 @@ class CCSCalibration:
             self.q = np.array(q)
             
             # derived variables
-            self.reduced_mass = (self.mz * self.q * self.buffer_mass) \
-                                / (self.mz * self.q + self.buffer_mass)
-            self.gamma = np.sqrt(self.reduced_mass) / self.q
+            self.gamma = np.sqrt(self.mz * self.q / (self.mz * self.q + self.buffer_mass)) / self.q
             self.reduced_ccs =  self.ccs * self.gamma
 
             # linear regression
@@ -158,9 +156,7 @@ class CCSCalibration:
         q = np.array(q)
         
         # derived variables
-        reduced_mass = (mz * q * self.buffer_mass) \
-                       / (mz * q + self.buffer_mass)
-        gamma = np.sqrt(reduced_mass) / q
+        gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
         
         if self.power:
             return np.exp((np.log(ta) - self.tfix) / self.beta) / gamma
@@ -195,9 +191,7 @@ class CCSCalibration:
         q = np.array(q)
         
         # derived variables
-        reduced_mass = (mz * q * self.buffer_mass) \
-                       / (mz * q + self.buffer_mass)
-        gamma = np.sqrt(reduced_mass) / q
+        gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
         
         if self.power:
             return np.exp(self.beta * np.log(gamma * ccs) + self.tfix)
