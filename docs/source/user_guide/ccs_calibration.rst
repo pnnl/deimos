@@ -1,5 +1,5 @@
 ===============
-CCS calibration
+CCS Calibration
 ===============
 
 Coming soon!

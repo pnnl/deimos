@@ -1,5 +1,5 @@
 =================
-Isotope detection
+Isotope Detection
 =================
 
 Coming soon!

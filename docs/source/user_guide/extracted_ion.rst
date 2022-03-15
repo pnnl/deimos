@@ -1,5 +1,5 @@
 ===========================
-Extracted ion functionality
+Extracted Ion Functionality
 ===========================
 
 Coming soon!

@@ -18,11 +18,13 @@ import deimos
 # -- Project information -----------------------------------------------------
 
 project = 'deimos'
-copyright = '2019-2021, Pacific Northwest National Laboratory'
+copyright = '2019-2022, Pacific Northwest National Laboratory'
 author = 'Sean M. Colby'
 
 
 # -- General configuration ---------------------------------------------------
+
+master_doc = 'index'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom

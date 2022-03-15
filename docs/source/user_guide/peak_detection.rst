@@ -1,5 +1,5 @@
 ==============
-Peak detection
+Peak Detection
 ==============
 
 Coming soon!

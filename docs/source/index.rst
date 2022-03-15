@@ -1,20 +1,30 @@
 ======
-deimos
+DEIMoS
 ======
 
-Coming soon!
+DEIMoS, or Data Extraction for Integrated Multidimensional Spectrometry, is a Python application 
+programming interface and command-line tool for high-dimensional mass spectrometry (MS) data 
+analysis workflows that offers ease of development and access to efficient algorithmic implementations. 
+Functionality includes feature detection, feature alignment, collision cross section (CCS) calibration, 
+isotope detection, and MS/MS spectral deconvolution, with the output comprising detected features aligned 
+across study samples and characterized by mass, CCS, tandem mass spectra, and isotopic signature. 
+Notably, DEIMoS operates on N-dimensional data, largely agnostic to acquisition instrumentation; 
+algorithm implementations simultaneously utilize all dimensions to (i) offer greater separation between features, 
+thus improving detection sensitivity, (ii) increase alignment/feature matching confidence among datasets, 
+and (iii) mitigate convolution artifacts in tandem mass spectra. 
 
 .. toctree::
-	:caption: Getting started
+	:caption: Getting Started
 	:name: getting_started
 	:hidden:
 	:maxdepth: 1
 
 	getting_started/installation
 	getting_started/tutorial
+	getting_started/cli
 
 .. toctree::
-	:caption: User guide
+	:caption: User Guide
 	:name: user_guide
 	:hidden:
 	:maxdepth: 1
@@ -27,7 +37,7 @@ Coming soon!
 	user_guide/extracted_ion
 
 .. toctree::
-	:caption: API reference
+	:caption: API Reference
 	:name: api_reference
 	:hidden:
 	:maxdepth: 1
@@ -47,7 +57,7 @@ Coming soon!
 	api_reference/utils
 
 .. toctree::
-	:caption: Project info
+	:caption: Project Info
 	:name: project_info
 	:hidden:
 	:maxdepth: 1

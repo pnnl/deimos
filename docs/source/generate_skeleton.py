@@ -11,7 +11,8 @@ if __name__ == "__main__":
 
     # documentation layout
     doc_layout = {'getting_started': ['installation',
-                                      'tutorial'],
+                                      'tutorial',
+                                      'cli'],
                   # edit user_guide per package
                   'user_guide': ['loading_saving',
                                  'peak_detection',
@@ -27,20 +28,21 @@ if __name__ == "__main__":
                                    'disclaimer']}
 
     # readable titles
-    titles = {'api_reference': 'API reference',
-              'getting_started': 'Getting started',
-              'project_info': 'Project info',
-              'user_guide': 'User guide',
+    titles = {'api_reference': 'API Reference',
+              'getting_started': 'Getting Started',
+              'project_info': 'Project Info',
+              'user_guide': 'User Guide',
               'installation': 'Installation',
               'tutorial': 'Tutorial',
-              'loading_saving': 'Loading/saving',
-              'peak_detection': 'Peak detection',
-              'ccs_calibration': 'CCS calibration',
-              'ms2_extraction': 'MS2 extraction',
-              'isotope_detection': 'Isotope detection',
-              'extracted_ion': 'Extracted ion functionality',
-              'citing_and_citations': 'Citing and citations',
-              'faq': 'Frequently asked questions',
+              'cli': 'Command Line Interface',
+              'loading_saving': 'Loading/Saving',
+              'peak_detection': 'Peak Detection',
+              'ccs_calibration': 'CCS Calibration',
+              'ms2_extraction': 'MS2 Extraction',
+              'isotope_detection': 'Isotope Detection',
+              'extracted_ion': 'Extracted Ion Functionality',
+              'citing_and_citations': 'Citing and Citations',
+              'faq': 'Frequently Asked Questions',
               'contributing': 'Contributing',
               'license': 'License',
               'disclaimer': 'Disclaimer'}
