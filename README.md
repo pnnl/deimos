@@ -84,7 +84,7 @@ For running in cluster environments, please consult the [Snakemake](https://snak
 
 Application programming interface
 ---------------------------------
-For more flexibility, the same functionality can be achieved through DEIMoS's API. Please reference the documentation on [Read the Docs](deimos.readthedocs.io) or the tutorial, which gives an overview of most functionality, provided as a [jupyter notebook](examples/tutorial.ipynb).
+For more flexibility, the same functionality can be achieved through DEIMoS's API. Please reference the documentation on [Read the Docs](http://deimos.readthedocs.io) or the tutorial, which gives an overview of most functionality, provided as a [jupyter notebook](examples/tutorial.ipynb).
 
 Citing DEIMoS
 -------------
