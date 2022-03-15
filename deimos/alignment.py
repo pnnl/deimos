@@ -342,296 +342,296 @@ def agglomerative_clustering(features,
     return features
 
 
-def _agglomerative_clustering(features,
-                             dims=['mz', 'drift_time', 'retention_time'],
-                             tol=[20E-6, 0.03, 0.3],
-                             relative=[True, True, False],
-                             meta=None,
-                             aggregate=None,
-                             min_cluster_size=None,
-                             combine=None,
-                             processes=1,
-                             partition_kwargs={}):
-    '''
-    Cluster features within provided linkage tolerances. Recursively merges
-    the pair of clusters that minimally increases a given linkage distance.
-    See :class:`sklearn.cluster.AgglomerativeClustering`.
+# def _agglomerative_clustering(features,
+#                              dims=['mz', 'drift_time', 'retention_time'],
+#                              tol=[20E-6, 0.03, 0.3],
+#                              relative=[True, True, False],
+#                              meta=None,
+#                              aggregate=None,
+#                              min_cluster_size=None,
+#                              combine=None,
+#                              processes=1,
+#                              partition_kwargs={}):
+#     '''
+#     Cluster features within provided linkage tolerances. Recursively merges
+#     the pair of clusters that minimally increases a given linkage distance.
+#     See :class:`sklearn.cluster.AgglomerativeClustering`.
 
-    Parameters
-    ----------
-    features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
-        Input feature coordinates and intensities per sample.
-    dims : str or list
-        Dimensions considered in clustering.
-    tol : float or list
-        Tolerance in each feature dimension to define maximum cluster linkage
-        distance.
-    relative : bool or list
-        Whether to use relative or absolute tolerances per dimension.
-    meta : list of str
-        Meta data columns.
-    aggregate : list of str
-        Sequential list of meta data columns to aggregate over. Each must be
-        present in `meta`, and len(`meta`) > len(`aggregate`).
-    min_cluster_size : list of int
-        Filter clusters by minimum size at corresponding aggregation level.
-        Must be same length as aggregate.
-    combine : list of bool
-        Indicate whether to combine result of aggregation operation, yielding
-        a single representative feature per cluster, computed as median.
-        Improves computational efficiency if combining over technical replicates.
-    processes : int
-        Number of partitions to process in parallel.
-    partition_kwargs : dict
-        Arguments passed to :func:`~deimos.subset.multi_sample_partition`.
+#     Parameters
+#     ----------
+#     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
+#         Input feature coordinates and intensities per sample.
+#     dims : str or list
+#         Dimensions considered in clustering.
+#     tol : float or list
+#         Tolerance in each feature dimension to define maximum cluster linkage
+#         distance.
+#     relative : bool or list
+#         Whether to use relative or absolute tolerances per dimension.
+#     meta : list of str
+#         Meta data columns.
+#     aggregate : list of str
+#         Sequential list of meta data columns to aggregate over. Each must be
+#         present in `meta`, and len(`meta`) > len(`aggregate`).
+#     min_cluster_size : list of int
+#         Filter clusters by minimum size at corresponding aggregation level.
+#         Must be same length as aggregate.
+#     combine : list of bool
+#         Indicate whether to combine result of aggregation operation, yielding
+#         a single representative feature per cluster, computed as median.
+#         Improves computational efficiency if combining over technical replicates.
+#     processes : int
+#         Number of partitions to process in parallel.
+#     partition_kwargs : dict
+#         Arguments passed to :func:`~deimos.subset.multi_sample_partition`.
 
-    Returns
-    -------
-    :obj:`~pandas.DataFrame`
-        Features concatenated over samples with cluster labels.
+#     Returns
+#     -------
+#     :obj:`~pandas.DataFrame`
+#         Features concatenated over samples with cluster labels.
 
-    Raises
-    ------
-    ValueError
-        If `dims`, `tol`, and `relative` are not the same length.
-    ValueError
-        If len(`meta`) <= len(`aggregate`).
-    KeyError
-        If `aggregate` entry not in `meta`.
-    ValueError
-        If `aggregate` and `min_cluster_size` are not the same length.
+#     Raises
+#     ------
+#     ValueError
+#         If `dims`, `tol`, and `relative` are not the same length.
+#     ValueError
+#         If len(`meta`) <= len(`aggregate`).
+#     KeyError
+#         If `aggregate` entry not in `meta`.
+#     ValueError
+#         If `aggregate` and `min_cluster_size` are not the same length.
 
-    '''
+#     '''
     
-    def apply_func(group):
-        # partition data
-        partitions = deimos.subset.multi_sample_partition(group, **partition_kwargs)
+#     def apply_func(group):
+#         # partition data
+#         partitions = deimos.subset.multi_sample_partition(group, **partition_kwargs)
 
-        # map agglomerative clustering routine
-        res = partitions.map(deimos.alignment._agglomerative_clustering,
-                             dims=dims,
-                             tol=tol,
-                             relative=relative,
-                             processes=processes)
+#         # map agglomerative clustering routine
+#         res = partitions.map(deimos.alignment._agglomerative_clustering,
+#                              dims=dims,
+#                              tol=tol,
+#                              relative=relative,
+#                              processes=processes)
 
-        # drop intra-dataset duplicates
-        res = res.sort_values(by='intensity', ascending=False).drop_duplicates(subset=['cluster',
-                                                                                       'partition_idx',
-                                                                                       'sample_idx']).reset_index(drop=True)
+#         # drop intra-dataset duplicates
+#         res = res.sort_values(by='intensity', ascending=False).drop_duplicates(subset=['cluster',
+#                                                                                        'partition_idx',
+#                                                                                        'sample_idx']).reset_index(drop=True)
         
-        # unique cluster indices
-        res['cluster'] = res.groupby(by=['partition_idx', 'cluster']).ngroup().reset_index(drop=True)
+#         # unique cluster indices
+#         res['cluster'] = res.groupby(by=['partition_idx', 'cluster']).ngroup().reset_index(drop=True)
         
-        # cluster counts
-        res['n'] = res.groupby(by='cluster')['partition_idx'].transform('size').reset_index(drop=True)
+#         # cluster counts
+#         res['n'] = res.groupby(by='cluster')['partition_idx'].transform('size').reset_index(drop=True)
         
-        return res.drop(columns='partition_idx')
+#         return res.drop(columns='partition_idx')
         
-    res = features.copy()
+#     res = features.copy()
     
-    if None not in [meta, aggregate, min_cluster_size]:
-        meta = deimos.utils.safelist(meta)
-        aggregate = deimos.utils.safelist(aggregate)
-        min_cluster_size = deimos.utils.safelist(min_cluster_size)
-        combine = deimos.utils.safelist(combine)
+#     if None not in [meta, aggregate, min_cluster_size]:
+#         meta = deimos.utils.safelist(meta)
+#         aggregate = deimos.utils.safelist(aggregate)
+#         min_cluster_size = deimos.utils.safelist(min_cluster_size)
+#         combine = deimos.utils.safelist(combine)
         
-        deimos.utils.check_length([aggregate, min_cluster_size, combine])
+#         deimos.utils.check_length([aggregate, min_cluster_size, combine])
         
-        if len(meta) < len(aggregate):
-            raise ValueError('`aggregate` list must not be longer than `aggregate` list.')
-        if not all([x in meta for x in aggregate]):
-            raise KeyError('Entries in `aggregate` must be present in `meta`.')
+#         if len(meta) < len(aggregate):
+#             raise ValueError('`aggregate` list must not be longer than `aggregate` list.')
+#         if not all([x in meta for x in aggregate]):
+#             raise KeyError('Entries in `aggregate` must be present in `meta`.')
         
-        meta_object = [(c, 'object') for c in res.columns] + [('cluster', 'int'), ('n', 'int')]
+#         meta_object = [(c, 'object') for c in res.columns] + [('cluster', 'int'), ('n', 'int')]
 
-        for agg_over, min_size, to_combine in zip(aggregate, min_cluster_size, combine):
-            print('aggregating over', agg_over)
-            meta.remove(agg_over)
+#         for agg_over, min_size, to_combine in zip(aggregate, min_cluster_size, combine):
+#             print('aggregating over', agg_over)
+#             meta.remove(agg_over)
             
-            if len(meta) > 0:
-                res = res.groupby(by=meta).apply(apply_func, meta=meta_object).reset_index(drop=True)
-            else:
-                res = apply_func(res)
+#             if len(meta) > 0:
+#                 res = res.groupby(by=meta).apply(apply_func, meta=meta_object).reset_index(drop=True)
+#             else:
+#                 res = apply_func(res)
 
-            res = res.query('n >= {}'.format(min_size)).drop(columns='n').reset_index(drop=True)
+#             res = res.query('n >= {}'.format(min_size)).drop(columns='n').reset_index(drop=True)
 
-            if to_combine is True:
-                res['dummy'] = -1 * res['intensity']
-                res = res.sort_values(by='dummy').drop_duplicates(subset=meta + ['cluster'])
-                res = res.drop(columns='dummy')
+#             if to_combine is True:
+#                 res['dummy'] = -1 * res['intensity']
+#                 res = res.sort_values(by='dummy').drop_duplicates(subset=meta + ['cluster'])
+#                 res = res.drop(columns='dummy')
             
-            res = res.drop(columns='n').reset_index(drop=True)
+#             res = res.drop(columns='n').reset_index(drop=True)
 
-    else:
-        res = apply_func(res).drop(columns='n')
+#     else:
+#         res = apply_func(res).drop(columns='n')
 
-    return res.compute()
+#     return res.compute()
 
 
-def join(paths, dims=['mz', 'drift_time', 'retention_time'],
-         quantiles=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], processes=4,
-         partition_kwargs={}, match_kwargs={}):
-    '''
-    Iteratively apply :func:`deimos.alignment.tolerance` and
-    :func:`deimos.alignment.match` across multiple datasets, generating a
-    growing set of "clusters", similar to the "join align" approach in MZmine.
+# def join(paths, dims=['mz', 'drift_time', 'retention_time'],
+#          quantiles=[0.5, 0.6, 0.7, 0.8, 0.9, 1.0], processes=4,
+#          partition_kwargs={}, match_kwargs={}):
+#     '''
+#     Iteratively apply :func:`deimos.alignment.tolerance` and
+#     :func:`deimos.alignment.match` across multiple datasets, generating a
+#     growing set of "clusters", similar to the "join align" approach in MZmine.
 
-    Parameters
-    ----------
-    paths : list
-        List of dataset paths to align.
-    dims : str or list
-        Dimensions considered in alignment.
-    quantiles : :obj:`numpy.array`
-        Quantiles of feature intensities to iteratively perform alignment.
-    processes : int
-        Number of parallel processes. If less than 2, a serial mapping is
-        applied.
-    partition_kwargs : dict
-        Keyword arguments for :func:`deimos.subset.partition`.
-    match_kwargs : dict
-        Keyword arugments for :func:`deimos.alignment.tolerance` and
-        :func:`deimos.alignment.match`.
+#     Parameters
+#     ----------
+#     paths : list
+#         List of dataset paths to align.
+#     dims : str or list
+#         Dimensions considered in alignment.
+#     quantiles : :obj:`numpy.array`
+#         Quantiles of feature intensities to iteratively perform alignment.
+#     processes : int
+#         Number of parallel processes. If less than 2, a serial mapping is
+#         applied.
+#     partition_kwargs : dict
+#         Keyword arguments for :func:`deimos.subset.partition`.
+#     match_kwargs : dict
+#         Keyword arugments for :func:`deimos.alignment.tolerance` and
+#         :func:`deimos.alignment.match`.
 
-    Returns
-    -------
-    :obj:`~pandas.DataFrame`
-        Coordinates of detected clusters, average intensitites, and number of
-        datasets observed.
+#     Returns
+#     -------
+#     :obj:`~pandas.DataFrame`
+#         Coordinates of detected clusters, average intensitites, and number of
+#         datasets observed.
 
-    '''
+#     '''
 
-    def helper(samp, clusters, verbose=True):
-        if len(samp.index) > 1000:
-            partition_kwargs['size'] = 500
-        else:
-            partition_kwargs['size'] = len(samp.index)
+#     def helper(samp, clusters, verbose=True):
+#         if len(samp.index) > 1000:
+#             partition_kwargs['size'] = 500
+#         else:
+#             partition_kwargs['size'] = len(samp.index)
 
-        # partition
-        c_parts = deimos.utils.partition(pd.concat((samp, clusters), axis=0),
-                                         **partition_kwargs)
-        partitions = deimos.utils.partition(samp, **partition_kwargs)
-        partitions.bounds = c_parts.bounds
-        partitions.fbounds = c_parts.fbounds
+#         # partition
+#         c_parts = deimos.utils.partition(pd.concat((samp, clusters), axis=0),
+#                                          **partition_kwargs)
+#         partitions = deimos.utils.partition(samp, **partition_kwargs)
+#         partitions.bounds = c_parts.bounds
+#         partitions.fbounds = c_parts.fbounds
 
-        # filter by tolerance
-        samp_pass, clust_pass = partitions.zipmap(deimos.alignment.tolerance,
-                                                  clusters,
-                                                  processes=processes,
-                                                  **match_kwargs)
+#         # filter by tolerance
+#         samp_pass, clust_pass = partitions.zipmap(deimos.alignment.tolerance,
+#                                                   clusters,
+#                                                   processes=processes,
+#                                                   **match_kwargs)
 
-        # drop duplicates
-        samp_pass = samp_pass[~samp_pass.index.duplicated(keep='first')]
-        clust_pass = clust_pass[~clust_pass.index.duplicated(keep='first')]
+#         # drop duplicates
+#         samp_pass = samp_pass[~samp_pass.index.duplicated(keep='first')]
+#         clust_pass = clust_pass[~clust_pass.index.duplicated(keep='first')]
 
-        # unmatched
-        unmatched = samp.loc[samp.index.difference(samp_pass.index), :]
+#         # unmatched
+#         unmatched = samp.loc[samp.index.difference(samp_pass.index), :]
 
-        # one-to-one mapping
-        if samp_pass.index.equals(clust_pass.index):
-            samp_match = samp_pass
-            clust_match = clust_pass
+#         # one-to-one mapping
+#         if samp_pass.index.equals(clust_pass.index):
+#             samp_match = samp_pass
+#             clust_match = clust_pass
 
-        # many-to-many mapping
-        else:
-            # repartition
-            partitions = deimos.utils.partition(samp_pass, **partition_kwargs)
-            partitions.bounds = c_parts.bounds
-            partitions.fbounds = c_parts.fbounds
-            c_parts = None
+#         # many-to-many mapping
+#         else:
+#             # repartition
+#             partitions = deimos.utils.partition(samp_pass, **partition_kwargs)
+#             partitions.bounds = c_parts.bounds
+#             partitions.fbounds = c_parts.fbounds
+#             c_parts = None
 
-            # match
-            samp_match, clust_match = partitions.zipmap(deimos.alignment.match,
-                                                        clust_pass,
-                                                        processes=processes,
-                                                        **match_kwargs)
+#             # match
+#             samp_match, clust_match = partitions.zipmap(deimos.alignment.match,
+#                                                         clust_pass,
+#                                                         processes=processes,
+#                                                         **match_kwargs)
 
-        # match stats
-        if verbose:
-            print('clusters:\t{}'.format(len(clusters.index)))
-            print('sample count:\t{}'.format(len(samp.index)))
-            p = len(samp_pass.index) / len(samp.index) * 100
-            print('matched:\t{} ({:.1f}%)'.format(len(samp_pass.index), p))
-            p = len(samp_match.index) / len(samp.index) * 100
-            print('kept:\t\t{} ({:.1f}%)'.format(len(samp_match.index), p))
-            p = len(unmatched.index) / len(samp.index) * 100
-            print('unmatched:\t{} ({:.1f}%)'.format(len(unmatched.index), p))
+#         # match stats
+#         if verbose:
+#             print('clusters:\t{}'.format(len(clusters.index)))
+#             print('sample count:\t{}'.format(len(samp.index)))
+#             p = len(samp_pass.index) / len(samp.index) * 100
+#             print('matched:\t{} ({:.1f}%)'.format(len(samp_pass.index), p))
+#             p = len(samp_match.index) / len(samp.index) * 100
+#             print('kept:\t\t{} ({:.1f}%)'.format(len(samp_match.index), p))
+#             p = len(unmatched.index) / len(samp.index) * 100
+#             print('unmatched:\t{} ({:.1f}%)'.format(len(unmatched.index), p))
 
-        return samp_match, clust_match, unmatched
+#         return samp_match, clust_match, unmatched
 
-    # safely cast to list
-    dims = deimos.utils.safelist(dims)
+#     # safely cast to list
+#     dims = deimos.utils.safelist(dims)
 
-    # column indices
-    colnames = dims + ['intensity']
+#     # column indices
+#     colnames = dims + ['intensity']
 
-    # iterate quantiles
-    for k in range(1, len(quantiles)):
-        high = quantiles[-k]
-        low = quantiles[-k - 1]
-        print('quantile range: ({}, {}]'.format(low, high))
+#     # iterate quantiles
+#     for k in range(1, len(quantiles)):
+#         high = quantiles[-k]
+#         low = quantiles[-k - 1]
+#         print('quantile range: ({}, {}]'.format(low, high))
 
-        # iterate datasets
-        for i in range(len(paths)):
-            start = time.time()
-            print(i, paths[i])
+#         # iterate datasets
+#         for i in range(len(paths)):
+#             start = time.time()
+#             print(i, paths[i])
 
-            # load
-            samp = deimos.utils.load_hdf(paths[i])
-            samp['intensity'] = samp['sum_2']
+#             # load
+#             samp = deimos.utils.load_hdf(paths[i])
+#             samp['intensity'] = samp['sum_2']
 
-            # filter
-            samp = samp.loc[(samp['intensity'] <= samp['intensity'].quantile(high))
-                            & (samp['intensity'] > samp['intensity'].quantile(low)), :]
-            samp = samp[colnames]
+#             # filter
+#             samp = samp.loc[(samp['intensity'] <= samp['intensity'].quantile(high))
+#                             & (samp['intensity'] > samp['intensity'].quantile(low)), :]
+#             samp = samp[colnames]
 
-            # no clusters initialized
-            if (k == 1) and (i == 0):
-                clusters = samp
+#             # no clusters initialized
+#             if (k == 1) and (i == 0):
+#                 clusters = samp
 
-            # match
-            samp_match, clust_match, unmatched = helper(samp, clusters)
+#             # match
+#             samp_match, clust_match, unmatched = helper(samp, clusters)
 
-            # initialize unique clusters
-            if (k == 1) and (i == 0):
-                clusters = samp_match.reset_index(drop=True)
-                clusters['n'] = 1
-                clusters['quantile'] = low
+#             # initialize unique clusters
+#             if (k == 1) and (i == 0):
+#                 clusters = samp_match.reset_index(drop=True)
+#                 clusters['n'] = 1
+#                 clusters['quantile'] = low
 
-            # update clusters
-            else:
-                # unique matched clusters
-                idx = clust_match.index
+#             # update clusters
+#             else:
+#                 # unique matched clusters
+#                 idx = clust_match.index
 
-                # increment intensity
-                clusters.loc[idx, 'intensity'] += samp_match.loc[:,
-                                                                 'intensity'].values
-                clusters.loc[idx, 'n'] += 1
+#                 # increment intensity
+#                 clusters.loc[idx, 'intensity'] += samp_match.loc[:,
+#                                                                  'intensity'].values
+#                 clusters.loc[idx, 'n'] += 1
 
-                # update cluster centers
-                ab = clusters.loc[idx, 'intensity'].values
-                b = samp_match.loc[:, 'intensity'].values
-                a = ab - b
+#                 # update cluster centers
+#                 ab = clusters.loc[idx, 'intensity'].values
+#                 b = samp_match.loc[:, 'intensity'].values
+#                 a = ab - b
 
-                for d in dims:
-                    clusters.loc[idx, d] = (a * clusters.loc[idx, d].values
-                                            + b * samp_match.loc[:, d].values) / ab
+#                 for d in dims:
+#                     clusters.loc[idx, d] = (a * clusters.loc[idx, d].values
+#                                             + b * samp_match.loc[:, d].values) / ab
 
-                # uniqueify unmatched
-                if len(unmatched.index) > 0:
-                    unmatched, _, _ = helper(unmatched, unmatched,
-                                             verbose=False)
-                    unmatched['n'] = 1
-                    unmatched['quantile'] = low
+#                 # uniqueify unmatched
+#                 if len(unmatched.index) > 0:
+#                     unmatched, _, _ = helper(unmatched, unmatched,
+#                                              verbose=False)
+#                     unmatched['n'] = 1
+#                     unmatched['quantile'] = low
 
-                # new cluster counts
-                p = len(unmatched.index) / len(samp.index) * 100
-                print('new:\t\t{} ({:.1f}%)'.format(len(unmatched.index), p))
+#                 # new cluster counts
+#                 p = len(unmatched.index) / len(samp.index) * 100
+#                 print('new:\t\t{} ({:.1f}%)'.format(len(unmatched.index), p))
 
-                # combine
-                clusters = pd.concat((clusters, unmatched), axis=0,
-                                     ignore_index=True)
+#                 # combine
+#                 clusters = pd.concat((clusters, unmatched), axis=0,
+#                                      ignore_index=True)
 
-            print('time:\t\t{:.2f}\n'.format(time.time() - start))
+#             print('time:\t\t{:.2f}\n'.format(time.time() - start))
 
-    return clusters
+#     return clusters
