@@ -1,6 +1,7 @@
 import deimos
 import numpy as np
 import scipy.ndimage as ndi
+from itertools import cycle
 
 
 def stdev(a, size):
@@ -138,28 +139,28 @@ def matched_gaussian(a, size):
     return np.square(ndi.gaussian_filter(a, size, mode='constant', cval=0))
 
 
-def signal_to_noise_ratio(a, size):
-    '''
-    N-dimensional convolution of a signal-to-noise filter.
+# def signal_to_noise_ratio(a, size):
+#     '''
+#     N-dimensional convolution of a signal-to-noise filter.
 
-    Parameters
-    ----------
-    a : :obj:`~numpy.array`
-        N-dimensional array of intensity data.
-    size : int or list
-        Size of the convolution kernel in each dimension.
+#     Parameters
+#     ----------
+#     a : :obj:`~numpy.array`
+#         N-dimensional array of intensity data.
+#     size : int or list
+#         Size of the convolution kernel in each dimension.
 
-    Returns
-    -------
-    :obj:`~numpy.array`
-        Filtered intensity data.
+#     Returns
+#     -------
+#     :obj:`~numpy.array`
+#         Filtered intensity data.
 
-    '''
+#     '''
 
-    c1 = ndi.filters.uniform_filter(a, size, mode='constant')
-    c2 = ndi.filters.uniform_filter(np.square(a), size, mode='constant')
-    std = np.abs(np.lib.scimath.sqrt(c2 - np.square(c1)))
-    return np.square(np.divide(c1, std, out=np.zeros_like(c1, dtype=float), where=std != 0))
+#     c1 = ndi.filters.uniform_filter(a, size, mode='constant')
+#     c2 = ndi.filters.uniform_filter(np.square(a), size, mode='constant')
+#     std = np.abs(np.lib.scimath.sqrt(c2 - np.square(c1)))
+#     return np.square(np.divide(c1, std, out=np.zeros_like(c1, dtype=float), where=std != 0))
 
 
 def count(a, size, nonzero=False):
@@ -210,6 +211,10 @@ def kurtosis(edges, a, size):
         Filtered intensity data.
 
     '''
+
+    edges = deimos.utils.safelist(edges)
+    size = deimos.utils.safelist(size)
+    deimos.utils.check_length([edges, size, a.shape])
 
     k = []
     for i, (e, s) in enumerate(zip(edges, size)):
