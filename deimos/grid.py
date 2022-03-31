@@ -42,7 +42,7 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
 
 
 def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
-            additional=None, preserve_explicit_zeros=False):
+            additional=None):
     '''
     Converts dense grid representation to a data frame.
 
@@ -56,10 +56,6 @@ def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
         Label(s) for each grid dimension.
     additional : dict or None
         Additional grids to process.
-    preserve_explicit_zeros : bool
-        Signal whether to keep zeros explicitly encoded in `grid`. If
-        :func:`~numpy.nan_to_num` has been used on `grid`, this may cause the
-        resulting :obj:`~pandas.DataFrame` to be extremely large.
 
     Returns
     -------
@@ -79,11 +75,9 @@ def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
     grid = grid.flatten()
 
     # threshold
-    if preserve_explicit_zeros is True:
-        idx = ~np.isnan(grid)
-    else:
-        idx = grid > 0
+    idx = grid > 0
 
+    # reshape
     grid = grid[idx].reshape(-1, 1)
 
     # edges to grid
