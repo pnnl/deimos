@@ -27,10 +27,10 @@ def test_data2grid(ms1, dims, shape):
     assert grid.shape == shape
 
 
-@pytest.mark.parametrize('dims,additional,zeros',
-                         [(['mz', 'drift_time', 'retention_time'], False, True),
-                          (['mz', 'drift_time', 'retention_time'], True, False)])
-def test_grid2df(ms1, dims, additional, zeros):
+@pytest.mark.parametrize('dims,additional',
+                         [(['mz', 'drift_time', 'retention_time'], False),
+                          (['mz', 'drift_time', 'retention_time'], True)])
+def test_grid2df(ms1, dims, additional):
     edges, grid = deimos.grid.data2grid(ms1)
 
     if additional is True:
@@ -39,8 +39,7 @@ def test_grid2df(ms1, dims, additional, zeros):
         aux = None
 
     df = deimos.grid.grid2df(edges, grid,
-                             dims=dims, additional=aux,
-                             preserve_explicit_zeros=zeros)
+                             dims=dims, additional=aux)
 
     # Check dimensions are present
     for d in dims:
@@ -56,7 +55,4 @@ def test_grid2df(ms1, dims, additional, zeros):
     assert 'intensity' in df.columns
 
     # Check length
-    if zeros is True:
-        assert len(df.index) == len(ms1.index)
-    else:
-        assert len(df.loc[df['intensity'] > 0, :].index) == len(ms1.loc[ms1['intensity'] > 0, :].index)
+    assert len(df.loc[df['intensity'] > 0, :].index) == len(ms1.loc[ms1['intensity'] > 0, :].index)

@@ -167,6 +167,5 @@ def test_tolerance_return_none(ms1_peaks):
 def test_fit_spline():
     raise NotImplementedError
 
-
-def test_join():
+def test_agglomerative_clustering():
     raise NotImplementedError

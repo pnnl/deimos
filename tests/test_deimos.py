@@ -26,15 +26,14 @@ def test_has_module(module):
                          [('read_mzml'),
                           ('save_hdf'),
                           ('load_hdf'),
+                          ('load_hdf_multi'),
                           ('save_mgf'),
                           ('threshold'),
                           ('collapse'),
                           ('locate'),
                           ('locate_asym'),
                           ('slice'),
-                          ('Partitions'),
                           ('partition'),
-                          ('MultiSamplePartitions'),
                           ('multi_sample_partition')])
 def test_toplevel_imports(attr):
     assert hasattr(deimos, attr)
@@ -44,14 +43,13 @@ def test_toplevel_imports(attr):
                          [('match'),
                           ('tolerance'),
                           ('fit_spline'),
-                          ('agglomerative_clustering'),
-                          ('join')])
+                          ('agglomerative_clustering')])
 def test_alignment_namespace(attr):
     assert hasattr(deimos.alignment, attr)
 
 
 @pytest.mark.parametrize('attr',
-                         [('ArrivalTimeCalibration'),
+                         [('CCSCalibration'),
                           ('calibrate_ccs')])
 def test_calibration_namespace(attr):
     assert hasattr(deimos.calibration, attr)
@@ -72,7 +70,7 @@ def test_calibration_namespace(attr):
                           ('sum'),
                           ('mean'),
                           ('matched_gaussian'),
-                          ('signal_to_noise_ratio'),
+                        #   ('signal_to_noise_ratio'),
                           ('count'),
                           ('kurtosis')])
 def test_filters_namespace(attr):
@@ -90,6 +88,7 @@ def test_grid_namespace(attr):
                          [('read_mzml'),
                           ('save_hdf'),
                           ('load_hdf'),
+                          ('load_hdf_multi'),
                           ('save_mgf')])
 def test_io_namespace(attr):
     assert hasattr(deimos.io, attr)
@@ -142,13 +141,14 @@ def test_utils_namespace(attr):
                          [(deimos.read_mzml, deimos.io.read_mzml),
                           (deimos.save_hdf, deimos.io.save_hdf),
                           (deimos.load_hdf, deimos.io.load_hdf),
+                          (deimos.load_hdf_multi, deimos.io.load_hdf_multi),
                           (deimos.save_mgf, deimos.io.save_mgf),
                           (deimos.threshold, deimos.subset.threshold),
                           (deimos.collapse, deimos.subset.collapse),
                           (deimos.locate, deimos.subset.locate),
                           (deimos.locate_asym, deimos.subset.locate_asym),
                           (deimos.slice, deimos.subset.slice),
-                          (deimos.Partitions, deimos.subset.Partitions),
-                          (deimos.partition, deimos.subset.partition)])
+                          (deimos.partition, deimos.subset.partition),
+                          (deimos.multi_sample_partition, deimos.subset.multi_sample_partition)])
 def test_toplevel_namespace(toplevel, attr):
     assert toplevel == attr

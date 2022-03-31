@@ -258,8 +258,8 @@ class TestPartitions:
                              [('mz', 1000, 0.05),
                               ('mz', 2000, 0.5)])
     def test_init(self, ms1, split_on, size, overlap):
-        partitions = deimos.Partitions(ms1, split_on=split_on, size=size,
-                                       overlap=overlap)
+        partitions = deimos.partition(ms1, split_on=split_on, size=size,
+                                      overlap=overlap)
 
         assert partitions.features.equals(ms1)
         assert partitions.split_on == split_on
@@ -269,8 +269,8 @@ class TestPartitions:
                              [('mz', 1000, 0.05),
                               ('mz', 2000, 0.5)])
     def test__compute_splits(self, ms1, split_on, size, overlap):
-        partitions = deimos.Partitions(ms1, split_on=split_on, size=size,
-                                       overlap=overlap)
+        partitions = deimos.partition(ms1, split_on=split_on, size=size,
+                                      overlap=overlap)
 
         idx_unq = np.unique(ms1[split_on].values)
 
@@ -359,7 +359,7 @@ def test_partition(ms1, split_on, size, overlap):
     partitions = deimos.partition(ms1, split_on=split_on, size=size,
                                   overlap=overlap)
 
-    assert type(partitions) is deimos.Partitions
+    assert type(partitions) is deimos.subset.Partitions
 
 
 class TestMultiSamplePartitions:
