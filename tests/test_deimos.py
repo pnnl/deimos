@@ -64,15 +64,15 @@ def test_calibration_namespace(attr):
 
 
 @pytest.mark.parametrize('attr',
-                         [('stdev'),
+                         [('std'),
                           ('maximum'),
                           ('minimum'),
                           ('sum'),
                           ('mean'),
                           ('matched_gaussian'),
-                        #   ('signal_to_noise_ratio'),
-                          ('count'),
-                          ('kurtosis')])
+                        #   ('snr'),
+                        #   ('kurtosis'),
+                          ('count')])
 def test_filters_namespace(attr):
     assert hasattr(deimos.filters, attr)
 

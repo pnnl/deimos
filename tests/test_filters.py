@@ -18,9 +18,9 @@ def g1d():
 
 
 @pytest.mark.parametrize('array,size,expected',
-                         [(np.arange(5.), 5, [0.8, 1.16619038, 1.41421356, 1.41421356, 1.6])])
-def test_stdev(array, size, expected):
-    result = deimos.filters.stdev(array, size)
+                         [(np.arange(5.), 5, [0.74833148, 1.16619038, 1.41421356, 1.16619038, 0.74833148])])
+def test_std(array, size, expected):
+    result = deimos.filters.std(array, size)
     assert (np.abs(result - expected) <= 1E-3).all()
 
 
@@ -32,7 +32,7 @@ def test_maximum(array, size, expected):
 
 
 @pytest.mark.parametrize('array,size,expected',
-                         [(np.arange(5.), 5, [0, 0, 0, 0, 0])])
+                         [(np.arange(5.), 5, [0, 0, 0, 1, 2])])
 def test_minimum(array, size, expected):
     result = deimos.filters.minimum(array, size)
     assert (result == expected).all()
