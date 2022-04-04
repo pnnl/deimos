@@ -23,11 +23,9 @@ def test_has_module(module):
 
 
 @pytest.mark.parametrize('attr',
-                         [('read_mzml'),
-                          ('save_hdf'),
-                          ('load_hdf'),
-                          ('load_hdf_multi'),
-                          ('save_mgf'),
+                         [('save'),
+                          ('load'),
+                          ('get_accessions'),
                           ('threshold'),
                           ('collapse'),
                           ('locate'),
@@ -85,9 +83,13 @@ def test_grid_namespace(attr):
 
 
 @pytest.mark.parametrize('attr',
-                         [('read_mzml'),
+                         [('save'),
+                          ('load'),
+                          ('get_accessions'),
+                          ('load_mzml'),
                           ('save_hdf'),
                           ('load_hdf'),
+                          ('load_hdf_single'),
                           ('load_hdf_multi'),
                           ('save_mgf')])
 def test_io_namespace(attr):
@@ -138,11 +140,9 @@ def test_utils_namespace(attr):
 
 
 @pytest.mark.parametrize('toplevel,attr',
-                         [(deimos.read_mzml, deimos.io.read_mzml),
-                          (deimos.save_hdf, deimos.io.save_hdf),
-                          (deimos.load_hdf, deimos.io.load_hdf),
-                          (deimos.load_hdf_multi, deimos.io.load_hdf_multi),
-                          (deimos.save_mgf, deimos.io.save_mgf),
+                         [(deimos.save, deimos.io.save),
+                          (deimos.load, deimos.io.load),
+                          (deimos.get_accessions, deimos.io.get_accessions),
                           (deimos.threshold, deimos.subset.threshold),
                           (deimos.collapse, deimos.subset.collapse),
                           (deimos.locate, deimos.subset.locate),

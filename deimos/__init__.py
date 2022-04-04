@@ -3,7 +3,7 @@ from deimos import calibration
 from deimos import deconvolution
 from deimos import filters
 from deimos import grid
-from deimos.io import read_mzml, save_hdf, load_hdf, load_hdf_multi, save_mgf
+from deimos.io import save, load, get_accessions
 from deimos import isotopes
 from deimos import peakpick
 from deimos import plot

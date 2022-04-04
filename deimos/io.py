@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import dask.dataframe as dd
+import deimos
 import h5py
 import numpy as np
 import os
@@ -8,10 +9,144 @@ import pymzml
 import warnings
 
 
-def read_mzml(path, accession={'drift_time': 'MS:1002476',
-                               'retention_time': 'MS:1000016'}):
+def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
     '''
-    Read in an mzML file, parsing for accession values, to yield a long-format
+    Loads data from HDF5 or mzML file. 
+
+    Parameters
+    ----------
+    path : str or list of str
+        Path to input file (or files if HDF5).
+    key : str
+        Access this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively. HDF5 format only.
+    columns : list
+        A list of columns names to return. HDF5 format only.
+    chunksize : int
+        Dask partition chunksize. HDF5 format only. Unused when loading single
+        file.
+    meta : dict
+        Dictionary of meta data per path. HDF5 format only. Unused when loading
+        single file.
+    accession : dict
+        Key-value pairs signaling which features to parse for in the mzML file.
+        See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
+        frame, m/z, and intensity are parsed by default.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame` or dict of :obj:`~pandas.DataFrame`
+        Feature coordinates and intensities for the specified level.
+        Pandas is used when loading a single file, Dask for multiple files.
+        Loading an mzML file returns a dictionary with keys per MS level.
+
+    '''
+
+    # check number of inputs
+    paths = deimos.utils.safelist(path)
+
+    # ensure extensions match
+    exts = [os.path.splitext(x)[-1].lower() for x in paths]
+    if not all(x == exts[0] for x in exts):
+        raise ValueError('All inputs must have same filetype extension.')
+
+    # get the extension
+    ext = exts[0]
+
+    # multi loader
+    if len(paths) > 1:
+        # hdf5
+        if ext in ['.h5', '.hdf']:
+            return deimos.io.load_hdf_multi(paths,
+                                            columns=columns,
+                                            chunksize=chunksize,
+                                            meta=meta)
+        
+        # other
+        else:
+            raise ValueError('Only HDF5 currently supported for multi-file loading.')
+    
+    # single loader
+    else:
+        # hdf5
+        if ext in ['.h5', '.hdf']:
+            return deimos.io.load_hdf_single(path, key=key, columns=columns)
+
+        # mzml
+        elif ext in ['.mzml.gz', '.mzml']:
+            return deimos.io.load_mzml(path, accession=accession)
+
+        # other
+        else:
+            raise ValueError('Only HDF5 and mzML currently supported.')
+
+
+def save(path, data, key='ms1', **kwargs):
+    '''
+    Saves :obj:`~pandas.DataFrame` to HDF5 or MGF container.
+
+    Parameters
+    ----------
+    path : str
+        Path to output file.
+    data : :obj:`~pandas.DataFrame`
+        Feature coordinates and intensities to be saved. Precursor m/z and
+        intensities should be paired to MS2 spectra for MGF format.
+    key : str
+        Save to this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively. HDF5 format only.
+    kwargs
+        Keyword arguments exposed by :meth:`~pandas.DataFrame.to_hdf`
+        or :func:`~deimos.io.save_mgf`.
+
+    '''
+
+    ext = os.path.splitext(path)[-1].lower()
+
+     # hdf5
+    if ext in ['.h5', '.hdf']:
+        return deimos.io.save_hdf(path, data, key=key, **kwargs)
+
+    # mzml
+    elif ext in ['.mgf']:
+        return deimos.io.save_mgf(path, data, **kwargs)
+
+    # other
+    else:
+        raise ValueError('Only HDF5 and MGF currently supported.')
+
+
+def get_accessions(path):
+    '''
+    Determines accession fields available in the mzML file.
+
+    Parameters
+    ----------
+    path : str
+        Path to mzML file.
+
+    Returns
+    -------
+    dict
+        Dictionary of accession fields.
+
+    '''
+
+    # open file
+    data = pymzml.run.Reader(path)
+
+    # iterate single spec instance
+    for spec in data:
+        spec._read_accessions()
+        break
+    
+    # return accessions
+    return spec.accessions
+
+
+def load_mzml(path, accession={}):
+    '''
+    Loads in an mzML file, parsing for accession values, to yield a
     :obj:`~pandas.DataFrame`.
 
     Parameters
@@ -20,11 +155,14 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
         Path to input mzML file.
     accession : dict
         Key-value pairs signaling which features to parse for in the mzML file.
+        See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
+        frame, m/z, and intensity are parsed by default.
 
     Returns
     -------
-    :obj:`~pandas.DataFrame`
-        Parsed feature coordinates and intensities.
+    dict of :obj:`~pandas.DataFrame`
+        Dictionary containing parsed feature coordinates and intensities, indexed
+        by keys per MS level.
 
     '''
 
@@ -121,33 +259,76 @@ def read_mzml(path, accession={'drift_time': 'MS:1002476',
     return res
 
 
-def save_hdf(path, data, key='ms1', compression_level=5, **kwargs):
+def save_hdf(path, data, key='ms1', complevel=5, **kwargs):
     '''
-    Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
+    Saves :obj:`~pandas.DataFrame` to HDF5 container.
 
     Parameters
     ----------
     path : str
         Path to output file.
     data : :obj:`~pandas.DataFrame`
-        :obj:`~pandas.DataFrame to be saved.
+        Feature coordinates and intensities to be saved.
     key : str
         Save to this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
         for MS levels 1 or 2, respectively.
-    compression_level : int
-        A value from 0-9 signaling the number of compression operations to
-        apply. Higher values result in greater compression at the expense of
-        computational overhead.
     kwargs
         Keyword arguments exposed by :meth:`~pandas.DataFrame.to_hdf`.
 
     '''
 
     data.to_hdf(path, key, format='table', complib='blosc',
-                complevel=compression_level, **kwargs)
+                complevel=complevel, **kwargs)
 
 
-def load_hdf(path, key='ms1', columns=None):
+def load_hdf(path, key='ms1', columns=None, chunksize=1E7, meta=None):
+    '''
+    Loads data frame from HDF5 container(s). 
+
+    Parameters
+    ----------
+    path : str or list of str
+        Path to input HDF5 file or files.
+    key : str
+        Access this level (group) of the HDF5 container. E.g., "ms1" or "ms2"
+        for MS levels 1 or 2, respectively.
+    columns : list
+        A list of columns names to return.
+    chunksize : int
+        Dask partition chunksize. Unused when loading single file.
+    meta : dict
+        Dictionary of meta data per path. Unused when loading single file.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
+        Feature coordinates and intensities for the specified level.
+        Pandas is used when loading a single file, Dask for multiple files.
+
+    '''
+
+    # check number of inputs
+    paths = deimos.utils.safelist(path)
+
+    # ensure extensions match
+    exts = [os.path.splitext(x)[-1].lower() for x in paths]
+    if not all(x == exts[0] for x in exts):
+        raise ValueError('All inputs must have same filetype extension.')
+
+    if len(paths) > 1:
+        return deimos.io.load_hdf_multi(paths,
+                                        key=key,
+                                        columns=columns,
+                                        chunksize=chunksize,
+                                        meta=meta)
+
+    else:
+        return deimos.io.load_hdf_single(paths,
+                                         key=key,
+                                         columns=columns)
+
+
+def load_hdf_single(path, key='ms1', columns=None):
     '''
     Loads data frame from HDF5 container.
 
@@ -173,7 +354,8 @@ def load_hdf(path, key='ms1', columns=None):
 
 def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7, meta=None):
     '''
-    Loads data frame from HDF5 container using Dask.
+    Loads data frame from HDF5 containers using Dask. Appends column to indicate
+    source filenames.
 
     Parameters
     ----------
@@ -220,8 +402,8 @@ def _save_hdf(path, data, dtype={}, compression_level=5):
     path : str
         Path to output file.
     data : dict of :obj:`~pandas.DataFrame`
-        Dictionary of :obj:`~pandas.DataFrame`s to be saved. Dictionary keys
-        are saved as "groups" (e.g., MS level) and data frame columns are saved
+        Dictionary of feature coordinates and intensities to be saved. Dictionary
+        keys are saved as "groups" (e.g., MS level) and data frame columns are saved
         as "datasets" in the HDF5 container.
     dtype : dict
         Specifies what data type to save each column, provided as column:dtype
