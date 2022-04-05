@@ -6,6 +6,7 @@ output/
 *.out
 docs/build/
 .DS_Store
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
