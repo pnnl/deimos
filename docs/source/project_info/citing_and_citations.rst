@@ -1,5 +1,7 @@
+.. _citing-and-citations:
+
 ====================
-Citing and citations
+Citing and Citations
 ====================
 
 If you would like to reference deimos in an academic paper,we ask you include the following.

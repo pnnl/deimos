@@ -1,3 +1,5 @@
+.. _ccs-calibration:
+
 ===============
 CCS Calibration
 ===============

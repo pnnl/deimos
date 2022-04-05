@@ -30,8 +30,8 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
         single file.
     accession : dict
         Key-value pairs signaling which features to parse for in the mzML file.
-        See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
-        frame, m/z, and intensity are parsed by default.
+        mzML format only. See :func:`~deimos.io.get_accessions` to obtain
+        available values.
 
     Returns
     -------
@@ -395,7 +395,7 @@ def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7, meta=None):
 
 def _save_hdf(path, data, dtype={}, compression_level=5):
     '''
-    Deprecated version. Saves dictionary of :obj:`~pandas.DataFrame`s to HDF5 container.
+    Deprecated version. Saves dictionary of :obj:`~pandas.DataFrame` to HDF5 container.
 
     Parameters
     ----------

@@ -10,14 +10,15 @@ from sklearn.svm import SVR
 def match(a, b, dims=['mz', 'drift_time', 'retention_time'],
           tol=[5E-6, 0.015, 0.3], relative=[True, True, False]):
     '''
-    Identify features in `b` within tolerance of those in `a`. Matches are
+    Identify features in `b` within tolerance of those in `a` . Matches are
     bidirectionally one-to-one by highest intensity.
 
     Parameters
     ----------
-    a, b : :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities. Features from `a` are
-        matched to features in `b`.
+    a : :obj:`~pandas.DataFrame`
+        First set of input feature coordinates and intensities.
+    b : :obj:`~pandas.DataFrame`
+        Second set of input feature coordinates and intensities.
     dims : str or list
         Dimensions considered in matching.
     tol : float or list
@@ -28,7 +29,7 @@ def match(a, b, dims=['mz', 'drift_time', 'retention_time'],
     Returns
     -------
     a, b : :obj:`~pandas.DataFrame`
-        Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
+        Features matched within tolerances. E.g., `a[i..n]`and `b[i..n]` each
         represent matched features.
 
     Raises
@@ -125,9 +126,10 @@ def tolerance(a, b, dims=['mz', 'drift_time', 'retention_time'],
 
     Parameters
     ----------
-    a, b : :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities. Features from `a` are
-        matched to features in `b`.
+    a : :obj:`~pandas.DataFrame`
+        First set of input feature coordinates and intensities.
+    b : :obj:`~pandas.DataFrame`
+        Second set of input feature coordinates and intensities.
     dims : str or list
         Dimensions considered in matching.
     tol : float or list
@@ -138,7 +140,7 @@ def tolerance(a, b, dims=['mz', 'drift_time', 'retention_time'],
     Returns
     -------
     a, b : :obj:`~pandas.DataFrame`
-        Features matched within tolerances. E.g., `a`[i..n] and `b`[i..n] each
+        Features matched within tolerances. E.g., `a[i..n]` and `b[i..n]` each
         represent matched features.
 
     Raises
@@ -203,8 +205,10 @@ def fit_spline(a, b, align='retention_time', **kwargs):
 
     Parameters
     ----------
-    a, b : :obj:`~pandas.DataFrame`
-        Matched input feature coordinates and intensities.
+    a : :obj:`~pandas.DataFrame`
+        First set of input feature coordinates and intensities.
+    b : :obj:`~pandas.DataFrame`
+        Second set of input feature coordinates and intensities.
     align : str
         Dimension to align.
     kwargs
@@ -249,9 +253,9 @@ def fit_spline(a, b, align='retention_time', **kwargs):
 
 
 def agglomerative_clustering(features,
-                              dims=['mz', 'drift_time', 'retention_time'],
-                              tol=[20E-6, 0.03, 0.3],
-                              relative=[True, True, False]):
+                             dims=['mz', 'drift_time', 'retention_time'],
+                             tol=[20E-6, 0.03, 0.3],
+                             relative=[True, True, False]):
     '''
     Cluster features within provided linkage tolerances. Recursively merges
     the pair of clusters that minimally increases a given linkage distance.

@@ -1,3 +1,5 @@
+.. _extracted-ion:
+
 ===========================
 Extracted Ion Functionality
 ===========================

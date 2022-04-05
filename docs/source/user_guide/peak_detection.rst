@@ -1,3 +1,5 @@
+.. _peak-detection:
+
 ==============
 Peak Detection
 ==============

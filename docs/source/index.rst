@@ -35,6 +35,7 @@ and (iii) mitigate convolution artifacts in tandem mass spectra.
 	user_guide/ms2_extraction
 	user_guide/isotope_detection
 	user_guide/extracted_ion
+	user_guide/alignment
 
 .. toctree::
 	:caption: API Reference
@@ -62,7 +63,7 @@ and (iii) mitigate convolution artifacts in tandem mass spectra.
 	:hidden:
 	:maxdepth: 1
 
-	project_info/faq
+	project_info/acknowledgements
 	project_info/citing_and_citations
 	project_info/contributing
 	project_info/license

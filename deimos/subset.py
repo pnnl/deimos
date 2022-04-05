@@ -480,7 +480,7 @@ class MultiSamplePartitions:
     Attributes
     ----------
     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
-            Input feature coordinates and intensities.
+        Input feature coordinates and intensities.
     split_on : str
         Dimension to partition the data.
     size : int

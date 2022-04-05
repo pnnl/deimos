@@ -1,3 +1,5 @@
+.. _isotope-detection:
+
 =================
 Isotope Detection
 =================
