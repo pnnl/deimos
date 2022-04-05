@@ -14,7 +14,7 @@ Types of Contributions
 Submit Feedback
 ===============
 
-The best way to provide feedback is to open an issue at https://github.com/pnnl/deimos/issues. 
+The best way to provide feedback is to open an issue `here <https://github.com/pnnl/deimos/issues>`_. 
 When proposing a feature:
 
 * Explain in detail how it would work
@@ -23,7 +23,7 @@ When proposing a feature:
 Report Bugs
 ===========
 
-Please report bugs at https://github.com/pnnl/deimos/issues.
+Please report bugs `here <https://github.com/pnnl/deimos/issues>`_.
 When reporting, please include:
 
 * Your operating system and version.

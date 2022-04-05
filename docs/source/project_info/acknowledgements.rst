@@ -30,8 +30,8 @@ Subject Matter Experts
 
 Experimentalists
 ----------------
-- Danny Orton
 - Kent Bloodsworth
+- Danny Orton
 
 Key Users
 ---------

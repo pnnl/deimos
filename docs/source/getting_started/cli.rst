@@ -34,7 +34,7 @@ A default workflow configuration (``resources/example_config.yaml``) is provided
     --cluster PATH  path to cluster execution yaml configuration file
     --jobs N        number of simultaneous jobs to submit to a slurm queue
 
-Inputs (`.mzML <http://www.psidev.info/mzML>`_) or .mzML.gz) will automatically be detected in the ``input/`` folder, and results will be populated in a corresponding ``output/`` folder, both relative to the current working directory.
+Inputs (`.mzML <http://www.psidev.info/mzML>`_ or .mzML.gz) will automatically be detected in the ``input/`` folder, and results will be populated in a corresponding ``output/`` folder, both relative to the current working directory.
 For example:
 
 
@@ -48,4 +48,4 @@ For example:
   │  └── ...
   └── output
 
-For running in cluster environments, please consult the `Snakemake <https://snakemake.readthedocs.io>`_ workflow management system documentation concerning `profiles <https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles>`_.
+For running in cluster environments, please consult the `Snakemake <https://snakemake.readthedocs.io>`_ workflow management system documentation concerning profiles.

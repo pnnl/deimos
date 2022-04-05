@@ -11,7 +11,12 @@ across study samples and characterized by mass, CCS, tandem mass spectra, and is
 Notably, DEIMoS operates on N-dimensional data, largely agnostic to acquisition instrumentation; 
 algorithm implementations simultaneously utilize all dimensions to (i) offer greater separation between features, 
 thus improving detection sensitivity, (ii) increase alignment/feature matching confidence among datasets, 
-and (iii) mitigate convolution artifacts in tandem mass spectra. 
+and (iii) mitigate convolution artifacts in tandem mass spectra.
+
+.. image:: assets/overview.png
+	:align: center
+	:width: 400
+  	:alt: DEIMoS functionality overview
 
 .. toctree::
 	:caption: Getting Started
