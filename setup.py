@@ -29,6 +29,5 @@ setup(
     entry_points={
         'console_scripts': ['deimos = deimos.cli:main']
     },
-    package_data={'': ['Snakefile']},
-    include_package_data=True
+    package_data={'': ['*.smk', '*.yaml']},
 )
