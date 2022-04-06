@@ -12,7 +12,7 @@ with open('LICENSE') as f:
 with open('requirements.txt') as f:
     requirements = f.read()
 
-pkgs = find_packages(exclude=('examples', 'docs', 'resources', 'tests'))
+pkgs = find_packages(exclude=('examples', 'docs', 'tests'))
 
 setup(
     name='deimos',

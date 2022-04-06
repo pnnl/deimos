@@ -41,7 +41,7 @@ def main():
     else:
         cluster = None
 
-    snakemake(resource_filename('deimos', 'Snakefile'),
+    snakemake(resource_filename('workflows', 'default.smk'),
               configfiles=[args.config],
               config=config,
               cluster_config=args.cluster,
