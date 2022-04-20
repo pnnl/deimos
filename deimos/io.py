@@ -73,7 +73,7 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
             return deimos.io.load_hdf_single(path, key=key, columns=columns)
 
         # mzml
-        elif ext in ['.mzml.gz', '.mzml']:
+        elif ext in ['.gz', '.mzml']:
             return deimos.io.load_mzml(path, accession=accession)
 
         # other
