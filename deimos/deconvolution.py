@@ -67,10 +67,10 @@ class MS2Deconvolution:
 
         '''
 
-        self.ms1_features = ms1_features.copy()
-        self.ms1_data = ms1_data.copy()
-        self.ms2_features = ms2_features.copy()
-        self.ms2_data = ms2_data.copy()
+        self.ms1_features = ms1_features
+        self.ms1_data = ms1_data
+        self.ms2_features = ms2_features
+        self.ms2_data = ms2_data
         
         self.ms1_features['ms_level'] = 1
         self.ms2_features['ms_level'] = 2
