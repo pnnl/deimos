@@ -2,6 +2,7 @@ sphinx >=3
 sphinxcontrib-napoleon
 sphinx_rtd_theme
 nbsphinx
+ipython
 dask
 h5py
 matplotlib
