@@ -1,6 +1,0 @@
-=========
-Alignment
-=========
-
-Coming soon!
-
