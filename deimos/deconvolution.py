@@ -37,7 +37,10 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
         y = profile['intensity'].values
 
         # fit univariate spline
-        uspline = UnivariateSpline(x, y, s=0, ext=3)
+        try:
+            uspline = UnivariateSpline(x, y, s=0, ext=3)
+        except:
+            uspline = lambda x: np.zeros_like(x)
 
         profiles[dim] = uspline
 
@@ -230,7 +233,8 @@ class MS2Deconvolution:
                     v_ms2 = np.vstack([x[dim](newx) for x in ms2_profiles])
                     
                     # similarity matrix
-                    H = 1 - cdist(v_ms1, v_ms2, metric='cosine')
+
+                    H = np.dot(v_ms1, v_ms2) / (np.sqrt(v_ms1.dot(v_ms1)) * np.sqrt(v_ms2.dot(v_ms2)))
                     
                     # add column
                     res[dim + '_score'] = H.reshape(-1, 1)
