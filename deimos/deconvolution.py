@@ -233,8 +233,8 @@ class MS2Deconvolution:
                     v_ms2 = np.vstack([x[dim](newx) for x in ms2_profiles])
                     
                     # similarity matrix
-
-                    H = np.dot(v_ms1, v_ms2.T) / (np.sqrt(v_ms1.dot(v_ms1)) * np.sqrt(v_ms2.dot(v_ms2)))
+                    
+                    H = 1 - cdist(v_ms1, v_ms2, metric='cosine')
                     
                     # add column
                     res[dim + '_score'] = H.reshape(-1, 1)
