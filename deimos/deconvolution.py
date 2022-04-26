@@ -234,7 +234,7 @@ class MS2Deconvolution:
                     
                     # similarity matrix
 
-                    H = np.dot(v_ms1, v_ms2) / (np.sqrt(v_ms1.dot(v_ms1)) * np.sqrt(v_ms2.dot(v_ms2)))
+                    H = np.dot(v_ms1, v_ms2.T) / (np.sqrt(v_ms1.dot(v_ms1)) * np.sqrt(v_ms2.dot(v_ms2)))
                     
                     # add column
                     res[dim + '_score'] = H.reshape(-1, 1)
