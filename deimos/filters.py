@@ -26,6 +26,22 @@ def std(a, size):
     return np.abs(np.lib.scimath.sqrt(c2 - np.square(c1)))
 
 
+def std_pdf(edges, a, size):
+    edges = np.meshgrid(*edges, indexing='ij')
+    f = ndi.uniform_filter(a, size=size, mode='constant')
+    
+    res = []
+    for e in edges:
+        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        mu = wmu / f
+        
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+        var = wvar / f
+        res.append(np.sqrt(var))
+        
+    return res
+
+
 def maximum(a, size):
     '''
     N-dimensional convolution of a maximum filter.
@@ -118,6 +134,18 @@ def mean(a, size):
     return ndi.uniform_filter(a, size=size, mode='constant', cval=0.0)
 
 
+def mean_pdf(edges, a, size):
+    edges = np.meshgrid(*edges, indexing='ij')
+    f = ndi.uniform_filter(a, size=size, mode='constant')
+    
+    res = []
+    for e in edges:
+        w = ndi.uniform_filter(a * e, size=size, mode='constant')
+        res.append(w / f)
+        
+    return res
+
+
 def matched_gaussian(a, size):
     '''
     N-dimensional convolution of a matched Gaussian filter.
@@ -165,3 +193,43 @@ def count(a, size, nonzero=False):
         a = np.where(np.isnan(a), 0.0, 1.0)
 
     return deimos.filters.sum(a, size)
+
+
+def skew_pdf(edges, a, size):
+    edges = np.meshgrid(*edges, indexing='ij')
+    f = ndi.uniform_filter(a, size=size, mode='constant')
+    
+    res = []
+    for e in edges:
+        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        mu = wmu / f
+        
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+        var = wvar / f
+        sigma = np.sqrt(var)
+        
+        wskew = ndi.uniform_filter(a * ((e - mu) / sigma) ** 3, size=size, mode='constant')
+        skew = wskew / f
+        res.append(skew)
+        
+    return res
+
+
+def kurtosis_pdf(edges, a, size):
+    edges = np.meshgrid(*edges, indexing='ij')
+    f = ndi.uniform_filter(a, size=size, mode='constant')
+    
+    res = []
+    for e in edges:
+        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        mu = wmu / f
+        
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+        var = wvar / f
+        sigma = np.sqrt(var)
+        
+        wkurtosis = ndi.uniform_filter(a * ((e - mu) / sigma) ** 4, size=size, mode='constant')
+        kurtosis = wkurtosis / f
+        res.append(kurtosis - 3)
+        
+    return res
