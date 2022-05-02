@@ -3,7 +3,7 @@ import numpy as np
 
 
 def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
-                 bins=[2.7, 0.94, 3.64], scale_by=None, ref_res=None,
+                 bins=[37, 9, 37], scale_by=None, ref_res=None,
                  scale=None):
     '''
     N-dimensional non-maximum suppression peak detection method.
@@ -69,47 +69,23 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
             '`scale_by`, `ref_res`, and `scale` must all be supplied')
 
     # footprint rounded up to nearest odd
-    # sigma2 = [np.ceil(x * 2) // 2 * 2 + 1 for x in bins]
-    sigma4 = [np.ceil(x * 4) // 2 * 2 + 1 for x in bins]
-    # sigma8 = [np.ceil(x * 8) // 2 * 2 + 1 for x in bins]
-
-    # container
-    additional = {}
+    bins = [np.ceil(x) // 2 * 2 + 1 for x in bins]
 
     # grid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
-
-    # # data counts
-    # additional['npoints_2'] = deimos.filters.count(H, sigma2)
-    # additional['nonzero_2'] = deimos.filters.count(H, sigma2, nonzero=True)
-    # additional['npoints_4'] = deimos.filters.count(H, sigma4)
-    # additional['nonzero_4'] = deimos.filters.count(H, sigma4, nonzero=True)
-
-    # # nan to num
-    # H = np.nan_to_num(H)
-
-    # # sum
-    # additional['sum_2'] = deimos.filters.sum(H, sigma2)
-    # additional['sum_4'] = deimos.filters.sum(H, sigma4)
-
-    # # minimum
-    # additional['min_4'] = deimos.filters.minimum(H, sigma4)
-    # additional['min_8'] = deimos.filters.minimum(H, sigma8)
-
-    # # kurtosis
-    # for k, v in zip(dims, deimos.filters.kurtosis(edges, H, sigma4)):
-    #     additional['k_{}'.format(k)] = v
+    
+    # mean pdf
+    H_mean_pdf = {dim + '_mean': x for dim, x in zip(dims,
+                                                     deimos.filters.mean_pdf(edges, H, bins))}
+    
+    # smooth
+    H = deimos.filters.mean(H, [1, 3, 3])
 
     # peak detection
-    H = np.where(H == deimos.filters.maximum(H, sigma4), H, 0)
+    H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
 
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, H, dims=dims,
-                                additional=additional)
-
-    # # add bins info
-    # for i, d in enumerate(dims):
-    #     peaks['sigma_{}_2'.format(d)] = sigma2[i]
-    #     peaks['sigma_{}_4'.format(d)] = sigma4[i]
+                                additional=H_mean_pdf)
 
     return peaks
