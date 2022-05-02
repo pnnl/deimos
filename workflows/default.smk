@@ -24,11 +24,11 @@ rule mzml2hdf:
         join('output', 'parsed', '{id}.h5')
     run:
         # read/parse mzml
-        data = deimos.read_mzml(input[0], accession=config['accession'])
+        data = deimos.load(input[0], accession=config['accession'])
 
         # save as hdf5
         for k, v in data.items():
-            deimos.save_hdf(output[0], v, key=k, mode='a')
+            deimos.save(output[0], v, key=k, mode='a')
 
 
 rule peakpick:
@@ -42,7 +42,7 @@ rule peakpick:
 
         for k in keys:
             # load data
-            data = deimos.load_hdf(input[0], key=k)
+            data = deimos.load(input[0], key=k)
 
             # partition in m/z
             partitions = deimos.partition(data,
@@ -57,4 +57,4 @@ rule peakpick:
                                    **config['peakpick'][k])
 
             # save
-            deimos.save_hdf(output[0], peaks, key=k, mode='a')
+            deimos.save(output[0], peaks, key=k, mode='a')
