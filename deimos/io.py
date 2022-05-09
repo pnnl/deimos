@@ -58,6 +58,7 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
         # hdf5
         if ext in ['.h5', '.hdf']:
             return deimos.io.load_hdf_multi(paths,
+                                            key=key,
                                             columns=columns,
                                             chunksize=chunksize,
                                             meta=meta)
