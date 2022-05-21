@@ -42,7 +42,7 @@ rule peakpick:
 
         for k in keys:
             # load data
-            data = deimos.load(input[0], key=k)
+            data = deimos.load(input[0], key=k, config['dims'] + ['intensity'])
 
             # partition in m/z
             partitions = deimos.partition(data,
