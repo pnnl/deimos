@@ -3,7 +3,7 @@ import numpy as np
 
 
 def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
-                 bins=[37, 17, 37], scale_by=None, ref_res=None,
+                 bins=[37, 9, 37], scale_by=None, ref_res=None,
                  scale=None):
     '''
     N-dimensional non-maximum suppression peak detection method.
@@ -71,22 +71,26 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     # footprint rounded up to nearest odd
     bins = [np.ceil(x) // 2 * 2 + 1 for x in bins]
     bins_half = [np.ceil(x / 2) // 2 * 2 + 1 for x in bins]
+    bins_half[0] = 3
 
     # grid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
     
     # mean pdf
-    H_mean_pdf = {dim + '_mean': x for dim, x in zip(dims,
+    additional = {dim + '_mean': x for dim, x in zip(dims,
                                                      deimos.filters.mean_pdf(edges, H, bins_half))}
     
+    # coverage
+    additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
+    
     # smooth
-    H = deimos.filters.mean(H, [1, 3, 3])
-
+    H = deimos.filters.sum(H, [1, 3, 3])
+    
     # peak detection
     H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
 
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, H, dims=dims,
-                                additional=H_mean_pdf)
+                                additional=additional)
 
     return peaks
