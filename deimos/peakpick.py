@@ -16,7 +16,7 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
         Dimensions to perform peak detection in (omitted dimensions
         will be collapsed and summed accross).
     bins : float or list
-        Number of bins representing 1 sigma in each dimension.
+        Number of bins representing approximate peak width in each dimension.
     scale_by : str
         Dimension to scale bin widths by. Only applies when data is partitioned
         by `scale_by` (see :func:`deimos.utils.partition`).
@@ -80,11 +80,11 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     additional = {dim + '_mean': x for dim, x in zip(dims,
                                                      deimos.filters.mean_pdf(edges, H, bins_half))}
     
-    # coverage
-    additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
+    # # coverage
+    # additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
     
-    # smooth
-    H = deimos.filters.sum(H, [1, 3, 3])
+    # # smooth
+    # H = deimos.filters.sum(H, [1, 3, 3])
     
     # peak detection
     H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
