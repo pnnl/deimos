@@ -5,12 +5,12 @@ accession: {'drift_time': 'MS:1002476',
 
 peakpick:
   ms1:
-    bins: [2.7, 0.94, 3.64]
+    bins: [37, 9, 37]
     scale_by: mz
     ref_res: 0.002445221
     scale: drift_time
   ms2:
-    bins: [2.7, 2.92, 3.64]
+    bins: [37, 9, 37]
 
 partition:
   split_on: mz
