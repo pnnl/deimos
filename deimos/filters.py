@@ -1,6 +1,9 @@
 import deimos
 import numpy as np
+from scipy import sparse
 import scipy.ndimage as ndi
+from scipy.spatial import KDTree
+from ripser import ripser
 
 
 def std(a, size):
@@ -196,6 +199,25 @@ def count(a, size, nonzero=False):
 
 
 def skew_pdf(edges, a, size):
+    '''
+    N-dimensional convolution of a skew filter.
+
+    Parameters
+    ----------
+    edges : list of :obj:`~numpy.array`
+        Edges coordinates along each grid axis.
+    a : :obj:`~numpy.array`
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    list of :obj:`~numpy.array`
+        Filtered edge data.
+
+    '''
+
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
     
@@ -216,6 +238,25 @@ def skew_pdf(edges, a, size):
 
 
 def kurtosis_pdf(edges, a, size):
+    '''
+    N-dimensional convolution of a kurtosis filter.
+
+    Parameters
+    ----------
+    edges : list of :obj:`~numpy.array`
+        Edges coordinates along each grid axis.
+    a : :obj:`~numpy.array`
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    list of :obj:`~numpy.array`
+        Filtered edge data.
+
+    '''
+
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
     
@@ -233,3 +274,188 @@ def kurtosis_pdf(edges, a, size):
         res.append(kurtosis - 3)
         
     return res
+
+
+def sparse_upper_star(idx, V):
+    '''
+    Sparse implementation of an upper star filtration.
+
+    Parameters
+    ----------
+    idx : :obj:`~numpy.array`
+        Edge indices for each dimension (MxN).
+    V : :obj:`~numpy.array`
+        Array of intensity data (Mx1).
+
+    Returns
+    -------
+    idx : :obj:`~numpy.array`
+        Index of filtered points (Mx1).
+    persistence : :obj:`~numpy.array`
+        Persistence of each filtered point (Mx1).
+
+    '''
+
+    # add noise to uniqueify
+    V += np.random.uniform(0, 1, V.shape)
+    
+    # connectivity matrix
+    cmat = KDTree(idx)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    cmat.setdiag(1)
+    
+    # pairwise minimums
+    I, J = cmat.nonzero()
+    d = np.minimum(V[I], V[J])
+    
+    # sparse distance matrix
+    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat.shape)
+
+    # persistence homology 
+    # negative for upper star, then revert
+    ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
+    
+    # bound death values
+    ph[ph[:, 1] == -np.inf, 1] = np.min(V)
+    
+    # construct tree to query against
+    tree = KDTree(V.reshape((-1, 1)))
+
+    # get the indexes of the first nearest neighbor by birth
+    _, nn = tree.query(ph[:, 0].reshape((-1, 1)), k=1, workers=-1)
+    
+    return nn, ph[:, 0] - ph[:, 1]
+
+
+def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
+    '''
+    Sparse implementation of a mean filter.
+
+    Parameters
+    ----------
+    idx : :obj:`~numpy.array`
+        Edge indices for each dimension (MxN).
+    V : :obj:`~numpy.array`
+        Array of intensity data (Mx1).
+    radius : float or list
+        Radius of the sparse filter in each dimension. Values less than
+        zero indicate no connectivity in that dimension.
+
+    Returns
+    -------
+    :obj:`~numpy.array`
+        Filtered intensities (Mx1).
+
+    '''
+
+    # copy indices
+    idx = idx.copy()
+    
+     # scale
+    for i, r in enumerate(radius):
+        # increase inter-index distance
+        if r < 1:
+            idx[:, i] *= 2
+
+        # do nothing
+        elif r == 1:
+            pass
+
+        # decrease inter-index distance
+        else:
+            idx[:, i] /= r
+    
+    # connectivity matrix
+    cmat = KDTree(idx)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    # cmat.setdiag(1)
+    
+    # pair indices
+    I, J = cmat.nonzero()
+    
+    # sum over columns
+    V_sum = sparse.bsr_matrix((V[J], (I, I)),
+                              shape=cmat.shape).diagonal(0)
+
+    # count over columns
+    V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
+                                shape=cmat.shape).diagonal(0)
+    
+    # mean over columns
+    return V_sum / V_count
+
+
+def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
+    '''
+    Sparse implementation of a weighted mean filter.
+
+    Parameters
+    ----------
+    idx : :obj:`~numpy.array`
+        Edge indices for each dimension (MxN).
+    V : :obj:`~numpy.array`
+        Array of edge data (MxN).
+    w : :obj:`~numpy.array`
+        Array of intensity data (Mx1).
+    radius : float or list
+        Radius of the sparse filter in each dimension. Values less than
+        zero indicate no connectivity in that dimension.
+
+    Returns
+    -------
+    :obj:`~numpy.array`
+        Filtered edges (MxN).
+
+    '''
+
+    # copy indices
+    idx = idx.copy()
+
+    # scale
+    for i, r in enumerate(radius):
+        # increase inter-index distance
+        if r < 1:
+            idx[:, i] *= 2
+
+        # do nothing
+        elif r == 1:
+            pass
+
+        # decrease inter-index distance
+        else:
+            idx[:, i] /= r
+    
+    # connectivity matrix
+    cmat = KDTree(idx)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    cmat.setdiag(1)
+    
+    # pair indices
+    I, J = cmat.nonzero()
+    
+    # sum weights over columns
+    # only need to do this once
+    V_count = sparse.bsr_matrix((w[J], (I, I)),
+                                shape=cmat.shape).diagonal(0)
+    
+    # reshape V if 1D
+    if V.ndim == 1:
+        V = V.reshape((-1, 1))
+    
+    # output container
+    V_out = np.empty_like(V)
+    
+    # enumerate value columns
+    for i in range(V_out.shape[1]):
+        # sum weighted values over columns
+        V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
+                                  shape=cmat.shape).diagonal(0)
+
+        # mean
+        V_out[:, i] = V_sum / V_count
+    
+    # flatten if 1D
+    if V_out.shape[1] == 1:
+        return V_out.flatten()
+
+    return V_out
