@@ -1,5 +1,6 @@
 import deimos
 import numpy as np
+import pandas as pd
 
 
 def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
@@ -92,5 +93,43 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     # convert to dataframe
     peaks = deimos.grid.grid2df(edges, H, dims=dims,
                                 additional=additional)
+
+    return peaks
+
+
+def persistence_homology(features, dims=['mz', 'drift_time', 'retention_time']):
+    '''
+    Peak detection by persistence homology, implemented as a sparse upper star
+    filtration.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    dims : str or list
+        Dimensions to perform peak detection in.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Coordinates of detected peaks, associated apex intensitites, and
+        persistence.
+
+    '''
+
+    # get indices
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0] for dim in dims]).T
+
+    # values
+    V = features['intensity'].values.astype(float)
+    
+    # upper star filtration
+    pidx, pers = deimos.filters.sparse_upper_star(idx, V)
+
+    # get peaks
+    peaks = features.iloc[pidx, :].reset_index(drop=True)
+
+    # add persistence column
+    peaks['persistence'] = pers
 
     return peaks
