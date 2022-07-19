@@ -71,15 +71,15 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
 
     # footprint rounded up to nearest odd
     bins = [np.ceil(x) // 2 * 2 + 1 for x in bins]
-    bins_half = [np.ceil(x / 2) // 2 * 2 + 1 for x in bins]
-    bins_half[0] = 3
+    # bins_half = [np.ceil(x / 2) // 2 * 2 + 1 for x in bins]
+    # bins_half[0] = 3
 
     # grid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
     
-    # mean pdf
-    additional = {dim + '_mean': x for dim, x in zip(dims,
-                                                     deimos.filters.mean_pdf(edges, H, bins_half))}
+    # # mean pdf
+    # additional = {dim + '_mean': x for dim, x in zip(dims,
+    #                                                  deimos.filters.mean_pdf(edges, H, bins_half))}
     
     # # coverage
     # additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
@@ -91,8 +91,7 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
 
     # convert to dataframe
-    peaks = deimos.grid.grid2df(edges, H, dims=dims,
-                                additional=additional)
+    peaks = deimos.grid.grid2df(edges, H, dims=dims)
 
     return peaks
 
