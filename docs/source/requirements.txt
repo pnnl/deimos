@@ -9,6 +9,7 @@ matplotlib
 numpy
 pandas
 pymzml
+ripser
 scikit-learn
 scipy
 snakemake
