@@ -97,9 +97,9 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     return peaks
 
 
-def persistence_homology(features, dims=['mz', 'drift_time', 'retention_time']):
+def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
     '''
-    Peak detection by persistence homology, implemented as a sparse upper star
+    Peak detection by persistent homology, implemented as a sparse upper star
     filtration.
 
     Parameters
