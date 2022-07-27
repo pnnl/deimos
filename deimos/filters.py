@@ -30,6 +30,26 @@ def std(a, size):
 
 
 def std_pdf(edges, a, size):
+    '''
+    N-dimensional convolution of a standard deviation probability density
+    function filter.
+
+    Parameters
+    ----------
+    edges : list of :obj:`~numpy.array`
+        Edges coordinates along each grid axis.
+    a : :obj:`~numpy.array`
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    list of :obj:`~numpy.array`
+        Filtered edge data.
+
+    '''
+
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
     
@@ -138,6 +158,25 @@ def mean(a, size):
 
 
 def mean_pdf(edges, a, size):
+    '''
+    N-dimensional convolution of a mean probability density function filter.
+
+    Parameters
+    ----------
+    edges : list of :obj:`~numpy.array`
+        Edges coordinates along each grid axis.
+    a : :obj:`~numpy.array`
+        N-dimensional array of intensity data.
+    size : int or list
+        Size of the convolution kernel in each dimension.
+
+    Returns
+    -------
+    list of :obj:`~numpy.array`
+        Filtered edge data.
+
+    '''
+   
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
     
@@ -200,7 +239,7 @@ def count(a, size, nonzero=False):
 
 def skew_pdf(edges, a, size):
     '''
-    N-dimensional convolution of a skew filter.
+    N-dimensional convolution of a skew probability density function filter.
 
     Parameters
     ----------
@@ -239,7 +278,8 @@ def skew_pdf(edges, a, size):
 
 def kurtosis_pdf(edges, a, size):
     '''
-    N-dimensional convolution of a kurtosis filter.
+    N-dimensional convolution of a kurtosis probability density function
+    filter.
 
     Parameters
     ----------
