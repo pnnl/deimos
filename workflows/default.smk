@@ -14,7 +14,7 @@ lookup = {k: v for k, v in zip(IDS, fns)}
 
 rule all:
     input:
-        expand(join('output', 'peakpick', '{id}.h5'), id=IDS),
+        expand(join('output', 'peakpicked', '{id}.h5'), id=IDS),
 
 
 rule mzml2hdf:
@@ -86,7 +86,7 @@ rule peakpick:
             data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
 
             # perform peakpicking
-            peaks = deimos.peakpick.persistent_homology(dims=config['dims'])
+            peaks = deimos.peakpick.persistent_homology(data, dims=config['dims'])
 
             # save
             deimos.save(output[0], peaks, key=k, mode='a')
