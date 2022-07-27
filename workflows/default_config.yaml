@@ -3,17 +3,7 @@ dims: ['mz', 'drift_time', 'retention_time']
 accession: {'drift_time': 'MS:1002476',
             'retention_time': 'MS:1000016'}
 
-peakpick:
-  ms1:
-    bins: [37, 9, 37]
-    scale_by: mz
-    ref_res: 0.002445221
-    scale: drift_time
-  ms2:
-    bins: [37, 9, 37]
+threshold: 128
 
-partition:
-  split_on: mz
-  size: 1000
-  overlap: 0.05
-  processes: 1
+smooth:
+  radius: [0, 1, 1]

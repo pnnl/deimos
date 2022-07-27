@@ -31,11 +31,11 @@ rule mzml2hdf:
             deimos.save(output[0], v, key=k, mode='a')
 
 
-rule peakpick:
+rule threshold:
     input:
         rules.mzml2hdf.output
     output:
-        join('output', 'peakpick', '{id}.h5')
+        join('output', 'thresholded', '{id}.h5')
     run:
         # get keys
         keys = list(h5py.File(input[0], 'r').keys())
@@ -44,17 +44,49 @@ rule peakpick:
             # load data
             data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
 
-            # partition in m/z
-            partitions = deimos.partition(data,
-                                          split_on=config['partition']['split_on'],
-                                          size=config['partition']['size'],
-                                          overlap=config['partition']['overlap'])
+            # threshold
+            data = deimos.threshold(data, threshold=config['threshold'])
 
-            # perform peakpicking per partition
-            peaks = partitions.map(deimos.peakpick.local_maxima,
-                                   dims=config['dims'],
-                                   processes=config['partition']['processes'],
-                                   **config['peakpick'][k])
+            # save
+            deimos.save(output[0], data, key=k, mode='a')   
+
+
+rule smooth:
+    input:
+        rules.threshold.output
+    output:
+        join('output', 'smoothed', '{id}.h5')
+    run:
+        # get keys
+        keys = list(h5py.File(input[0], 'r').keys())
+
+        for k in keys:
+            # load data
+            data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
+
+            # perform smoothing
+            data = deimos.filters.smooth(data, dims=config['dims'],
+                                         radius=config['smooth']['radius'])
+
+            # save
+            deimos.save(output[0], data, key=k, mode='a')
+
+
+rule peakpick:
+    input:
+        rules.smooth.output
+    output:
+        join('output', 'peakpicked', '{id}.h5')
+    run:
+        # get keys
+        keys = list(h5py.File(input[0], 'r').keys())
+
+        for k in keys:
+            # load data
+            data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
+
+            # perform peakpicking
+            peaks = deimos.peakpick.persistent_homology(dims=config['dims'])
 
             # save
             deimos.save(output[0], peaks, key=k, mode='a')
