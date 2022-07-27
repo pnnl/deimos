@@ -115,6 +115,8 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
         persistence.
 
     '''
+    # safely cast to list
+    dims = deimos.utils.safelist(dims)
 
     # get indices
     idx = np.vstack([pd.factorize(features[dim], sort=True)[0] for dim in dims]).T
