@@ -1,5 +1,6 @@
 import deimos
 import numpy as np
+import pandas as pd
 from scipy import sparse
 import scipy.ndimage as ndi
 from scipy.spatial import KDTree
@@ -499,3 +500,44 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
         return V_out.flatten()
 
     return V_out
+
+
+def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
+           radius=[0, 1, 1]):
+    '''
+    Smooth data by sparse mean filtration.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    dims : str or list
+        Dimensions to perform peak detection in.
+    radius : float or list
+        Radius of the sparse filter in each dimension. Values less than
+        zero indicate no connectivity in that dimension.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Smoothed feature coordinates and intensities.
+
+    '''
+
+    # safely cast to list
+    dims = deimos.utils.safelist(dims)
+    radius = deimos.utils.safelist(radius)
+
+     # check dims
+    deimos.utils.check_length([dims, radius])
+
+    # get indices
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0] for dim in dims]).T
+
+    # values
+    V = features['intensity'].values.astype(float)
+    
+    # sparse mean filtration
+    features['intensity'] = sparse_mean_filter(idx, V, radius)
+
+    return features
