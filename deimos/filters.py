@@ -409,7 +409,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     # connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
-    # cmat.setdiag(1)
+    cmat.setdiag(1)
     
     # pair indices
     I, J = cmat.nonzero()
@@ -423,6 +423,10 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
                                 shape=cmat.shape).diagonal(0)
     
     # mean over columns
+    # return np.divide(V_sum, V_count,
+    #                  out=np.zeros_like(V_count),
+    #                  where=V_count != 0)
+
     return V_sum / V_count
 
 
@@ -493,6 +497,9 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
                                   shape=cmat.shape).diagonal(0)
 
         # mean
+        # V_out[:, i] = np.divide(V_sum, V_count,
+        #                         out=np.zeros_like(V_count),
+        #                         where=V_count != 0)
         V_out[:, i] = V_sum / V_count
     
     # flatten if 1D
