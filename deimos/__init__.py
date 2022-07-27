@@ -10,4 +10,4 @@ from deimos import plot
 from deimos.subset import threshold, collapse, locate, locate_asym, slice, partition, multi_sample_partition
 from deimos import utils
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
