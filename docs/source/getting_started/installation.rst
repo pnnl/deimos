@@ -15,7 +15,7 @@ Create the virtual environment:
 
 .. code-block:: console
   
-  $ conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels scikit-learn dask pytables
+  $ conda create -n deimos -c conda-forge -c bioconda python=3.7 numpy scipy pandas matplotlib snakemake pymzml h5py statsmodels scikit-learn dask pytables ripser
 
 Activate the virtual environment:
 
