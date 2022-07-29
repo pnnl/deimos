@@ -1,6 +1,7 @@
 import deimos
 import numpy as np
 import pytest
+
 from tests import localfile
 
 
@@ -55,4 +56,5 @@ def test_grid2df(ms1, dims, additional):
     assert 'intensity' in df.columns
 
     # Check length
-    assert len(df.loc[df['intensity'] > 0, :].index) == len(ms1.loc[ms1['intensity'] > 0, :].index)
+    assert len(df.loc[df['intensity'] > 0, :].index) == len(
+        ms1.loc[ms1['intensity'] > 0, :].index)

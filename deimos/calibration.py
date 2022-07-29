@@ -1,10 +1,12 @@
-import deimos
+import warnings
+
 import numpy as np
-from scipy.interpolate import interp1d
 import scipy.ndimage as ndi
+from scipy.interpolate import interp1d
 from scipy.optimize import minimize
 from scipy.stats import linregress
-import warnings
+
+import deimos
 
 
 class CCSCalibration:
@@ -89,7 +91,7 @@ class CCSCalibration:
 
         # buffer mass
         self.buffer_mass = buffer_mass
-        
+
         # power function indicator
         self.power = power
 
@@ -100,10 +102,11 @@ class CCSCalibration:
             self.ta = np.array(ta)
             self.ccs = np.array(ccs)
             self.q = np.array(q)
-            
+
             # derived variables
-            self.gamma = np.sqrt(self.mz * self.q / (self.mz * self.q + self.buffer_mass)) / self.q
-            self.reduced_ccs =  self.ccs * self.gamma
+            self.gamma = np.sqrt(
+                self.mz * self.q / (self.mz * self.q + self.buffer_mass)) / self.q
+            self.reduced_ccs = self.ccs * self.gamma
 
             # linear regression
             if self.power:
@@ -157,14 +160,14 @@ class CCSCalibration:
         mz = np.array(mz)
         ta = np.array(ta)
         q = np.array(q)
-        
+
         # derived variables
         gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
-        
+
         if self.power:
             return np.exp((np.log(ta) - self.tfix) / self.beta) / gamma
-        else:
-            return (ta - self.tfix) / (self.beta * gamma)
+
+        return (ta - self.tfix) / (self.beta * gamma)
 
     def ccs2arrival(self, mz, ccs, q=1):
         '''
@@ -192,10 +195,10 @@ class CCSCalibration:
         mz = np.array(mz)
         ccs = np.array(ccs)
         q = np.array(q)
-        
+
         # derived variables
         gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
-        
+
         if self.power:
             return np.exp(self.beta * np.log(gamma * ccs) + self.tfix)
         else:
@@ -252,7 +255,8 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 
 
 def tunemix(features,
-            mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+            mz=[112.985587, 301.998139, 601.978977,
+                1033.988109, 1333.968947, 1633.949786],
             ccs=[108.4, 139.8, 179.9, 254.2, 283.6, 317.7],
             q=[1, 1, 1, 1, 1, 1], buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04,
             power=False):
@@ -290,10 +294,10 @@ def tunemix(features,
     mz = np.array(mz)
     ccs = np.array(ccs)
     q = np.array(q)
-    
+
     # check lengths
     deimos.utils.check_length([mz, ccs, q])
-    
+
     # iterate tune ions
     ta = []
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
@@ -301,32 +305,35 @@ def tunemix(features,
         subset = deimos.slice(features, by='mz',
                               low=mz_i - 0.1 * mz_tol,
                               high=mz_i + mz_i * 0.9 * mz_tol)
-        
+
         # extract dt info
         dt_profile = deimos.collapse(subset, keep='drift_time')
-        dt_i = dt_profile.sort_values(by='intensity', ascending=False)['drift_time'].values[0]   
-        dt_profile = deimos.locate(dt_profile, by='drift_time', loc=dt_i, tol=dt_tol * dt_i).sort_values(by='drift_time')
-        
+        dt_i = dt_profile.sort_values(by='intensity', ascending=False)[
+            'drift_time'].values[0]
+        dt_profile = deimos.locate(
+            dt_profile, by='drift_time', loc=dt_i, tol=dt_tol * dt_i).sort_values(by='drift_time')
+
         # interpolate spline
         x = dt_profile['drift_time'].values
         y = dt_profile['intensity'].values
-        
+
         spl = interp1d(x, y, kind='quadratic')
         newx = np.arange(x.min(), x.max(), 0.001)
-        newy = spl(newx)        
+        newy = spl(newx)
         dt_j = newx[np.argmax(newy)]
-        
+
         ta.append(dt_j)
-    
+
     # calibrate
     ta = np.array(ta)
-    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass, power=power)
+    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass,
+                                            power=power)
 
 
 def cosine(a, b):
     '''
     Cosine distance (1 - similarity) between two arrays.
-    
+
     Parameters
     ----------
     a, b : :obj:`~numpy.array`
@@ -338,7 +345,7 @@ def cosine(a, b):
         Cosine distance.
 
     '''
-    
+
     a_ = a.flatten()
     b_ = b.flatten()
     return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
@@ -348,7 +355,7 @@ def objective(x, src, target, order, loss):
     '''
     Objective function for contrained (i.e. independent per dimension) affine
     transformation.
-    
+
     Parameters
     ----------
     x : :obj:`~numpy.array`
@@ -372,18 +379,18 @@ def objective(x, src, target, order, loss):
 
     # identity transform
     A = np.eye(src.ndim, src.ndim + 1)
-    
+
     # fill diagonal (scale)
     np.fill_diagonal(A, x[:src.ndim])
-    
+
     # fill last column (offset)
     A[:, -1] = x[src.ndim:]
-    
+
     # transform
     transformed = ndi.affine_transform(src, A,
                                        output_shape=target.shape,
                                        prefilter=False, order=order)
-    
+
     # suppress warnings
     # (because division error common)
     with warnings.catch_warnings():
@@ -396,7 +403,7 @@ def objective(x, src, target, order, loss):
 def rescale(a, src=[0, 1], target=[0, 1]):
     '''
     Rescale array values based on ranges in source and target.
-    
+
     Parameters
     ----------
     a : :obj:`~numpy.array`
@@ -463,12 +470,14 @@ class MS2OffsetCalibration:
         self.dims = deimos.utils.safelist(dims)
         self.ndim = len(self.dims)
         self.shape = (self.ndim, self.ndim + 1)
-        
+
         # get dimension bounds
         self.bounds = {}
-        self.bounds['ms1'] = [[ms1[dim].min(), ms1[dim].max()] for dim in self.dims]
-        self.bounds['ms2'] = [[ms2[dim].min(), ms2[dim].max()] for dim in self.dims]
-        
+        self.bounds['ms1'] = [[ms1[dim].min(), ms1[dim].max()]
+                              for dim in self.dims]
+        self.bounds['ms2'] = [[ms2[dim].min(), ms2[dim].max()]
+                              for dim in self.dims]
+
         # shared grid space
         _, self.ms1 = deimos.grid.data2grid(deimos.collapse(ms1, keep=self.dims),
                                             dims=self.dims)
@@ -478,7 +487,7 @@ class MS2OffsetCalibration:
     def calibrate(self, normalize=None, order=1, loss=cosine, method='BFGS', X0=None):
         '''
         Perform the affine transform to align MS1 and MS2.
-        
+
         Parameters
         ----------
         normalize : func
@@ -503,25 +512,25 @@ class MS2OffsetCalibration:
             The optimization result. See `~scipy.optimize.OptimizeResult`.
 
         '''
-        
+
         # normalize if function provided
         if normalize is not None:
             self.ms1 = normalize(self.ms1)
             self.ms2 = normalize(self.ms2)
-        
+
         # set X0 to identity if not provided
         if X0 is None:
             X0 = np.eye(self.ndim, self.ndim + 1)
-        
+
         # get diagonal
         diag = list(np.diagonal(X0))
-        
+
         # get last column
         offset = list(X0[:, -1])
-        
+
         # constrained X0
         X0 = diag + offset
-        
+
         # run optimization
         self.res = minimize(objective,
                             X0,
@@ -530,33 +539,33 @@ class MS2OffsetCalibration:
                                   order,
                                   loss),
                             method=method)
-        
+
         # construct affine matrix
         A_grid = np.eye(self.ndim, self.ndim + 1)
-    
+
         # fill diagonal (scale)
         np.fill_diagonal(A_grid, self.res.x[:self.ndim])
-    
+
         # fill last column (offset)
         A_grid[:, -1] = self.res.x[self.ndim:]
-        
+
         # create "full" matrix
         bottom_row = np.zeros((1, self.ndim + 1))
         bottom_row[0, -1] = 1
         A_grid = np.append(A_grid, bottom_row, axis=0)
-        
+
         # map to measurement coordinate system
         A = A_grid.copy()
         for i, dim in enumerate(self.dims):
             A[i, -1] = rescale(A[i, -1],
                                src=[0, self.ms1.shape[i]],
                                target=self.bounds['ms1'][i])
-        
+
         # invert
         self.A = np.linalg.inv(A)
 
         return self.res
-        
+
     def apply(self, ms2):
         '''
         Applies calibration to correct MS2 offset according to fit
@@ -583,10 +592,10 @@ class MS2OffsetCalibration:
         # add offset dim to array
         arr = np.hstack([arr,
                          np.ones((len(ms2.index), 1))])
-        
+
         # transform to ms1 index coords
         arr = np.dot(arr, self.A.T)[:, :-1]
-            
+
         # overwrite columns in ms2
         ms2_[self.dims] = arr
 

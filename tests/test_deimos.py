@@ -68,8 +68,8 @@ def test_calibration_namespace(attr):
                           ('sum'),
                           ('mean'),
                           ('matched_gaussian'),
-                        #   ('snr'),
-                        #   ('kurtosis'),
+                          #   ('snr'),
+                          #   ('kurtosis'),
                           ('count')])
 def test_filters_namespace(attr):
     assert hasattr(deimos.filters, attr)

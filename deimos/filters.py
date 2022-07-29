@@ -1,10 +1,11 @@
-import deimos
 import numpy as np
 import pandas as pd
-from scipy import sparse
 import scipy.ndimage as ndi
-from scipy.spatial import KDTree
 from ripser import ripser
+from scipy import sparse
+from scipy.spatial import KDTree
+
+import deimos
 
 
 def std(a, size):
@@ -53,16 +54,17 @@ def std_pdf(edges, a, size):
 
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
-    
+
     res = []
     for e in edges:
         wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
         mu = wmu / f
-        
-        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+
+        wvar = ndi.uniform_filter(
+            a * (e - mu) ** 2, size=size, mode='constant')
         var = wvar / f
         res.append(np.sqrt(var))
-        
+
     return res
 
 
@@ -177,15 +179,15 @@ def mean_pdf(edges, a, size):
         Filtered edge data.
 
     '''
-   
+
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
-    
+
     res = []
     for e in edges:
         w = ndi.uniform_filter(a * e, size=size, mode='constant')
         res.append(w / f)
-        
+
     return res
 
 
@@ -260,20 +262,22 @@ def skew_pdf(edges, a, size):
 
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
-    
+
     res = []
     for e in edges:
         wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
         mu = wmu / f
-        
-        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+
+        wvar = ndi.uniform_filter(
+            a * (e - mu) ** 2, size=size, mode='constant')
         var = wvar / f
         sigma = np.sqrt(var)
-        
-        wskew = ndi.uniform_filter(a * ((e - mu) / sigma) ** 3, size=size, mode='constant')
+
+        wskew = ndi.uniform_filter(
+            a * ((e - mu) / sigma) ** 3, size=size, mode='constant')
         skew = wskew / f
         res.append(skew)
-        
+
     return res
 
 
@@ -300,20 +304,22 @@ def kurtosis_pdf(edges, a, size):
 
     edges = np.meshgrid(*edges, indexing='ij')
     f = ndi.uniform_filter(a, size=size, mode='constant')
-    
+
     res = []
     for e in edges:
         wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
         mu = wmu / f
-        
-        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode='constant')
+
+        wvar = ndi.uniform_filter(
+            a * (e - mu) ** 2, size=size, mode='constant')
         var = wvar / f
         sigma = np.sqrt(var)
-        
-        wkurtosis = ndi.uniform_filter(a * ((e - mu) / sigma) ** 4, size=size, mode='constant')
+
+        wkurtosis = ndi.uniform_filter(
+            a * ((e - mu) / sigma) ** 4, size=size, mode='constant')
         kurtosis = wkurtosis / f
         res.append(kurtosis - 3)
-        
+
     return res
 
 
@@ -339,32 +345,32 @@ def sparse_upper_star(idx, V):
 
     # add noise to uniqueify
     V += np.random.uniform(0, 1, V.shape)
-    
+
     # connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
     cmat.setdiag(1)
-    
+
     # pairwise minimums
     I, J = cmat.nonzero()
     d = np.minimum(V[I], V[J])
-    
+
     # sparse distance matrix
     sdm = sparse.coo_matrix((d, (I, J)), shape=cmat.shape)
 
-    # persistence homology 
+    # persistence homology
     # negative for upper star, then revert
     ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
-    
+
     # bound death values
     ph[ph[:, 1] == -np.inf, 1] = np.min(V)
-    
+
     # construct tree to query against
     tree = KDTree(V.reshape((-1, 1)))
 
     # get the indexes of the first nearest neighbor by birth
     _, nn = tree.query(ph[:, 0].reshape((-1, 1)), k=1, workers=-1)
-    
+
     return nn, ph[:, 0] - ph[:, 1]
 
 
@@ -391,8 +397,8 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     # copy indices
     idx = idx.copy()
-    
-     # scale
+
+    # scale
     for i, r in enumerate(radius):
         # increase inter-index distance
         if r < 1:
@@ -405,15 +411,15 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
         # decrease inter-index distance
         else:
             idx[:, i] /= r
-    
+
     # connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
     cmat.setdiag(1)
-    
+
     # pair indices
     I, J = cmat.nonzero()
-    
+
     # sum over columns
     V_sum = sparse.bsr_matrix((V[J], (I, I)),
                               shape=cmat.shape).diagonal(0)
@@ -421,7 +427,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     # count over columns
     V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
                                 shape=cmat.shape).diagonal(0)
-    
+
     # mean over columns
     # return np.divide(V_sum, V_count,
     #                  out=np.zeros_like(V_count),
@@ -469,27 +475,27 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
         # decrease inter-index distance
         else:
             idx[:, i] /= r
-    
+
     # connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
     cmat.setdiag(1)
-    
+
     # pair indices
     I, J = cmat.nonzero()
-    
+
     # sum weights over columns
     # only need to do this once
     V_count = sparse.bsr_matrix((w[J], (I, I)),
                                 shape=cmat.shape).diagonal(0)
-    
+
     # reshape V if 1D
     if V.ndim == 1:
         V = V.reshape((-1, 1))
-    
+
     # output container
     V_out = np.empty_like(V)
-    
+
     # enumerate value columns
     for i in range(V_out.shape[1]):
         # sum weighted values over columns
@@ -501,7 +507,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
         #                         out=np.zeros_like(V_count),
         #                         where=V_count != 0)
         V_out[:, i] = V_sum / V_count
-    
+
     # flatten if 1D
     if V_out.shape[1] == 1:
         return V_out.flatten()
@@ -535,15 +541,16 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     dims = deimos.utils.safelist(dims)
     radius = deimos.utils.safelist(radius)
 
-     # check dims
+    # check dims
     deimos.utils.check_length([dims, radius])
 
     # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0] for dim in dims]).T
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0]
+                    for dim in dims]).T
 
     # values
     V = features['intensity'].values.astype(float)
-    
+
     # sparse mean filtration
     features['intensity'] = sparse_mean_filter(idx, V, radius)
 

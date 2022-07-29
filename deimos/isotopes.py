@@ -1,7 +1,8 @@
-import deimos
 import numpy as np
 import pandas as pd
 import scipy
+
+import deimos
 
 
 def OrderedSet(x):
@@ -108,11 +109,13 @@ def detect(features, dims=['mz', 'drift_time', 'retention_time'],
     isotopes = pd.concat(isotopes, axis=0, ignore_index=True)
 
     # stats
-    isotopes['error'] = np.abs((isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
+    isotopes['error'] = np.abs(
+        (isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
     isotopes['decay'] = isotopes['intensity_iso'] / isotopes['intensity']
 
     # cull non-decreasing
-    isotopes = isotopes.loc[isotopes['intensity'] > isotopes['intensity_iso'], :]
+    isotopes = isotopes.loc[isotopes['intensity']
+                            > isotopes['intensity_iso'], :]
 
     # cull high error
     isotopes = isotopes.loc[isotopes['error'] < max_error, :]

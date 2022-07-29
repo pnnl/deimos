@@ -2,6 +2,7 @@ import deimos
 import numpy as np
 import pandas as pd
 import pytest
+
 from tests import localfile
 
 
@@ -130,8 +131,8 @@ def test_slice(ms1, by, low, high, return_index):
     assert all(subset.columns == ms1.columns)
 
     for ll, hh, dim in zip(deimos.utils.safelist(low),
-                              deimos.utils.safelist(high),
-                              deimos.utils.safelist(by)):
+                           deimos.utils.safelist(high),
+                           deimos.utils.safelist(by)):
         assert subset[dim].min() >= ll
         assert subset[dim].max() <= hh
 
@@ -188,18 +189,18 @@ def test_slice_return_none(ms1, by, low, high, return_index):
 def test_locate_asym(ms1, by, loc, low, high, relative, return_index):
     if return_index is True:
         subset, idx = deimos.locate_asym(ms1, by=by, low=low, high=high,
-                                   return_index=return_index)
+                                         return_index=return_index)
     else:
         subset = deimos.locate_asym(ms1, loc=loc, by=by, low=low, high=high,
-                              return_index=return_index)
+                                    return_index=return_index)
 
     assert all(subset.columns == ms1.columns)
 
     for x, ll, hh, rel, dim in zip(deimos.utils.safelist(loc),
-                               deimos.utils.safelist(low),
-                               deimos.utils.safelist(high),
-                               deimos.utils.safelist(relative),
-                               deimos.utils.safelist(by)):
+                                   deimos.utils.safelist(low),
+                                   deimos.utils.safelist(high),
+                                   deimos.utils.safelist(relative),
+                                   deimos.utils.safelist(by)):
         if rel is True:
             assert subset[dim].min() >= x * (1 + ll)
             assert subset[dim].max() <= x * (1 + hh)
@@ -339,12 +340,14 @@ class TestPartitions:
 
         pres_a, pres_b = partitions.zipmap(deimos.alignment.tolerance, ms2,
                                            processes=processes,
-                                           dims=['mz', 'drift_time', 'retention_time'],
+                                           dims=['mz', 'drift_time',
+                                                 'retention_time'],
                                            tol=[5E-6, 0.025, 0.3],
                                            relative=[True, True, False])
 
         res_a, res_b = deimos.alignment.tolerance(ms1, ms2,
-                                                  dims=['mz', 'drift_time', 'retention_time'],
+                                                  dims=['mz', 'drift_time',
+                                                        'retention_time'],
                                                   tol=[5E-6, 0.025, 0.3],
                                                   relative=[True, True, False])
 
@@ -368,7 +371,7 @@ class TestMultiSamplePartitions:
 
     def test__compute_splits(self):
         raise NotImplementedError
-    
+
     def test_iter(self):
         raise NotImplementedError
 

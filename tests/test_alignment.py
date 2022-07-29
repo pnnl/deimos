@@ -1,5 +1,6 @@
 import deimos
 import pytest
+
 from tests import localfile
 
 
@@ -49,7 +50,8 @@ def test_match(ms1_peaks):
 
     # tolerance check
     assert all(abs(a['mz'] - b['mz']) / a['mz'] <= 5E-6)
-    assert all(abs(a['drift_time'] - b['drift_time']) / a['drift_time'] <= 0.015)
+    assert all(abs(a['drift_time'] - b['drift_time']) /
+               a['drift_time'] <= 0.015)
     assert all(abs(a['retention_time'] - b['retention_time']) <= 0.3)
 
     # one-to-one check
@@ -62,9 +64,9 @@ def test_match(ms1_peaks):
 
 
 @pytest.mark.parametrize('a_none,b_none',
-                        [(True, True),
-                         (True, False),
-                         (False, True)])
+                         [(True, True),
+                          (True, False),
+                          (False, True)])
 def test_match_pass_none(ms1_peaks, a_none, b_none):
     if a_none:
         a = None
@@ -115,7 +117,8 @@ def test_tolerance(ms1_peaks):
                                       relative=[True, True, False])
 
     assert all(abs(a['mz'] - b['mz']) / a['mz'] <= 5E-6)
-    assert all(abs(a['drift_time'] - b['drift_time']) / a['drift_time'] <= 0.015)
+    assert all(abs(a['drift_time'] - b['drift_time']) /
+               a['drift_time'] <= 0.015)
     assert all(abs(a['retention_time'] - b['retention_time']) <= 0.3)
 
 
@@ -166,6 +169,7 @@ def test_tolerance_return_none(ms1_peaks):
 
 def test_fit_spline():
     raise NotImplementedError
+
 
 def test_agglomerative_clustering():
     raise NotImplementedError

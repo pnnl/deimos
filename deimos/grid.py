@@ -1,6 +1,7 @@
-import deimos
 import numpy as np
 import pandas as pd
+
+import deimos
 
 
 def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):

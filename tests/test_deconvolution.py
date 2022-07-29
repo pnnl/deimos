@@ -2,6 +2,7 @@ import deimos
 import numpy as np
 import pandas as pd
 import pytest
+
 from tests import localfile
 
 
@@ -13,7 +14,7 @@ class TestMS2Deconvolution:
 
     def test_init(self):
         raise NotImplementedError
-    
+
     def test_cluster(self):
         raise NotImplementedError
 

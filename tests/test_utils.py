@@ -1,7 +1,8 @@
 import deimos
 import numpy as np
-from pandas.core.series import Series
 import pytest
+from pandas.core.series import Series
+
 from tests import localfile
 
 

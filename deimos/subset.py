@@ -1,9 +1,11 @@
-import dask.dataframe as dd
-import deimos
-from functools import partial
 import multiprocessing as mp
+from functools import partial
+
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
+
+import deimos
 
 
 def threshold(features, by='intensity', threshold=0):
@@ -463,7 +465,8 @@ class Partitions:
 
         result['a'] = [x[0] for x in tmp]
         idx = [x[1] for x in tmp]
-        result['b'] = [p.iloc[i, :] if i is not None else None for p, i in zip(result['b'], idx)]
+        result['b'] = [p.iloc[i, :] if i is not None else None for p,
+                       i in zip(result['b'], idx)]
 
         # combine partitions
         result['a'] = pd.concat(result['a'])
@@ -528,7 +531,8 @@ class MultiSamplePartitions:
         self.counter = 0
 
         if self.dask:
-            idx = self.features.groupby(by=self.split_on).size().compute().sort_index()
+            idx = self.features.groupby(
+                by=self.split_on).size().compute().sort_index()
         else:
             idx = self.features.groupby(by=self.split_on).size().sort_index()
 

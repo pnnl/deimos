@@ -1,12 +1,13 @@
-import deimos
-import numpy as np
-import pandas as pd
-from scipy.interpolate import griddata
 import types
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.interpolate import griddata
+
+import deimos
 
 
 class ScalarFormatterForceFormat(ScalarFormatter):
@@ -125,24 +126,25 @@ def grid(features, dims=['mz', 'drift_time'], method='nearest', gridsize=1000j,
     # colorbar axis
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('top', size='5%', pad=0.05)
-    
+
     # colorbar
     cbar = plt.colorbar(im, cax=cax, orientation='horizontal')
 
     # ticks on top
     cbar.ax.xaxis.set_ticks_position('top')
-    
+
     # custom ticks for linear case
     if kwargs.get('norm') is None:
         yfmt = ScalarFormatterForceFormat()
         yfmt.set_powerlimits((0, 0))
         cbar.ax.xaxis.set_major_formatter(yfmt)
-        
+
         oom = np.floor(np.log10(0.95 * gridded.max()))
         cmax = 0.95 * gridded.max() // 10 ** oom
-        
+
         cbar.ax.xaxis.set_ticks([1, cmax * 10 ** oom])
-        cbar.ax.xaxis.set_ticklabels(['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
+        cbar.ax.xaxis.set_ticklabels(
+            ['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
 
     # axis labels
     names = _rename(dims)
@@ -180,7 +182,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     # init figure, axes
     fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi, facecolor='white')
     gs = fig.add_gridspec(2, 3, height_ratios=[1.1, 1])
-    
+
     axes = {}
     axes['mz'] = fig.add_subplot(gs[1, 0])
     axes['dt'] = fig.add_subplot(gs[1, 1])
@@ -248,7 +250,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     tmp = deimos.collapse(features, keep=['retention_time', 'mz'])
     grid(tmp,
          dims=['retention_time', 'mz'],
-         ax=axes['rt-mz'], 
+         ax=axes['rt-mz'],
          norm=normalize_grid.get('rt-mz', None),
          **grid_kwargs)
 

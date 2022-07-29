@@ -13,7 +13,7 @@ import deimos
 
 def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, dtype=np.float32):
     '''
-    Loads data from HDF5 or mzML file. 
+    Loads data from HDF5 or mzML file.
 
     Parameters
     ----------
@@ -68,7 +68,8 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
                                             meta=meta)
 
         # other
-        raise ValueError('Only HDF5 currently supported for multi-file loading.')
+        raise ValueError(
+            'Only HDF5 currently supported for multi-file loading.')
 
     # single loader
     # hdf5
@@ -105,7 +106,7 @@ def save(path, data, key='ms1', **kwargs):
 
     ext = os.path.splitext(path)[-1].lower()
 
-     # hdf5
+    # hdf5
     if ext in ['.h5', '.hdf']:
         return deimos.io.save_hdf(path, data, key=key, **kwargs)
 
@@ -140,7 +141,7 @@ def get_accessions(path):
     for spec in data:
         spec._read_accessions()
         break
-    
+
     # return accessions
     return spec.accessions
 
@@ -215,16 +216,17 @@ def load_mzml(path, accession={}, dtype=np.float32):
         has_precursor = False
         if spec.selected_precursors:
             has_precursor = True
-            precursor_info = {'precursor_mz': spec.selected_precursors[0].get('mz', None)}
+            precursor_info = {
+                'precursor_mz': spec.selected_precursors[0].get('mz', None)}
 
         # get ms level
         level = 'ms{}'.format(spec.ms_level)
 
         # columns
         cols[level] = list(id_dict.keys()) \
-                      + list(accession.keys()) \
-                      + ['mz', 'intensity'] \
-                      + list(precursor_info.keys())
+            + list(accession.keys()) \
+            + ['mz', 'intensity'] \
+            + list(precursor_info.keys())
         m = len(cols[level])
 
         # subarray init
@@ -335,8 +337,8 @@ def load_hdf(path, key='ms1', columns=None, chunksize=1E7, meta=None):
                                         meta=meta)
 
     return deimos.io.load_hdf_single(paths,
-                                        key=key,
-                                        columns=columns)
+                                     key=key,
+                                     columns=columns)
 
 
 def load_hdf_single(path, key='ms1', columns=None):
@@ -389,7 +391,8 @@ def load_hdf_multi(paths, key='ms1', columns=None, chunksize=1E7, meta=None):
 
     '''
 
-    df = [dd.read_hdf(x, key=key, chunksize=int(chunksize), columns=columns) for x in paths]
+    df = [dd.read_hdf(x, key=key, chunksize=int(
+        chunksize), columns=columns) for x in paths]
 
     # label each sample
     for i in range(len(paths)):

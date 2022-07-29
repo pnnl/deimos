@@ -1,6 +1,7 @@
-import deimos
 import numpy as np
 import pandas as pd
+
+import deimos
 
 
 def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
@@ -76,17 +77,17 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
 
     # grid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
-    
+
     # # mean pdf
     # additional = {dim + '_mean': x for dim, x in zip(dims,
     #                                                  deimos.filters.mean_pdf(edges, H, bins_half))}
-    
+
     # # coverage
     # additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
-    
+
     # # smooth
     # H = deimos.filters.sum(H, [1, 3, 3])
-    
+
     # peak detection
     H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
 
@@ -119,11 +120,12 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
     dims = deimos.utils.safelist(dims)
 
     # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0] for dim in dims]).T
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0]
+                    for dim in dims]).T
 
     # values
     V = features['intensity'].values.astype(float)
-    
+
     # upper star filtration
     pidx, pers = deimos.filters.sparse_upper_star(idx, V)
 

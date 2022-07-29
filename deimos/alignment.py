@@ -1,10 +1,10 @@
-import deimos
 import numpy as np
-import pandas as pd
 import scipy
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.svm import SVR
+
+import deimos
 
 
 def match(a, b, dims=['mz', 'drift_time', 'retention_time'],
@@ -334,10 +334,10 @@ def agglomerative_clustering(features,
     # perform clustering
     try:
         clustering = AgglomerativeClustering(n_clusters=None,
-                                            linkage='complete',
-                                            affinity='precomputed',
-                                            distance_threshold=1,
-                                            connectivity=cmat).fit(distances)
+                                             linkage='complete',
+                                             affinity='precomputed',
+                                             distance_threshold=1,
+                                             connectivity=cmat).fit(distances)
         features['cluster'] = clustering.labels_
     except:
         features['cluster'] = np.arange(len(features.index))

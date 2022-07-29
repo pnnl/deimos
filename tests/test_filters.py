@@ -53,7 +53,7 @@ def test_mean(array, size, expected):
 
 
 @pytest.mark.parametrize('array,size,expected',
-                         [(np.arange(5.), 5, [0.43195254, 0.52385218, 0.5883779 , 0.61199644, 0.58946036])])
+                         [(np.arange(5.), 5, [0.43195254, 0.52385218, 0.5883779, 0.61199644, 0.58946036])])
 def test_matched_gaussian(array, size, expected):
     result = deimos.filters.matched_gaussian(array, size)
     assert (np.abs(result - expected) <= 1E-3).all()

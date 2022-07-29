@@ -1,13 +1,7 @@
-from deimos import alignment
-from deimos import calibration
-from deimos import deconvolution
-from deimos import filters
-from deimos import grid
-from deimos.io import save, load, get_accessions
-from deimos import isotopes
-from deimos import peakpick
-from deimos import plot
-from deimos.subset import threshold, collapse, locate, locate_asym, slice, partition, multi_sample_partition
-from deimos import utils
+from deimos import (alignment, calibration, deconvolution, filters, grid,
+                    isotopes, peakpick, plot, utils)
+from deimos.io import get_accessions, load, save
+from deimos.subset import (collapse, locate, locate_asym,
+                           multi_sample_partition, partition, slice, threshold)
 
 __version__ = "1.2.1"

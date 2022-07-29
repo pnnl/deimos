@@ -1,11 +1,12 @@
-import deimos
 import os
+
+import deimos
 import sphinx_skeleton as ss
 
 if __name__ == "__main__":
     # generic package reference
     package = deimos
-    
+
     # modules
     modules = ss.get_modules(os.path.dirname(package.__file__))
 
@@ -73,16 +74,14 @@ if __name__ == "__main__":
         # top level
         if package.__name__ in key:
             string += '\t:imported-members:\n'
-        
+
         return string
 
-    
     def license_fxn(key):
         string = ss.generate_title(key)
         string += license
         return string
 
-    
     def citation_fxn(key):
         string = ss.generate_title(key)
         string += ('If you would like to reference {} in an academic paper,'
