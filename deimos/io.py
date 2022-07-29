@@ -1,15 +1,17 @@
-from collections import OrderedDict
+import os
+import warnings
+from collections import OrderedDict, defaultdict
+
 import dask.dataframe as dd
-import deimos
 import h5py
 import numpy as np
-import os
 import pandas as pd
 import pymzml
-import warnings
+
+import deimos
 
 
-def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
+def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, dtype=np.float32):
     '''
     Loads data from HDF5 or mzML file. 
 
@@ -32,6 +34,8 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
         Key-value pairs signaling which features to parse for in the mzML file.
         mzML format only. See :func:`~deimos.io.get_accessions` to obtain
         available values.
+    dtype : data type
+        Data type to encode values. mzML format only.
 
     Returns
     -------
@@ -62,24 +66,21 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}):
                                             columns=columns,
                                             chunksize=chunksize,
                                             meta=meta)
-        
+
         # other
-        else:
-            raise ValueError('Only HDF5 currently supported for multi-file loading.')
-    
+        raise ValueError('Only HDF5 currently supported for multi-file loading.')
+
     # single loader
-    else:
-        # hdf5
-        if ext in ['.h5', '.hdf']:
-            return deimos.io.load_hdf_single(path, key=key, columns=columns)
+    # hdf5
+    if ext in ['.h5', '.hdf']:
+        return deimos.io.load_hdf_single(path, key=key, columns=columns)
 
-        # mzml
-        elif ext in ['.gz', '.mzml']:
-            return deimos.io.load_mzml(path, accession=accession)
+    # mzml
+    if ext in ['.gz', '.mzml']:
+        return deimos.io.load_mzml(path, accession=accession, dtype=dtype)
 
-        # other
-        else:
-            raise ValueError('Only HDF5 and mzML currently supported.')
+    # other
+    raise ValueError('Only HDF5 and mzML currently supported.')
 
 
 def save(path, data, key='ms1', **kwargs):
@@ -109,12 +110,11 @@ def save(path, data, key='ms1', **kwargs):
         return deimos.io.save_hdf(path, data, key=key, **kwargs)
 
     # mzml
-    elif ext in ['.mgf']:
+    if ext in ['.mgf']:
         return deimos.io.save_mgf(path, data, **kwargs)
 
     # other
-    else:
-        raise ValueError('Only HDF5 and MGF currently supported.')
+    raise ValueError('Only HDF5 and MGF currently supported.')
 
 
 def get_accessions(path):
@@ -145,7 +145,7 @@ def get_accessions(path):
     return spec.accessions
 
 
-def load_mzml(path, accession={}):
+def load_mzml(path, accession={}, dtype=np.float32):
     '''
     Loads in an mzML file, parsing for accession values, to yield a
     :obj:`~pandas.DataFrame`.
@@ -158,6 +158,8 @@ def load_mzml(path, accession={}):
         Key-value pairs signaling which features to parse for in the mzML file.
         See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
         frame, m/z, and intensity are parsed by default.
+    dtype : data type
+        Data type to encode values.
 
     Returns
     -------
@@ -173,57 +175,62 @@ def load_mzml(path, accession={}):
     # ordered dict
     accession = OrderedDict(accession)
 
-    # define columns with known integer values
-    integer_cols = ['frame', 'scan', 'intensity']
+    # result container
+    res = {}
+
+    # row count container
+    counter = {}
 
     # column name container
     cols = {}
 
-    # result container
-    res = {}
+    # first pass: get nrows
+    N = defaultdict(lambda: 0)
+    for i, spec in enumerate(data):
+        # get ms level
+        level = 'ms{}'.format(spec.ms_level)
 
-    # enumerate spectra
+        # number of rows
+        N[level] += spec.mz.shape[0]
+
+    # second pass: parse
     for i, spec in enumerate(data):
         # number of rows
         n = spec.mz.shape[0]
-        
+
         # no measurements
         if n == 0:
             continue
-            
+
         # dimension check
         if len(spec.mz) != len(spec.i):
             warnings.warn("m/z and intensity array dimension mismatch")
             continue
-            
+
         # scan/frame info
         id_dict = spec.id_dict
-            
+
         # check for precursor
         precursor_info = {}
         has_precursor = False
         if spec.selected_precursors:
             has_precursor = True
             precursor_info = {'precursor_mz': spec.selected_precursors[0].get('mz', None)}
-        
+
         # get ms level
         level = 'ms{}'.format(spec.ms_level)
-        
-        # append to result container
-        if level not in res:
-            res[level] = []
 
         # columns
         cols[level] = list(id_dict.keys()) \
-                    + list(accession.keys()) \
-                    + ['mz', 'intensity'] \
-                    + list(precursor_info.keys())
+                      + list(accession.keys()) \
+                      + ['mz', 'intensity'] \
+                      + list(precursor_info.keys())
         m = len(cols[level])
-        
-        # array init
-        arr = np.empty((n, m), dtype=float)
+
+        # subarray init
+        arr = np.empty((n, m), dtype=dtype)
         inx = 0
-                    
+
         # populate scan/frame info
         for k, v in id_dict.items():
             arr[:, inx] = v
@@ -233,11 +240,11 @@ def load_mzml(path, accession={}):
         for k, v in accession.items():
             arr[:, inx] = spec.get(v)
             inx += 1
-            
+
         # populate m/z
         arr[:, inx] = spec.mz
         inx += 1
-            
+
         # populate intensity
         arr[:, inx] = spec.i
         inx += 1
@@ -248,15 +255,19 @@ def load_mzml(path, accession={}):
                 arr[:, inx] = v
                 inx += 1
 
-        # append array
-        res[level].append(arr)
+        # initialize output container
+        if level not in res:
+            res[level] = np.empty((N[level], m), dtype=dtype)
+            counter[level] = 0
 
-    # concatenate
-    to_int = [x for x in cols[level] if x in integer_cols]
+        # insert subarray
+        res[level][counter[level]:counter[level] + n, :] = arr
+        counter[level] += n
+
+    # construct data frames
     for level in res.keys():
-        res[level] = pd.DataFrame(np.concatenate(res[level], axis=0), columns=cols[level])
-        res[level][to_int] = res[level][to_int].astype(int)
-    
+        res[level] = pd.DataFrame(res[level], columns=cols[level])
+
     return res
 
 
@@ -323,10 +334,9 @@ def load_hdf(path, key='ms1', columns=None, chunksize=1E7, meta=None):
                                         chunksize=chunksize,
                                         meta=meta)
 
-    else:
-        return deimos.io.load_hdf_single(paths,
-                                         key=key,
-                                         columns=columns)
+    return deimos.io.load_hdf_single(paths,
+                                        key=key,
+                                        columns=columns)
 
 
 def load_hdf_single(path, key='ms1', columns=None):
