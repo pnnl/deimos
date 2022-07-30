@@ -348,19 +348,32 @@ def sparse_upper_star(idx, V):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pairwise minimums
     I, J = cmat.nonzero()
     d = np.minimum(V[I], V[J])
 
+    # delete connectiity matrix
+    cmat_shape = cmat.shape
+    del cmat
+
     # sparse distance matrix
-    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat.shape)
+    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape)
+    
+    # delete pairwise mins
+    del d, I, J
 
     # persistence homology
     # negative for upper star, then revert
     ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
+
+    # cast to same type as V
+    ph = ph.astype(V.dtype)
+    
+    # delete distance matrix
+    del sdm
 
     # bound death values
     ph[ph[:, 1] == -np.inf, 1] = np.min(V)
@@ -414,24 +427,23 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pair indices
     I, J = cmat.nonzero()
 
+    # delete cmat
+    cmat_shape = cmat.shape
+    del cmat
+
     # sum over columns
     V_sum = sparse.bsr_matrix((V[J], (I, I)),
-                              shape=cmat.shape).diagonal(0)
+                              shape=cmat_shape).diagonal(0)
 
     # count over columns
     V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
-                                shape=cmat.shape).diagonal(0)
-
-    # mean over columns
-    # return np.divide(V_sum, V_count,
-    #                  out=np.zeros_like(V_count),
-    #                  where=V_count != 0)
+                                shape=cmat_shape).diagonal(0)
 
     return V_sum / V_count
 
@@ -478,16 +490,20 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf)
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pair indices
     I, J = cmat.nonzero()
 
+    # delete connectivity matrix
+    cmat_shape = cmat.shape
+    del cmat
+
     # sum weights over columns
     # only need to do this once
     V_count = sparse.bsr_matrix((w[J], (I, I)),
-                                shape=cmat.shape).diagonal(0)
+                                shape=cmat_shape).diagonal(0)
 
     # reshape V if 1D
     if V.ndim == 1:
@@ -500,12 +516,8 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
     for i in range(V_out.shape[1]):
         # sum weighted values over columns
         V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
-                                  shape=cmat.shape).diagonal(0)
+                                  shape=cmat_shape).diagonal(0)
 
-        # mean
-        # V_out[:, i] = np.divide(V_sum, V_count,
-        #                         out=np.zeros_like(V_count),
-        #                         where=V_count != 0)
         V_out[:, i] = V_sum / V_count
 
     # flatten if 1D
@@ -545,11 +557,11 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     deimos.utils.check_length([dims, radius])
 
     # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0]
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
                     for dim in dims]).T
 
     # values
-    V = features['intensity'].values.astype(float)
+    V = features['intensity'].values
 
     # sparse mean filtration
     features['intensity'] = sparse_mean_filter(idx, V, radius)

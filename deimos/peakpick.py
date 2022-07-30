@@ -120,11 +120,11 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
     dims = deimos.utils.safelist(dims)
 
     # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0]
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
                     for dim in dims]).T
 
     # values
-    V = features['intensity'].values.astype(float)
+    V = features['intensity'].values
 
     # upper star filtration
     pidx, pers = deimos.filters.sparse_upper_star(idx, V)
