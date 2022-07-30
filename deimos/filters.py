@@ -348,7 +348,8 @@ def sparse_upper_star(idx, V):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(
+        cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pairwise minimums
@@ -360,8 +361,8 @@ def sparse_upper_star(idx, V):
     del cmat
 
     # sparse distance matrix
-    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape)
-    
+    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape, dtype=V.dtype)
+
     # delete pairwise mins
     del d, I, J
 
@@ -371,7 +372,7 @@ def sparse_upper_star(idx, V):
 
     # cast to same type as V
     ph = ph.astype(V.dtype)
-    
+
     # delete distance matrix
     del sdm
 
@@ -427,7 +428,8 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(
+        cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pair indices
@@ -439,11 +441,13 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     # sum over columns
     V_sum = sparse.bsr_matrix((V[J], (I, I)),
-                              shape=cmat_shape).diagonal(0)
+                              shape=cmat_shape,
+                              dtype=V.dtype).diagonal(0)
 
     # count over columns
     V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
-                                shape=cmat_shape).diagonal(0)
+                                shape=cmat_shape,
+                                dtype=V.dtype).diagonal(0)
 
     return V_sum / V_count
 
@@ -490,7 +494,8 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
 
     # connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(
+        cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
     # pair indices
@@ -503,20 +508,22 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
     # sum weights over columns
     # only need to do this once
     V_count = sparse.bsr_matrix((w[J], (I, I)),
-                                shape=cmat_shape).diagonal(0)
+                                shape=cmat_shape,
+                                dtype=V.dtype).diagonal(0)
 
     # reshape V if 1D
     if V.ndim == 1:
         V = V.reshape((-1, 1))
 
     # output container
-    V_out = np.empty_like(V)
+    V_out = np.empty_like(V, dtype=V.dtype)
 
     # enumerate value columns
     for i in range(V_out.shape[1]):
         # sum weighted values over columns
         V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
-                                  shape=cmat_shape).diagonal(0)
+                                  shape=cmat_shape,
+                                  dtype=V.dtype).diagonal(0)
 
         V_out[:, i] = V_sum / V_count
 
