@@ -98,7 +98,7 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
 
 
 def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
-                        radius=[1, 1, 1]):
+                        radius=None):
     '''
     Peak detection by persistent homology, implemented as a sparse upper star
     filtration.
@@ -109,9 +109,9 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
         Input feature coordinates and intensities.
     dims : str or list
         Dimensions to perform peak detection in.
-    radius : float or list
-        Radius of the sparse weighted mean filter in each dimension. Values less
-        than one indicate no connectivity in that dimension.
+    radius : float, list, or None
+        If specified, radius of the sparse weighted mean filter in each dimension.
+        Values less than one indicate no connectivity in that dimension.
 
     Returns
     -------
@@ -123,13 +123,15 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
 
     # safely cast to list
     dims = deimos.utils.safelist(dims)
-    radius = deimos.utils.safelist(radius)
+    if radius is not None:
+        radius = deimos.utils.safelist(radius)
 
     # check lenghts
-    deimos.utils.check_length([dims, radius])
+    if radius is not None:
+        deimos.utils.check_length([dims, radius])
 
     # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
+    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.float32)
                     for dim in dims]).T
 
     # values
@@ -145,9 +147,10 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
     peaks['persistence'] = pers
 
     # weighted mean
-    vals = deimos.filters.sparse_weighted_mean_filter(idx, features[dims].values,
-                                                      V, radius=radius)
-    for i, dim in enumerate(dims):
-        peaks[dim + '_weighted'] = vals[:, i]
+    if radius is not None:
+        vals = deimos.filters.sparse_weighted_mean_filter(idx, features[dims].values,
+                                                          V, radius=radius, pindex=pidx)
+        for i, dim in enumerate(dims):
+            peaks[dim + '_weighted'] = vals[:, i]
 
     return peaks
