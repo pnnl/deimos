@@ -370,9 +370,6 @@ def sparse_upper_star(idx, V):
     # negative for upper star, then revert
     ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
 
-    # cast to same type as V
-    ph = ph.astype(V.dtype)
-
     # delete distance matrix
     del sdm
 
@@ -410,7 +407,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     '''
 
     # copy indices
-    idx = idx.copy()
+    idx = idx.copy().astype(V.dtype)
 
     # scale
     for i, r in enumerate(radius):
@@ -452,7 +449,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     return V_sum / V_count
 
 
-def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
+def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
     '''
     Sparse implementation of a weighted mean filter.
 
@@ -466,7 +463,9 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
         Array of intensity data (Mx1).
     radius : float or list
         Radius of the sparse filter in each dimension. Values less than
-        zero indicate no connectivity in that dimension.
+        one indicate no connectivity in that dimension.
+    pindex : :obj:`~numpy.array`
+        Index of points to evaluate the weighted mean.
 
     Returns
     -------
@@ -476,7 +475,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
     '''
 
     # copy indices
-    idx = idx.copy()
+    idx = idx.copy().astype(w.dtype)
 
     # scale
     for i, r in enumerate(radius):
@@ -491,15 +490,23 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
         # decrease inter-index distance
         else:
             idx[:, i] /= r
+            
+    if pindex is None:
+        pindex = np.arange(len(idx))
 
     # connectivity matrix
-    cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(
-        cmat, 1, p=np.inf, output_type='coo_matrix')
-    cmat.setdiag(1)
+    tree_all = KDTree(idx)
+    tree_subset = KDTree(idx[pindex])
+    cmat = tree_subset.sparse_distance_matrix(
+        tree_all, 1, p=np.inf, output_type='coo_matrix')
+    del tree_all, tree_subset
 
     # pair indices
     I, J = cmat.nonzero()
+    
+    # self
+    I = np.concatenate((I, np.arange(len(pindex))))
+    J = np.concatenate((J, pindex))
 
     # delete connectivity matrix
     cmat_shape = cmat.shape
@@ -509,21 +516,21 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1]):
     # only need to do this once
     V_count = sparse.bsr_matrix((w[J], (I, I)),
                                 shape=cmat_shape,
-                                dtype=V.dtype).diagonal(0)
+                                dtype=w.dtype).diagonal(0)
 
     # reshape V if 1D
     if V.ndim == 1:
         V = V.reshape((-1, 1))
 
     # output container
-    V_out = np.empty_like(V, dtype=V.dtype)
+    V_out = np.empty_like(V[pindex, :], dtype=w.dtype)
 
     # enumerate value columns
     for i in range(V_out.shape[1]):
         # sum weighted values over columns
         V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
                                   shape=cmat_shape,
-                                  dtype=V.dtype).diagonal(0)
+                                  dtype=w.dtype).diagonal(0)
 
         V_out[:, i] = V_sum / V_count
 
