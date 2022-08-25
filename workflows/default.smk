@@ -66,7 +66,7 @@ rule smooth:
 
             # perform smoothing
             data = deimos.filters.smooth(data, dims=config['dims'],
-                                         radius=config['smooth']['radius'])
+                                         radius=config['radius']['smooth'])
 
             # save
             deimos.save(output[0], data, key=k, mode='a')
@@ -86,7 +86,8 @@ rule peakpick:
             data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
 
             # perform peakpicking
-            peaks = deimos.peakpick.persistent_homology(data, dims=config['dims'])
+            peaks = deimos.peakpick.persistent_homology(data, dims=config['dims'],
+                                                        radius=config['radius']['weighted_mean'])
 
             # save
             deimos.save(output[0], peaks, key=k, mode='a')
