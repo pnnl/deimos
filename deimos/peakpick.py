@@ -97,7 +97,8 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     return peaks
 
 
-def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
+def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
+                        radius=[1, 1, 1]):
     '''
     Peak detection by persistent homology, implemented as a sparse upper star
     filtration.
@@ -108,6 +109,9 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
         Input feature coordinates and intensities.
     dims : str or list
         Dimensions to perform peak detection in.
+    radius : float or list
+        Radius of the sparse weighted mean filter in each dimension. Values less
+        than one indicate no connectivity in that dimension.
 
     Returns
     -------
@@ -116,8 +120,13 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
         persistence.
 
     '''
+
     # safely cast to list
     dims = deimos.utils.safelist(dims)
+    radius = deimos.utils.safelist(radius)
+
+    # check lenghts
+    deimos.utils.check_length([dims, radius])
 
     # get indices
     idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
@@ -134,5 +143,11 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time']):
 
     # add persistence column
     peaks['persistence'] = pers
+
+    # weighted mean
+    vals = deimos.filters.sparse_weighted_mean_filter(idx, features[dims].values,
+                                                      V, radius=radius)
+    for i, dim in enumerate(dims):
+        peaks[dim + '_weighted'] = vals[:, i]
 
     return peaks
