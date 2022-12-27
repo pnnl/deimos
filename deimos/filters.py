@@ -570,6 +570,9 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([dims, radius])
 
+    # copy input
+    features = features.copy()
+
     # get indices
     idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
                     for dim in dims]).T
