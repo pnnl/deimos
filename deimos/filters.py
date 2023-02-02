@@ -345,7 +345,7 @@ def sparse_upper_star(idx, V):
     '''
 
     # add noise to uniqueify
-    V += np.random.uniform(0, 1, V.shape)
+    V = V.copy() + np.random.uniform(0, 1, V.shape)
 
     # connectivity matrix
     cmat = KDTree(idx)
