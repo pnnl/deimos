@@ -4,6 +4,7 @@ import scipy.ndimage as ndi
 from ripser import ripser
 from scipy import sparse
 from scipy.spatial import KDTree
+from sklearn.utils.sparsefuncs import _get_median
 
 import deimos
 
@@ -490,7 +491,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
         # decrease inter-index distance
         else:
             idx[:, i] /= r
-            
+
     if pindex is None:
         pindex = np.arange(len(idx))
 
@@ -503,7 +504,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
 
     # pair indices
     I, J = cmat.nonzero()
-    
+
     # self
     I = np.concatenate((I, np.arange(len(pindex))))
     J = np.concatenate((J, pindex))
@@ -539,6 +540,74 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
         return V_out.flatten()
 
     return V_out
+
+
+def sparse_median_filter(idx, V, radius=[0, 1, 1]):
+    '''
+    Sparse implementation of a median filter.
+
+    Parameters
+    ----------
+    idx : :obj:`~numpy.array`
+        Edge indices for each dimension (MxN).
+    V : :obj:`~numpy.array`
+        Array of intensity data (Mx1).
+    radius : float or list
+        Radius of the sparse filter in each dimension. Values less than
+        zero indicate no connectivity in that dimension.
+
+    Returns
+    -------
+    :obj:`~numpy.array`
+        Filtered intensities (Mx1).
+
+    '''
+
+    # copy indices
+    idx = idx.copy().astype(V.dtype)
+
+    # scale
+    for i, r in enumerate(radius):
+        # increase inter-index distance
+        if r < 1:
+            idx[:, i] *= 2
+
+        # do nothing
+        elif r == 1:
+            pass
+
+        # decrease inter-index distance
+        else:
+            idx[:, i] /= r
+
+    # connectivity matrix
+    cmat = KDTree(idx)
+    cmat = cmat.sparse_distance_matrix(
+        cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat.setdiag(1)
+
+    # pair indices
+    I, J = cmat.nonzero()
+
+    # delete cmat
+    cmat_shape = cmat.shape
+    del cmat
+
+    X = sparse.csc_matrix((V[I], (I, J)),
+                          shape=cmat_shape,
+                          dtype=V.dtype)
+
+    indptr = X.indptr
+    n_samples, n_features = X.shape
+    median = np.empty(n_features, dtype=V.dtype)
+
+    for f_ind, (start, end) in enumerate(zip(indptr[:-1], indptr[1:])):
+
+        # Prevent modifying X in place
+        data = np.copy(X.data[start:end])
+        median[f_ind] = _get_median(data, 0)
+
+    return median
 
 
 def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
