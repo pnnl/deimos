@@ -611,7 +611,7 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
 
 
 def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
-           radius=[0, 1, 1]):
+           radius=[0, 1, 1], iterations=1, tol=0.0):
     '''
     Smooth data by sparse mean filtration.
 
@@ -624,6 +624,11 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     radius : float or list
         Radius of the sparse filter in each dimension. Values less than
         zero indicate no connectivity in that dimension.
+    iterations : int
+        Maximum number of smoothing iterations to perform.
+    tol : float
+        Stopping criteria based on residual with previous iteration.
+        Selecting zero will perform all specified iterations.
 
     Returns
     -------
@@ -648,8 +653,30 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
 
     # values
     V = features['intensity'].values
+    resid = np.inf
 
     # sparse mean filtration
-    features['intensity'] = sparse_mean_filter(idx, V, radius)
+    for i in range(iterations):
+        # previous iteration
+        V_prev = V.copy()
+        resid_prev = resid
+        
+        # compute smooth
+        V = deimos.filters.sparse_mean_filter(idx, V, radius=radius)
+        
+        # calculate residual with previous iteration
+        resid = np.sqrt(np.mean(np.square(V - V_prev)))
+        
+        # evaluate convergence   
+        if i > 0:
+            # percent change in residual
+            test = np.abs(resid - resid_prev) / resid_prev
+
+            # exit criteria
+            if test <= tol:
+                break
+
+    # overwrite values
+    features['intensity'] = V
 
     return features
