@@ -473,9 +473,9 @@ class MS2OffsetCalibration:
 
         # get dimension bounds
         self.bounds = {}
-        self.bounds['ms1'] = [[ms1[dim].min(), ms1[dim].max()]
+        self.bounds['ms1'] = [[np.floor(ms1[dim].min()), np.ceil(ms1[dim].max())]
                               for dim in self.dims]
-        self.bounds['ms2'] = [[ms2[dim].min(), ms2[dim].max()]
+        self.bounds['ms2'] = [[np.floor(ms2[dim].min()), np.ceil(ms2[dim].max())]
                               for dim in self.dims]
 
         # shared grid space
