@@ -104,15 +104,64 @@ class MS2Deconvolution:
 
         '''
 
-        clusters = deimos.alignment.agglomerative_clustering(pd.concat((self.ms1_features,
-                                                                        self.ms2_features),
-                                                                       ignore_index=True,
-                                                                       axis=0),
-                                                             dims=dims,
-                                                             tol=tol,
-                                                             relative=relative)
-        self.clusters = clusters
+        # safely cast to list
+        dims = deimos.utils.safelist(dims)
+        tol = deimos.utils.safelist(tol)
+        relative = deimos.utils.safelist(relative)
+
+        # check dims
+        deimos.utils.check_length([dims, tol, relative])
+
+        ms1_clusts = deimos.alignment.agglomerative_clustering(self.ms1_features,
+                                                               dims=dims,
+                                                               tol=tol,
+                                                               relative=relative)
+
+        # compute inter-feature distances
+        distances = []
+        for i, d in enumerate(dims):
+            # vectors
+            v1 = self.ms1_features[d].values.reshape(-1, 1)
+            v2 = self.ms2_features[d].values.reshape(-1, 1)
+
+            # distances
+            dist = cdist(v1, v2)
+
+            if relative[i] is True:
+                # divisor
+                basis = np.repeat(v1, v2.shape[0], axis=1)
+                fix = np.repeat(v2, v1.shape[0], axis=1).T
+                basis = np.where(basis == 0, fix, basis)
+
+                # divide
+                dist = np.divide(dist, basis, out=np.zeros_like(basis), where=basis != 0)
+
+            # check tol
+            # half because linkage distance is full cluster width
+            distances.append(dist / (tol[i] / 2))
+
+        # stack distances
+        distances = np.dstack(distances)
+
+        # max distance
+        distances = np.max(distances, axis=-1)
+
+        # closest
+        cluster_index = np.argmin(distances, axis=0)
+        cluster_dists = np.min(distances, axis=0)
+
+        # assign clusters
+        ms2_clusts = self.ms2_features.copy()
+        ms2_clusts['cluster'] = ms1_clusts['cluster'].values[cluster_index]
+
+        # filter far points
+        ms2_clusts = ms2_clusts.loc[cluster_dists <= 1, :]
+
+        # Combine ms1, ms2
+        self.clusters = pd.concat((ms1_clusts, ms2_clusts), ignore_index=True)
+        
         return self.clusters
+
 
     def configure_profile_extraction(self, dims=['mz', 'drift_time', 'retention_time'],
                                      low=[-100E-6, -0.05, -0.3], high=[400E-6, 0.05, 0.3],
@@ -246,7 +295,6 @@ class MS2Deconvolution:
                     v_ms2 = np.vstack([x[dim](newx) for x in ms2_profiles])
 
                     # similarity matrix
-
                     H = 1 - cdist(v_ms1, v_ms2, metric='cosine')
 
                     # add column
