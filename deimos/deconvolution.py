@@ -78,9 +78,6 @@ class MS2Deconvolution:
         self.ms2_features = ms2_features
         self.ms2_data = ms2_data
 
-        self.ms1_features['ms_level'] = 1
-        self.ms2_features['ms_level'] = 2
-
     def cluster(self, dims=['drift_time', 'retention_time'],
                 tol=[0.1, 0.3], relative=[True, False]):
         '''
@@ -112,7 +109,12 @@ class MS2Deconvolution:
         # check dims
         deimos.utils.check_length([dims, tol, relative])
 
-        ms1_clusts = deimos.alignment.agglomerative_clustering(self.ms1_features,
+        ms1_clusts = self.ms1_features.copy()
+        ms1_clusts['ms_level'] = 1
+        ms2_clusts = self.ms2_features.copy()
+        ms2_clusts['ms_level'] = 2
+
+        ms1_clusts = deimos.alignment.agglomerative_clustering(ms1_clusts,
                                                                dims=dims,
                                                                tol=tol,
                                                                relative=relative)
@@ -151,7 +153,6 @@ class MS2Deconvolution:
         cluster_dists = np.min(distances, axis=0)
 
         # assign clusters
-        ms2_clusts = self.ms2_features.copy()
         ms2_clusts['cluster'] = ms1_clusts['cluster'].values[cluster_index]
 
         # filter far points

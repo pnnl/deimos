@@ -296,6 +296,9 @@ def agglomerative_clustering(features,
     # check dims
     deimos.utils.check_length([dims, tol, relative])
 
+    # copy input
+    features = features.copy()
+
     # connectivity
     if 'sample_idx' not in features.columns:
         cmat = None
