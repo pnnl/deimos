@@ -40,7 +40,7 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
 
         # fit univariate spline
         try:
-            uspline = UnivariateSpline(x, y, s=0, ext=3)
+            uspline = UnivariateSpline(x, y, s=0, ext=1)
         except:
             def uspline(x): return np.zeros_like(x)
 
