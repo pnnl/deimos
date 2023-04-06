@@ -1,9 +1,28 @@
+import deimos
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.spatial.distance import cdist
+from scipy.spatial.kdtree import KDTree
 
-import deimos
+
+def cosine(a, b):
+    '''
+    Cosine distance (1 - similarity) between two arrays.
+
+    Parameters
+    ----------
+    a, b : :obj:`~numpy.array`
+        N-dimensional arrays.
+
+    Returns
+    -------
+    float
+        Cosine distance.
+    '''
+
+    a_ = a.flatten()
+    b_ = b.flatten()
+    return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
 
 
 def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
@@ -16,13 +35,11 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
         Input feature coordinates and intensities.
     dims : str or list
         Dimensions considered in generating 1D profile(s).
-
     Returns
     -------
     :obj:`dict` of :obj:`~scipy.interpolate.UnivariateSpline`
         Dictionary indexed by dimension containing univariate
         splines for each 1D profile.
-
     '''
 
     # safely cast to list
@@ -47,6 +64,30 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
         profiles[dim] = uspline
 
     return profiles
+
+
+def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=0,
+                            params=[0.03025101, 0.99329585, 0.03465899, -0.02081317, -1.07780131]):
+    # Cast params as array
+    params = np.array(params).reshape(-1, 1)
+
+    # Convert collision energy to array
+    ce = np.ones_like(dt_ms2) / ce
+
+    # Create constant vector
+    const = np.ones_like(dt_ms2)
+
+    # Sqrt
+    mu_ms1 = np.sqrt(mz_ms1)
+    mu_ms2 = np.sqrt(mz_ms2)
+
+    # Create dependent array
+    x = np.stack((const, dt_ms2, mu_ms1, mu_ms2, ce), axis=1)
+
+    # Predict
+    y = np.dot(x, params)
+
+    return y
 
 
 class MS2Deconvolution:
@@ -78,96 +119,132 @@ class MS2Deconvolution:
         self.ms2_features = ms2_features
         self.ms2_data = ms2_data
 
-    def cluster(self, dims=['drift_time', 'retention_time'],
-                tol=[0.1, 0.3], relative=[True, False]):
+    def construct_putative_pairs(self, dims=['drift_time', 'retention_time'],
+                                 low=[-0.12, -0.1], high=[1.4, 0.1], ce=None,
+                                 model=offset_correction_model,
+                                 require_ms1_greater_than_ms2=True,
+                                 error_tolerance=0.12):
         '''
-        Performs clustering in deconvolution dimensions in MS1 and MS2
-        simultaneously.
+        Determine each possible MS1:MS2 pair within specified tolerances. If
+        considering drift time, apply a model to correct for drift time 
+        offset such that MS2 can be downselected by respective error in drift
+        time (i.e. a poor model correction suggests an incorrect MS1:MS2 pair).
 
         Parameters
         ----------
-        dims : : str or list
-            Dimensions(s) by which to cluster the data (i.e. non-m/z).
-        tol : float or list
-            Tolerance in each dimension to define maximum cluster linkage
-            distance.
-        relative : bool or list
-            Whether to use relative or absolute tolerances per dimension.
+        dims : str or list
+            Dimension(s) by which to match MS1:MS2.
+        low : float or list
+            Lower bound(s) in each dimension.
+        high : float or list
+            Upper bound(s) in each dimension.
+        ce : float
+            Collision energy of MS2 collection.
+        model : function
+            Model used to correct for drift time offset between MS1 precursor
+            and MS2 fragment. If omitted, a default model is used.
+        require_ms1_greater_than_ms2 : bool
+            Signal whether precursor intensity must be greater than fragment
+            intensity for putative assignments.
+        error_tolerance : float
+            Acceptable difference between precursor and fragment drift times
+            following correction by offset model.
 
         Returns
         -------
         :obj:`~pandas.DataFrame`
-            Features concatenated over MS levels with cluster labels.
+            All MS1:MS2 pairings and associated agreement scores per requested dimension.
 
         '''
 
-        # safely cast to list
+        # Safely cast to list
         dims = deimos.utils.safelist(dims)
-        tol = deimos.utils.safelist(tol)
-        relative = deimos.utils.safelist(relative)
+        low = deimos.utils.safelist(low)
+        high = deimos.utils.safelist(high)
 
-        # check dims
-        deimos.utils.check_length([dims, tol, relative])
+        # Check dims
+        deimos.utils.check_length([dims, low, high])
 
-        ms1_clusts = self.ms1_features.copy()
-        ms1_clusts['ms_level'] = 1
-        ms2_clusts = self.ms2_features.copy()
-        ms2_clusts['ms_level'] = 2
+        # Check collision energy is supplied
+        if ce is None:
+            raise ValueError("Collision energy must be specified.")
 
-        ms1_clusts = deimos.alignment.agglomerative_clustering(ms1_clusts,
-                                                               dims=dims,
-                                                               tol=tol,
-                                                               relative=relative)
+        # Match vectors
+        v_ms1 = self.ms1_features[dims].values
+        v_ms2 = self.ms2_features[dims].values
 
-        # compute inter-feature distances
-        distances = []
-        for i, d in enumerate(dims):
-            # vectors
-            v1 = self.ms1_features[d].values.reshape(-1, 1)
-            v2 = self.ms2_features[d].values.reshape(-1, 1)
+        # Normalize dims for query
+        for i, dim in enumerate(dims):
+            # Cast range as radius
+            tol = (high[i] - low[i]) / 2
 
-            # distances
-            dist = cdist(v1, v2)
+            # Offset to center search
+            v_ms2[:, i] = v_ms2[:, i] + tol + low[i]
 
-            if relative[i] is True:
-                # divisor
-                basis = np.repeat(v1, v2.shape[0], axis=1)
-                fix = np.repeat(v2, v1.shape[0], axis=1).T
-                basis = np.where(basis == 0, fix, basis)
+            # Normalize
+            v_ms1[:, i] = v_ms1[:, i] / tol
+            v_ms2[:, i] = v_ms2[:, i] / tol
 
-                # divide
-                dist = np.divide(dist, basis, out=np.zeros_like(basis), where=basis != 0)
+        # Create k-d trees
+        ms1_tree = KDTree(v_ms1)
+        ms2_tree = KDTree(v_ms2)
 
-            # check tol
-            # half because linkage distance is full cluster width
-            distances.append(dist / (tol[i] / 2))
+        # Query
+        sdm = ms1_tree.sparse_distance_matrix(
+            ms2_tree, 1, p=np.inf, output_type='coo_matrix')
 
-        # stack distances
-        distances = np.dstack(distances)
+        # Pairs within tolerance
+        ms1_matches = self.ms1_features.loc[sdm.row, :].reset_index()
+        ms2_matches = self.ms2_features.loc[sdm.col, :].reset_index()
 
-        # max distance
-        distances = np.max(distances, axis=-1)
+        # Correct drift time
+        if 'drift_time' in dims:
+            ms2_matches['drift_time_raw'] = ms2_matches['drift_time'].values
+            ms2_matches['drift_time'] = model(ms2_matches['drift_time'].values,
+                                              ms2_matches['mz'].values,
+                                              ms1_matches['mz'].values, ce=ce)
 
-        # closest
-        cluster_index = np.argmin(distances, axis=0)
-        cluster_dists = np.min(distances, axis=0)
+        # Rename columns
+        ms1_matches.columns = [x + '_ms1' for x in ms1_matches.columns]
+        ms2_matches.columns = [x + '_ms2' for x in ms2_matches.columns]
 
-        # assign clusters
-        ms2_clusts['cluster'] = ms1_clusts['cluster'].values[cluster_index]
+        # Construct MS1:MS2 data frame
+        decon_pairs = pd.concat((ms1_matches,
+                                 ms2_matches), axis=1)
 
-        # filter far points
-        ms2_clusts = ms2_clusts.loc[cluster_dists <= 1, :]
+        # Compute offset correction error
+        if 'drift_time' in dims:
+            decon_pairs['drift_time_error'] = np.abs(
+                decon_pairs['drift_time_ms1'] - decon_pairs['drift_time_ms2'])
 
-        # Combine ms1, ms2
-        self.clusters = pd.concat((ms1_clusts, ms2_clusts), ignore_index=True)
-        
-        return self.clusters
+        # MS1 intensity greater than MS2 intensity
+        if require_ms1_greater_than_ms2 is True:
+            decon_pairs = decon_pairs.loc[decon_pairs['intensity_ms1']
+                                          >= decon_pairs['intensity_ms2'], :]
 
+        # Error tolerance
+        if 'drift_time' in dims:
+            decon_pairs = decon_pairs.loc[decon_pairs['drift_time_error']
+                                          <= error_tolerance, :]
+
+        # Remove empty groups
+        decon_pairs = decon_pairs.groupby(
+            by='index_ms1', as_index=False).filter(lambda x: len(x) > 0)
+
+        # Sort by index
+        decon_pairs = decon_pairs.sort_values(
+            by=['index_ms1', 'index_ms2']).reset_index(drop=True)
+
+        self.decon_pairs = decon_pairs
+
+        return self.decon_pairs
 
     def configure_profile_extraction(self, dims=['mz', 'drift_time', 'retention_time'],
                                      low=[-100E-6, -0.05, -0.3], high=[400E-6, 0.05, 0.3],
-                                     relative=[True, True, False], resolution=[0.01, 0.01, 0.01]):
+                                     relative=[True, True, False]):
         '''
+        Configure parameters to generate extracted ion subsets of the data.
+
         Parameters
         ----------
         dims : str or list
@@ -178,8 +255,6 @@ class MS2Deconvolution:
             Upper tolerance(s) in each dimension.
         relative : bool or list
             Whether to use relative or absolute tolerance per dimension.
-        resolution : float or list
-            Resolution applied to per-dimension profile interpolations.
 
         '''
 
@@ -193,34 +268,31 @@ class MS2Deconvolution:
             for i, row in features.iterrows():
                 subset = deimos.locate_asym(data, by=dims, loc=row[dims].values,
                                             low=low, high=high, relative=relative)
-                profiles = get_1D_profiles(subset, dims=dims)
-                res.append(profiles)
+                res.append(subset)
 
             return res
 
-        # safely cast to list
+        # Safely cast to list
         dims = deimos.utils.safelist(dims)
         low = deimos.utils.safelist(low)
         high = deimos.utils.safelist(high)
         relative = deimos.utils.safelist(relative)
-        resolution = deimos.utils.safelist(resolution)
 
-        # check dims
-        deimos.utils.check_length([dims, low, high, relative, resolution])
+        # Check dims
+        deimos.utils.check_length([dims, low, high, relative])
 
-        # recast as dictionaries indexed by dimension
+        # Recast as dictionaries indexed by dimension
         self.profile_low = {k: v for k, v in zip(dims, low)}
         self.profile_high = {k: v for k, v in zip(dims, high)}
         self.profile_relative = {k: v for k, v in zip(dims, relative)}
-        self.profile_resolution = {k: v for k, v in zip(dims, resolution)}
 
-        # construct pre-configured profile extraction function
+        # Construct pre-configured profile extraction function
         self.profiler = lambda x, y: abstract_fxn(
             x, y, dims=dims, low=low, high=high, relative=relative)
 
-    def apply(self, dims=['drift_time', 'retention_time']):
+    def apply(self, dims=['drift_time', 'retention_time'], resolution=[0.01, 0.01]):
         '''
-        Perform deconvolution according to clustered features and their
+        Perform deconvolution according to mathed features and their
         extracted profiles.
 
         Parameters
@@ -228,6 +300,8 @@ class MS2Deconvolution:
         dims : : str or list
             Dimensions(s) for which to calculate MS1:MS2 correspondence
             by 1D profile agreement (i.e. non-m/z).
+        resolution : float or list
+            Resolution applied to per-dimension profile interpolations.
 
         Returns
         -------
@@ -235,119 +309,84 @@ class MS2Deconvolution:
             All MS1:MS2 pairings and associated agreement scores.
 
         '''
-
-        # safely cast to list
+        # Safely cast to list
         dims = deimos.utils.safelist(dims)
 
-        # initialize result container
-        decon = []
+        # Ensure m/z not in dims
+        if 'mz' in dims:
+            raise ValueError('MS1:MS2 similarity does not consider m/z.')
 
-        # enumerate clusters
-        for name, grp in self.clusters.groupby('cluster'):
-            # group by ms level
-            ms1_peaks_subset = grp.loc[grp['ms_level'] == 1, :].drop(
-                columns=['ms_level', 'cluster'])
-            ms2_peaks_subset = grp.loc[grp['ms_level'] == 2, :].drop(
-                columns=['ms_level', 'cluster'])
+        # Recast as dictionaries indexed by dimension
+        self.profile_resolution = {k: v for k, v in zip(dims, resolution)}
 
-            # sort by intensity
-            ms1_peaks_subset = ms1_peaks_subset.sort_values(
-                by='intensity', ascending=False)
-            ms2_peaks_subset = ms2_peaks_subset.sort_values(
-                by='intensity', ascending=False)
+        # Extracted ions
+        ms1_xis = self.profiler(self.ms1_features, self.ms1_data)
+        ms2_xis = self.profiler(self.ms2_features, self.ms2_data)
 
-            # filter duplicate masses
-            ms1_peaks_subset = ms1_peaks_subset.drop_duplicates(
-                subset='mz').reset_index(drop=True)
-            ms2_peaks_subset = ms2_peaks_subset.drop_duplicates(
-                subset='mz').reset_index(drop=True)
+        # Container for profile similarity scores
+        scores = {dim: [] for dim in dims}
 
-            if (len(ms1_peaks_subset.index) > 0) & (len(ms2_peaks_subset.index) > 0):
-                # extract 1d profiles
-                ms1_profiles = self.profiler(ms1_peaks_subset, self.ms1_data)
-                ms2_profiles = self.profiler(ms2_peaks_subset, self.ms2_data)
+        # Enumerate MS1 featres
+        for name, grp in self.decon_pairs.groupby(by=['index_ms1'], as_index=False):
+            # MS1 feature index
+            idx_i = int(name)
 
-                # determine possible MS1:MS2 pairings
-                combos = np.array(np.meshgrid(
-                    ms1_peaks_subset.index, ms2_peaks_subset.index)).T.reshape(-1, 2)
+            # Extracted ion
+            ms1_xi = ms1_xis[idx_i]
 
-                # rename columns
-                ms1_peaks_subset.columns = [
-                    x + '_ms1' for x in ms1_peaks_subset.columns]
-                ms2_peaks_subset.columns = [
-                    x + '_ms2' for x in ms2_peaks_subset.columns]
+            # Build MS1 profile
+            ms1_profiles = get_1D_profiles(ms1_xi, dims=dims)
 
-                # construct MS1:MS2 data frame
-                res = pd.concat((ms1_peaks_subset.loc[combos[:, 0], :].reset_index(drop=True),
-                                 ms2_peaks_subset.loc[combos[:, 1], :].reset_index(drop=True)), axis=1)
+            # Shared interpolation axis
+            newx = {}
+            for dim in dims:
+                # Determine upper and lower bounds
+                if self.profile_relative[dim] is True:
+                    lb = min(grp[dim + "_ms1"].min(), grp[dim +
+                             "_ms2"].min()) * (1 + self.profile_low[dim])
+                    ub = max(grp[dim + "_ms1"].max(), grp[dim +
+                             "_ms2"].max()) * (1 + self.profile_high[dim])
+                else:
+                    lb = min(grp[dim + "_ms1"].min(), grp[dim +
+                             "_ms2"].min()) + self.profile_low[dim]
+                    ub = max(grp[dim + "_ms1"].max(), grp[dim +
+                             "_ms2"].max()) + self.profile_high[dim]
 
-                # score MS1:MS2 assignments per dimension
+                # Determine shared x-axis
+                newx[dim] = np.arange(lb, ub, self.profile_resolution[dim])
+
+            # Evaluate MS1 profile
+            ms1_profiles = {dim: ms1_profiles[dim](newx[dim]) for dim in dims}
+
+            # Enumerate MS2 features
+            for j, row in grp.reset_index().iterrows():
+                # MS2 feature index
+                idx_j = int(row['index_ms2'])
+
+                # Extracted ion
+                ms2_xi = ms2_xis[idx_j].copy()
+
+                if 'drift_time' in dims:
+                    # Determine offset
+                    offset = row['drift_time_ms2'] - row['drift_time_raw_ms2']
+
+                    # Apply ofset
+                    ms2_xi['drift_time'] += offset
+
+                # Build MS2 profile
+                ms2_profiles = get_1D_profiles(ms2_xi, dims=dims)
+
+                # Evaluate MS2 profile
+                ms2_profiles = {dim: ms2_profiles[dim](
+                    newx[dim]) for dim in dims}
+
+                # Compute similarity
                 for dim in dims:
-                    if self.profile_relative[dim] is True:
-                        lb = grp[dim].min() * (1 + self.profile_low[dim])
-                        ub = grp[dim].max() * (1 + self.profile_high[dim])
-                    else:
-                        lb = grp[dim].min() + self.profile_low[dim]
-                        ub = grp[dim].max() + self.profile_high[dim]
+                    scores[dim].append(
+                        1 - cosine(ms1_profiles[dim], ms2_profiles[dim]))
 
-                    newx = np.arange(lb, ub, self.profile_resolution[dim])
+        # Append score columns
+        for dim in dims:
+            self.decon_pairs[dim + '_score'] = np.array(scores[dim])
 
-                    v_ms1 = np.vstack([x[dim](newx) for x in ms1_profiles])
-                    v_ms2 = np.vstack([x[dim](newx) for x in ms2_profiles])
-
-                    # similarity matrix
-                    H = 1 - cdist(v_ms1, v_ms2, metric='cosine')
-
-                    # add column
-                    res[dim + '_score'] = H.reshape(-1, 1)
-
-                # append to container
-                decon.append(res)
-
-        # combine and return
-        return pd.concat(decon, ignore_index=True)
-
-
-def deconvolve_ms2(ms1_features, ms1_data, ms2_features, ms2_data,
-                   cluster_kwargs, profile_kwargs, apply_kwargs):
-    '''
-    Convenience function to perform all necessary deconvolution steps.
-
-    Parameters
-    ----------
-    ms1_features : :obj:`~pandas.DataFrame`
-        MS1 peak locations and intensities.
-    ms1_data : :obj:`~pandas.DataFrame`
-        Complete MS1 data.
-    ms2_features : :obj:`~pandas.DataFrame`
-        MS2 peak locations and intensities.
-    ms2_data : :obj:`~pandas.DataFrame`
-        Complete MS1 data.
-    cluster_kwargs : :obj:`dict`
-        Dictionary of keyword arguments for clustering
-        (see :meth:`~deimos.deconvolution.MS2Deconvolution.cluster`).
-    profile_kwargs : :obj:`dict`
-        Dictionary of keyword arguments for profile extraction
-        (see :meth:`~deimos.deconvolution.MS2Deconvolution.configure_profile_extraction`).
-    apply_kwargs : :obj:`dict`
-        Dictionary of keyword arguments for applying deconvolution
-        (see :meth:`~deimos.deconvolution.MS2Deconvolution.apply`).
-
-    Returns
-    -------
-    :obj:`~pandas.DataFrame`
-        All MS1:MS2 pairings and associated agreement scores per requested dimension.
-
-    '''
-
-    # init
-    decon = MS2Deconvolution(ms1_features, ms1_data, ms2_features, ms2_data)
-
-    # cluster
-    decon.cluster(**cluster_kwargs)
-
-    # configure profiling
-    decon.configure_profile_extraction(**profile_kwargs)
-
-    # decon
-    return decon.apply(**apply_kwargs)
+        return self.decon_pairs
