@@ -315,6 +315,10 @@ class MS2Deconvolution:
         '''
         # Safely cast to list
         dims = deimos.utils.safelist(dims)
+        resolution = deimos.utils.safelist(resolution)
+
+        # Check dims
+        deimos.utils.check_length([dims, resolution])
 
         # Ensure m/z not in dims
         if 'mz' in dims:
