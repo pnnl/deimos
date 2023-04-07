@@ -25,17 +25,20 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
 
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
 
+    # Collapse data if necessary
     if len(dims) < len(deimos.utils.detect_dims(features)):
         features = deimos.collapse(features, keep=dims, how=np.sum)
 
+    # Unique indices
     idx = [np.unique(features.loc[:, d].values,
                      return_inverse=True) for d in dims]
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 
+    # Populate grid
     grid = np.zeros([len(x) for x in idx], dtype=float)
     grid[tuple(idx_i)] = features.loc[:, 'intensity'].values
 
@@ -66,30 +69,30 @@ def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
 
     '''
 
-    # cast to list safely
+    # Cast to list safely
     dims = deimos.utils.safelist(dims)
 
-    # column labels container
+    # Column labels container
     cols = dims.copy()
 
-    # flatten grid
+    # Flatten grid
     grid = grid.flatten()
 
-    # threshold
+    # Threshold
     idx = grid > 0
 
-    # reshape
+    # Reshape
     grid = grid[idx].reshape(-1, 1)
 
-    # edges to grid
+    # Edges to grid
     data = np.meshgrid(*edges, indexing='ij')
     data = [x.reshape(-1, 1)[idx] for x in data]
 
-    # append intensity
+    # Append intensity
     data.append(grid)
     cols.append('intensity')
 
-    # append additional columns
+    # Append additional columns
     if additional is not None:
         for k, v in additional.items():
             data.append(v.flatten()[idx].reshape(-1, 1))

@@ -344,43 +344,43 @@ def sparse_upper_star(idx, V):
 
     '''
 
-    # add noise to uniqueify
+    # Add noise to uniqueify
     V = V.copy() + np.random.uniform(0, 1, V.shape)
 
-    # connectivity matrix
+    # Connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(
         cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
-    # pairwise minimums
+    # Pairwise minimums
     I, J = cmat.nonzero()
     d = np.minimum(V[I], V[J])
 
-    # delete connectiity matrix
+    # Delete connectiity matrix
     cmat_shape = cmat.shape
     del cmat
 
-    # sparse distance matrix
+    # Sparse distance matrix
     sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape, dtype=V.dtype)
 
-    # delete pairwise mins
+    # Delete pairwise mins
     del d, I, J
 
-    # persistence homology
-    # negative for upper star, then revert
+    # Persistence homology
+    # Negative for upper star, then revert
     ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
 
-    # delete distance matrix
+    # Delete distance matrix
     del sdm
 
-    # bound death values
+    # Bound death values
     ph[ph[:, 1] == -np.inf, 1] = np.min(V)
 
-    # construct tree to query against
+    # Construct tree to query against
     tree = KDTree(V.reshape((-1, 1)))
 
-    # get the indexes of the first nearest neighbor by birth
+    # Get the indexes of the first nearest neighbor by birth
     _, nn = tree.query(ph[:, 0].reshape((-1, 1)), k=1, workers=-1)
 
     return nn, (ph[:, 0] - ph[:, 1])
@@ -407,42 +407,42 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     '''
 
-    # copy indices
+    # Copy indices
     idx = idx.copy().astype(V.dtype)
 
-    # scale
+    # Scale
     for i, r in enumerate(radius):
-        # increase inter-index distance
+        # Increase inter-index distance
         if r < 1:
             idx[:, i] *= 2
 
-        # do nothing
+        # Do nothing
         elif r == 1:
             pass
 
-        # decrease inter-index distance
+        # Decrease inter-index distance
         else:
             idx[:, i] /= r
 
-    # connectivity matrix
+    # Connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(
         cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
-    # pair indices
+    # Pair indices
     I, J = cmat.nonzero()
 
-    # delete cmat
+    # Delete cmat
     cmat_shape = cmat.shape
     del cmat
 
-    # sum over columns
+    # Sum over columns
     V_sum = sparse.bsr_matrix((V[J], (I, I)),
                               shape=cmat_shape,
                               dtype=V.dtype).diagonal(0)
 
-    # count over columns
+    # Count over columns
     V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
                                 shape=cmat_shape,
                                 dtype=V.dtype).diagonal(0)
@@ -475,67 +475,68 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
 
     '''
 
-    # copy indices
+    # Copy indices
     idx = idx.copy().astype(w.dtype)
 
-    # scale
+    # Scale
     for i, r in enumerate(radius):
-        # increase inter-index distance
+        # Increase inter-index distance
         if r < 1:
             idx[:, i] *= 2
 
-        # do nothing
+        # Do nothing
         elif r == 1:
             pass
 
-        # decrease inter-index distance
+        # Decrease inter-index distance
         else:
             idx[:, i] /= r
 
+    # If not supplied, index is all points
     if pindex is None:
         pindex = np.arange(len(idx))
 
-    # connectivity matrix
+    # Connectivity matrix
     tree_all = KDTree(idx)
     tree_subset = KDTree(idx[pindex])
     cmat = tree_subset.sparse_distance_matrix(
         tree_all, 1, p=np.inf, output_type='coo_matrix')
     del tree_all, tree_subset
 
-    # pair indices
+    # Pair indices
     I, J = cmat.nonzero()
 
-    # self
+    # Self
     I = np.concatenate((I, np.arange(len(pindex))))
     J = np.concatenate((J, pindex))
 
-    # delete connectivity matrix
+    # Delete connectivity matrix
     cmat_shape = cmat.shape
     del cmat
 
-    # sum weights over columns
-    # only need to do this once
+    # Sum weights over columns
+    # Only need to do this once
     V_count = sparse.bsr_matrix((w[J], (I, I)),
                                 shape=cmat_shape,
                                 dtype=w.dtype).diagonal(0)
 
-    # reshape V if 1D
+    # Reshape V if 1D
     if V.ndim == 1:
         V = V.reshape((-1, 1))
 
-    # output container
+    # Output container
     V_out = np.empty_like(V[pindex, :], dtype=w.dtype)
 
-    # enumerate value columns
+    # Enumerate value columns
     for i in range(V_out.shape[1]):
-        # sum weighted values over columns
+        # Sum weighted values over columns
         V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
                                   shape=cmat_shape,
                                   dtype=w.dtype).diagonal(0)
 
         V_out[:, i] = V_sum / V_count
 
-    # flatten if 1D
+    # Flatten if 1D
     if V_out.shape[1] == 1:
         return V_out.flatten()
 
@@ -563,33 +564,33 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
 
     '''
 
-    # copy indices
+    # Copy indices
     idx = idx.copy().astype(V.dtype)
 
-    # scale
+    # Scale
     for i, r in enumerate(radius):
-        # increase inter-index distance
+        # Increase inter-index distance
         if r < 1:
             idx[:, i] *= 2
 
-        # do nothing
+        # Do nothing
         elif r == 1:
             pass
 
-        # decrease inter-index distance
+        # Decrease inter-index distance
         else:
             idx[:, i] /= r
 
-    # connectivity matrix
+    # Connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(
         cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
 
-    # pair indices
+    # Pair indices
     I, J = cmat.nonzero()
 
-    # delete cmat
+    # Delete cmat
     cmat_shape = cmat.shape
     del cmat
 
@@ -602,7 +603,6 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     median = np.empty(n_features, dtype=V.dtype)
 
     for f_ind, (start, end) in enumerate(zip(indptr[:-1], indptr[1:])):
-
         # Prevent modifying X in place
         data = np.copy(X.data[start:end])
         median[f_ind] = _get_median(data, 0)
@@ -641,24 +641,24 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
 
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     radius = deimos.utils.safelist(radius)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, radius])
 
     # Check factors and index mutually exclusive
     if (factors is not None) & (index is not None):
         raise ValueError('Specify either `index`, `factors`, or neither.')
 
-    # copy input
+    # Copy input
     features = features.copy()
 
     # Build index from features directly
     if (factors is None) & (index is None):
-        index = [pd.factorize(features[dim], sort=True)[0].astype(np.float32)
-                 for dim in dims]
+        index = {dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
+                 for dim in dims}
 
     # Build index from factors
     if (factors is not None) & (index is None):
@@ -667,32 +667,34 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
     # Index supplied directly
     index = np.vstack([index[dim] for dim in dims]).T
 
-    # values
+    # Values
     V = features['intensity'].values
+
+    # Residual exit criteria
     resid = np.inf
 
-    # sparse mean filtration
+    # Sparse mean filtration iterations
     for i in range(iterations):
-        # previous iteration
+        # Previous iteration
         V_prev = V.copy()
         resid_prev = resid
 
-        # compute smooth
+        # Compute smooth
         V = deimos.filters.sparse_mean_filter(index, V, radius=radius)
 
-        # calculate residual with previous iteration
+        # Calculate residual with previous iteration
         resid = np.sqrt(np.mean(np.square(V - V_prev)))
 
-        # evaluate convergence
+        # Evaluate convergence
         if i > 0:
-            # percent change in residual
+            # Percent change in residual
             test = np.abs(resid - resid_prev) / resid_prev
 
-            # exit criteria
+            # Exit criteria
             if test <= tol:
                 break
 
-    # overwrite values
+    # Overwrite values
     features['intensity'] = V
 
     return features

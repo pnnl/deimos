@@ -32,66 +32,58 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     :obj:`~pandas.DataFrame`
         Coordinates of detected peaks and associated apex intensitites.
 
-    Raises
-    ------
-    ValueError
-        If `scale_by`, `ref_res`, and `scale` are not all None or not all
-        supplied.
-    ValueError
-        If `dims` and `bins` are not the same length.
-
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     bins = deimos.utils.safelist(bins)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, bins])
 
-    # scaling
+    # Scaling
     if None not in [scale_by, ref_res, scale]:
         scale = deimos.utils.safelist(scale)
         sf = np.min(np.diff(np.unique(features[scale_by]))) / ref_res
 
-        # enumerate dimensions
+        # Enumerate dimensions
         for i, d in enumerate(dims):
 
-            # scale
+            # Scale
             if d in scale:
                 bins[i] *= sf
 
-    # no scaling
+    # No scaling
     elif not any([scale_by, ref_res, scale]):
         pass
 
-    # improper scaling kwargs
+    # Improper scaling kwargs
     else:
         raise ValueError(
             '`scale_by`, `ref_res`, and `scale` must all be supplied')
 
-    # footprint rounded up to nearest odd
+    # Footprint rounded up to nearest odd
     bins = [np.ceil(x) // 2 * 2 + 1 for x in bins]
     # bins_half = [np.ceil(x / 2) // 2 * 2 + 1 for x in bins]
     # bins_half[0] = 3
 
-    # grid data
+    # Ggrid data
     edges, H = deimos.grid.data2grid(features, dims=dims)
 
-    # # mean pdf
+    # # Mean pdf
     # additional = {dim + '_mean': x for dim, x in zip(dims,
     #                                                  deimos.filters.mean_pdf(edges, H, bins_half))}
 
-    # # coverage
+    # # Coverage
     # additional['coverage'] = deimos.filters.count(H, bins, nonzero=True) / np.prod(bins)
 
-    # # smooth
+    # # Smooth
     # H = deimos.filters.sum(H, [1, 3, 3])
 
-    # peak detection
+    # Peak detection
     H = np.where(H == deimos.filters.maximum(H, bins), H, 0)
 
-    # convert to dataframe
+    # Convert to dataframe
     peaks = deimos.grid.grid2df(edges, H, dims=dims)
 
     return peaks
@@ -125,12 +117,12 @@ def persistent_homology(features, index=None, factors=None, dims=['mz', 'drift_t
 
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     if radius is not None:
         radius = deimos.utils.safelist(radius)
 
-    # check lenghts
+    # Check lenghts
     if radius is not None:
         deimos.utils.check_length([dims, radius])
 
@@ -140,8 +132,8 @@ def persistent_homology(features, index=None, factors=None, dims=['mz', 'drift_t
 
     # Build index from features directly
     if (factors is None) & (index is None):
-        index = [pd.factorize(features[dim], sort=True)[0].astype(np.float32)
-                 for dim in dims]
+        index = {dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
+                 for dim in dims}
 
     # Build index from factors
     if (factors is not None) & (index is None):
@@ -150,21 +142,21 @@ def persistent_homology(features, index=None, factors=None, dims=['mz', 'drift_t
     # Index built, shape appropriately
     index = np.vstack([index[dim] for dim in dims]).T
 
-    # values
+    # Values
     V = features['intensity'].values
 
-    # upper star filtration
+    # Upper star filtration
     pidx, pers = deimos.filters.sparse_upper_star(index, V)
     pidx = pidx[pers > 1]
     pers = pers[pers > 1]
 
-    # get peaks
+    # Get peaks
     peaks = features.iloc[pidx, :].reset_index(drop=True)
 
-    # add persistence column
+    # Add persistence column
     peaks['persistence'] = pers
 
-    # weighted mean
+    # Weighted mean
     if radius is not None:
         vals = deimos.filters.sparse_weighted_mean_filter(index, features[dims].values,
                                                           V, radius=radius, pindex=pidx)

@@ -38,47 +38,42 @@ def detect(features, dims=['mz', 'drift_time', 'retention_time'],
     :obj:`pandas.DataFrame`
         Features grouped by isotopic pattern.
 
-    Raises
-    ------
-    ValueError
-        If `dims` and `tol` are not the same length.
-
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, tol])
 
-    # isolate mz dimension
+    # Isolate mz dimension
     mz_idx = dims.index('mz')
     else_idx = [i for i, j in enumerate(dims) if i != mz_idx]
 
     isotopes = []
     idx = []
 
-    # tolerance in other dimensions
+    # Tolerance in other dimensions
     for i in else_idx:
         arr = features[dims[i]].values.reshape((-1, 1))
         dist = scipy.spatial.distance.cdist(arr, arr)
 
-        # less than tolerance
+        # Less than tolerance
         idx.append(dist <= tol[i])
 
-    # stack truth arrays
+    # Stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1)
 
-    # half matrix
+    # Half matrix
     idx = np.tril(idx, k=-1)
 
-    # isotopic distances
+    # Isotopic distances
     arr = features[dims[mz_idx]].values.reshape((-1, 1))
     d = scipy.spatial.distance.cdist(arr, arr)
     d = np.multiply(d, idx)
 
-    # enumerate putative spacings
+    # Enumerate putative spacings
     for charge in range(1, max_charge + 1):
         for mult in range(1, max_isotopes + 1):
 
@@ -105,25 +100,25 @@ def detect(features, dims=['mz', 'drift_time', 'retention_time'],
                                                   'intensity_iso', 'idx',
                                                   'idx_iso']))
 
-    # combine
+    # Combine
     isotopes = pd.concat(isotopes, axis=0, ignore_index=True)
 
-    # stats
+    # Stats
     isotopes['error'] = np.abs(
         (isotopes['mz_iso'] - isotopes['mz']) - isotopes['dx']) / isotopes['mz']
     isotopes['decay'] = isotopes['intensity_iso'] / isotopes['intensity']
 
-    # cull non-decreasing
+    # Cull non-decreasing
     isotopes = isotopes.loc[isotopes['intensity']
                             > isotopes['intensity_iso'], :]
 
-    # cull high error
+    # Cull high error
     isotopes = isotopes.loc[isotopes['error'] < max_error, :]
 
-    # cull children
+    # Cull children
     isotopes = isotopes.loc[~isotopes['idx'].isin(isotopes['idx_iso']), :]
 
-    # group by parent
+    # Group by parent
     grouped = isotopes.groupby(by=['mz', 'charge', 'idx', 'intensity'],
                                as_index=False).agg(OrderedSet)
     grouped['n'] = [len(x) for x in grouped['multiple'].values]

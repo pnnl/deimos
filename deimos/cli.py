@@ -29,28 +29,29 @@ def main():
     parser.add_argument('--start', metavar='IDX', type=int, default=0,
                         help='starting file index (for use with --count)')
 
-    # cluster-specific options
+    # Cluster-specific options
     clust = parser.add_argument_group('cluster arguments')
     clust.add_argument('--cluster', metavar='PATH',
                        help='path to cluster execution yaml configuration file')
     clust.add_argument('--jobs', metavar='N', type=int, default=1000,
                        help='number of simultaneous jobs to submit to a slurm queue')
 
-    # parse args
+    # Parse args
     args = parser.parse_args()
 
-    # start/stop config
+    # Start/stop config
     if args.count is not None:
         config = {'start': args.start, 'stop': args.start + args.count}
     else:
         config = {}
 
-    # cluster config
+    # Cluster config
     if args.cluster is not None:
         cluster = "sbatch -A {cluster.account} -N {cluster.nodes} -t {cluster.time} -J {cluster.name} --ntasks-per-node {cluster.ntasks} -p {cluster.partition}"
     else:
         cluster = None
 
+    # Call snakemake
     snakemake(resource_filename('workflows', 'default.smk'),
               configfiles=[args.config],
               config=config,

@@ -20,6 +20,7 @@ def safelist(x):
 
     if not isinstance(x, (list, pd.core.series.Series, np.ndarray)):
         return [x].copy()
+
     return x.copy()
 
 
@@ -41,6 +42,7 @@ def check_length(lists):
 
     it = iter(lists)
     length = len(next(it))
+
     if not all(len(x) == length for x in it):
         raise ValueError('Per-dimension inputs must have same dimension.')
 

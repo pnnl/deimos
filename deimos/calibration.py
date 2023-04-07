@@ -28,7 +28,7 @@ class CCSCalibration:
 
         '''
 
-        # initialize variables
+        # Initialize variables
         self.buffer_mass = None
         self.beta = None
         self.tfix = None
@@ -85,13 +85,13 @@ class CCSCalibration:
 
         '''
 
-        # buffer mass
+        # Buffer mass
         self.buffer_mass = buffer_mass
 
-        # power function indicator
+        # Power function indicator
         self.power = power
 
-        # calibrant arrays supplied
+        # Calibrant arrays supplied
         if (mz is not None) and (ta is not None) and (ccs is not None) \
            and (q is not None):
             self.mz = np.array(mz)
@@ -99,12 +99,12 @@ class CCSCalibration:
             self.ccs = np.array(ccs)
             self.q = np.array(q)
 
-            # derived variables
+            # Derived variables
             self.gamma = np.sqrt(
                 self.mz * self.q / (self.mz * self.q + self.buffer_mass)) / self.q
             self.reduced_ccs = self.ccs * self.gamma
 
-            # linear regression
+            # Linear regression
             if self.power:
                 beta, tfix, r, p, se = linregress(np.log(self.reduced_ccs),
                                                   np.log(self.ta))
@@ -112,7 +112,7 @@ class CCSCalibration:
                 beta, tfix, r, p, se = linregress(self.reduced_ccs,
                                                   self.ta)
 
-            # store params
+            # Store params
             self.beta = beta
             self.tfix = tfix
             self.fit['r'] = r
@@ -120,7 +120,7 @@ class CCSCalibration:
             self.fit['se'] = se
             return
 
-        # beta and tfix supplied
+        # Beta and tfix supplied
         if (beta is not None) and (tfix is not None):
             # store params
             self.beta = beta
@@ -151,18 +151,22 @@ class CCSCalibration:
 
         '''
 
+        # Check for required attributes
         self._check()
 
+        # Cast to numpy array
         mz = np.array(mz)
         ta = np.array(ta)
         q = np.array(q)
 
-        # derived variables
+        # Derived variables
         gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
 
+        # Power model
         if self.power:
             return np.exp((np.log(ta) - self.tfix) / self.beta) / gamma
 
+        # Linear model
         return (ta - self.tfix) / (self.beta * gamma)
 
     def ccs2arrival(self, mz, ccs, q=1):
@@ -186,17 +190,22 @@ class CCSCalibration:
 
         '''
 
+        # Check for required attributes
         self._check()
 
+        # Cast to numpy array
         mz = np.array(mz)
         ccs = np.array(ccs)
         q = np.array(q)
 
-        # derived variables
+        # Derived variables
         gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
 
+        # Power model
         if self.power:
             return np.exp(self.beta * np.log(gamma * ccs) + self.tfix)
+
+        # Linear model
         else:
             return self.beta * gamma * ccs + self.tfix
 
@@ -243,7 +252,10 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
 
     '''
 
+    # Initialize calibration instance
     ccs_cal = CCSCalibration()
+
+    # Perform calibration
     ccs_cal.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
                       buffer_mass=buffer_mass, power=power)
 
@@ -286,41 +298,47 @@ def tunemix(features,
 
     '''
 
-    # cast to numpy array
+    # Cast to numpy array
     mz = np.array(mz)
     ccs = np.array(ccs)
     q = np.array(q)
 
-    # check lengths
+    # Check lengths
     deimos.utils.check_length([mz, ccs, q])
 
-    # iterate tune ions
+    # Iterate tune ions
     ta = []
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
-        # slice ms1
+        # Slice ms1
         subset = deimos.slice(features, by='mz',
                               low=mz_i - 0.1 * mz_tol,
                               high=mz_i + mz_i * 0.9 * mz_tol)
 
-        # extract dt info
+        # Extract dt info
         dt_profile = deimos.collapse(subset, keep='drift_time')
         dt_i = dt_profile.sort_values(by='intensity', ascending=False)[
             'drift_time'].values[0]
         dt_profile = deimos.locate(
             dt_profile, by='drift_time', loc=dt_i, tol=dt_tol * dt_i).sort_values(by='drift_time')
 
-        # interpolate spline
+        # X and Y arrays
         x = dt_profile['drift_time'].values
         y = dt_profile['intensity'].values
 
+        # Interpolate spline
         spl = interp1d(x, y, kind='quadratic')
-        newx = np.arange(x.min(), x.max(), 0.001)
-        newy = spl(newx)
-        dt_j = newx[np.argmax(newy)]
 
+        # Higher resolution x-axis
+        newx = np.arange(x.min(), x.max(), 0.001)
+
+        # Evaluate
+        newy = spl(newx)
+
+        # Take argmax
+        dt_j = newx[np.argmax(newy)]
         ta.append(dt_j)
 
-    # calibrate
+    # Calibrate
     ta = np.array(ta)
     return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass,
                                             power=power)

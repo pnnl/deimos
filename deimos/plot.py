@@ -25,7 +25,7 @@ def _ceil(value):
 
 def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
                  ax=None, dpi=600):
-    # sort
+    # Sort
     idx = np.argsort(x)
     x = x[idx]
     y = y[idx]
@@ -36,15 +36,15 @@ def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
     x = df['x'].values
     y = df['y'].values
 
-    # initialize figure
+    # Initialize figure
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
-    # plot
+    # Plot
     # ax.plot(x, y, color='black')
     ax.fill_between(x, y, color='lightgrey')
 
-    # axis setup
+    # Axis setup
     ax.set_ylim(0, None)
     yfmt = ScalarFormatterForceFormat()
     yfmt.set_powerlimits((0, 0))
@@ -54,7 +54,7 @@ def fill_between(x, y, xlabel='Drift Time (ms)', ylabel='Intensity',
     oom = 10 ** np.floor(np.log10(y.max()))
     ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
-    # axis labels
+    # Axis labels
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
 
@@ -67,7 +67,7 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
-    # plot
+    # Plot
     _, stemlines, _ = ax.stem(x, y,
                               markerfmt=" ",
                               basefmt=" ",
@@ -77,7 +77,7 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
     if points is True:
         ax.scatter(x, y, s=1, c='k')
 
-    # axis setup
+    # Axis setup
     ax.set_ylim(0, None)
     yfmt = ScalarFormatterForceFormat()
     yfmt.set_powerlimits((0, 0))
@@ -87,7 +87,7 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
     oom = 10 ** np.floor(np.log10(y.max()))
     ax.yaxis.set_ticks([0, y.max() // oom * oom])
 
-    # axis labels
+    # Axis labels
     ax.set_xlabel(xlabel, fontweight='bold', fontstyle='italic')
     ax.set_ylabel(ylabel, fontweight='bold')
 
@@ -96,44 +96,44 @@ def stem(x, y, points=False, xlabel='m/z', ylabel='Intensity',
 
 def grid(features, dims=['mz', 'drift_time'], method='nearest', gridsize=1000j,
          cmap='cividis', ax=None, dpi=600, **kwargs):
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
 
-    # check dims
+    # Check dims
     if len(dims) != 2:
         raise ValueError('grid plots only supported in 2 dimensions')
 
-    # initialize figure
+    # Initialize figure
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor='white')
 
-    # split features and values
+    # Split features and values
     points = features.loc[:, dims].values
     values = features.loc[:, ['intensity']].values.flatten()
 
-    # interpolation grid
+    # Interpolation grid
     grid_x, grid_y = np.mgrid[features[dims[0]].min():features[dims[0]].max():gridsize,
                               features[dims[1]].min():features[dims[1]].max():gridsize]
 
-    # grid data
+    # Grid data
     gridded = np.nan_to_num(
         griddata(points, values, (grid_x, grid_y), method=method)) + 1
 
-    # plot
+    # Plot
     im = ax.pcolormesh(grid_x, grid_y, gridded, zorder=1,
                        cmap=cmap, shading='auto', **kwargs)
 
-    # colorbar axis
+    # Colorbar axis
     divider = make_axes_locatable(ax)
     cax = divider.append_axes('top', size='5%', pad=0.05)
 
-    # colorbar
+    # Colorbar
     cbar = plt.colorbar(im, cax=cax, orientation='horizontal')
 
-    # ticks on top
+    # Ticks on top
     cbar.ax.xaxis.set_ticks_position('top')
 
-    # custom ticks for linear case
+    # Custom ticks for linear case
     if kwargs.get('norm') is None:
         yfmt = ScalarFormatterForceFormat()
         yfmt.set_powerlimits((0, 0))
@@ -146,7 +146,7 @@ def grid(features, dims=['mz', 'drift_time'], method='nearest', gridsize=1000j,
         cbar.ax.xaxis.set_ticklabels(
             ['0', r'%i$\times$10$^{%i}$' % (cmax, oom)])
 
-    # axis labels
+    # Axis labels
     names = _rename(dims)
     ax.set_xlabel(names[0], fontweight='bold')
     ax.set_ylabel(names[1], fontweight='bold')
@@ -179,7 +179,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
 
         return ax1, ax2
 
-    # init figure, axes
+    # Init figure, axes
     fig = plt.figure(figsize=(6.4, 3.8), dpi=dpi, facecolor='white')
     gs = fig.add_gridspec(2, 3, height_ratios=[1.1, 1])
 
@@ -191,7 +191,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     axes['dt-rt'] = fig.add_subplot(gs[0, 1], sharex=axes['dt'])
     axes['rt-mz'] = fig.add_subplot(gs[0, 2], sharex=axes['rt'])
 
-    # sync axes y with x
+    # Sync axes y with x
     sync_y_with_x(axes['mz-dt'], axes['dt'])
     sync_y_with_x(axes['dt-rt'], axes['rt'])
     sync_y_with_x(axes['rt-mz'], axes['mz'])
@@ -199,7 +199,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     sync_y_with_x(axes['dt-rt'], axes['rt-mz'])
     sync_y_with_x(axes['rt-mz'], axes['mz-dt'])
 
-    # sync axes x with y
+    # Sync axes x with y
     sync_x_with_y(axes['mz'], axes['rt-mz'])
     sync_x_with_y(axes['dt'], axes['mz-dt'])
     sync_x_with_y(axes['rt'], axes['dt-rt'])
@@ -207,24 +207,24 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     sync_x_with_y(axes['dt-rt'], axes['mz-dt'])
     sync_x_with_y(axes['rt-mz'], axes['dt-rt'])
 
-    # mz
+    # Mz
     tmp = deimos.collapse(features, keep='mz')
     stem(tmp['mz'], tmp['intensity'], xlabel='m/z', ax=axes['mz'])
     plt.setp(axes['mz'].get_xticklabels(), ha="center", rotation=0)
 
-    # dt
+    # Dt
     tmp = deimos.collapse(features, keep='drift_time')
     fill_between(tmp['drift_time'], tmp['intensity'],
                  xlabel='Drift Time', ax=axes['dt'])
     plt.setp(axes['dt'].get_xticklabels(), ha="center", rotation=0)
 
-    # rt
+    # Rt
     tmp = deimos.collapse(features, keep='retention_time')
     fill_between(tmp['retention_time'], tmp['intensity'],
                  xlabel='Retention Time', ax=axes['rt'])
     plt.setp(axes['rt'].get_xticklabels(), ha="center", rotation=0)
 
-    # mz-dt
+    # Mz-dt
     tmp = deimos.collapse(features, keep=['mz', 'drift_time'])
     grid(tmp,
          dims=['mz', 'drift_time'],
@@ -235,7 +235,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     axes['mz-dt'].xaxis.label.set_visible(False)
     axes['mz-dt'].tick_params(labelbottom=False)
 
-    # dt-rt
+    # Dt-rt
     tmp = deimos.collapse(features, keep=['drift_time', 'retention_time'])
     grid(tmp,
          dims=['drift_time', 'retention_time'],
@@ -246,7 +246,7 @@ def multipanel(features, method='linear', grid_kwargs={}, normalize_grid={}, dpi
     axes['dt-rt'].xaxis.label.set_visible(False)
     axes['dt-rt'].tick_params(labelbottom=False)
 
-    # rt-mz
+    # Rt-mz
     tmp = deimos.collapse(features, keep=['retention_time', 'mz'])
     grid(tmp,
          dims=['retention_time', 'mz'],

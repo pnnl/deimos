@@ -86,19 +86,14 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    Raises
-    ------
-    ValueError
-        If `by`, `loc`, and `tol` are not the same length.
-
     '''
 
-    # safely cast to list
+    # Safely cast to list
     by = deimos.utils.safelist(by)
     loc = deimos.utils.safelist(loc)
     tol = deimos.utils.safelist(tol)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([by, loc, tol])
 
     if features is None:
@@ -107,14 +102,14 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
         else:
             return None
 
-    # store index
+    # Store index
     rindex = features.index.values
 
-    # extend columns
+    # Extend columns
     cols = features.columns
     cidx = [cols.get_loc(x) for x in by]
 
-    # subset by each dim
+    # Subset by each dim
     features = features.values
     idx = np.full(features.shape[0], True, dtype=bool)
     for i, x, dx in zip(cidx, loc, tol):
@@ -124,18 +119,18 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
     rindex = rindex[idx]
 
     if return_index is True:
-        # data found
+        # Data found
         if features.shape[0] > 0:
             return pd.DataFrame(features, index=rindex, columns=cols), idx
 
-        # no data
+        # No data
         return None, idx
     else:
-        # data found
+        # Data found
         if features.shape[0] > 0:
             return pd.DataFrame(features, index=rindex, columns=cols)
 
-        # no data
+        # No data
         return None
 
 
@@ -171,23 +166,19 @@ def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    Raises
-    ------
-    ValueError
-        If `by`, `loc`, and `tol` are not the same length.
-
     '''
 
-    # safely cast to list
+    # Safely cast to list
     by = deimos.utils.safelist(by)
     loc = deimos.utils.safelist(loc)
     low = deimos.utils.safelist(low)
     high = deimos.utils.safelist(high)
     relative = deimos.utils.safelist(relative)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([by, loc, low, high, relative])
 
+    # Determine bounds
     lb = []
     ub = []
     for x, lower, upper, rel in zip(loc, low, high, relative):
@@ -227,19 +218,14 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    Raises
-    ------
-    ValueError
-        If `by`, `low`, and `high` are not the same length.
-
     '''
 
-    # safely cast to list
+    # Safely cast to list
     by = deimos.utils.safelist(by)
     low = deimos.utils.safelist(low)
     high = deimos.utils.safelist(high)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([by, low, high])
 
     if features is None:
@@ -248,14 +234,14 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
         else:
             return None
 
-    # store index
+    # Store index
     rindex = features.index.values
 
-    # extend columns
+    # Extend columns
     cols = features.columns
     cidx = [cols.get_loc(x) for x in by]
 
-    # subset by each dim
+    # Subset by each dim
     features = features.values
     idx = np.full(features.shape[0], True, dtype=bool)
     for i, lb, ub in zip(cidx, low, high):
@@ -265,18 +251,18 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
     rindex = rindex[idx]
 
     if return_index is True:
-        # data found
+        # Data found
         if features.shape[0] > 0:
             return pd.DataFrame(features, index=rindex, columns=cols), idx
 
-        # no data
+        # No data
         return None, idx
     else:
-        # data found
+        # Data found
         if features.shape[0] > 0:
             return pd.DataFrame(features, index=rindex, columns=cols)
 
-        # no data
+        # No data
         return None
 
 
@@ -327,33 +313,33 @@ class Partitions:
 
         '''
 
-        # unique to split on
+        # Unique to split on
         idx = np.unique(self.features[self.split_on].values)
 
-        # number of partitions
+        # Number of partitions
         partitions = np.ceil(len(idx) / self.size)
 
-        # determine partition bounds
+        # Determine partition bounds
         bounds = [[x.min(), x.max()] for x in np.array_split(idx, partitions)]
         for i in range(1, len(bounds)):
             bounds[i][0] = bounds[i - 1][1] - self.overlap
 
         if (self.overlap > 0) & (len(bounds) > 1):
-            # functional bounds
+            # Functional bounds
             fbounds = []
             for i in range(len(bounds)):
                 a, b = bounds[i]
 
-                # first partition
+                # First partition
                 if i < 1:
                     b = b - self.overlap / 2
 
-                # middle partitions
+                # Middle partitions
                 elif i < len(bounds) - 1:
                     a = a + self.overlap / 2
                     b = b - self.overlap / 2
 
-                # last partition
+                # Last partition
                 else:
                     a = a + self.overlap / 2
 
@@ -400,20 +386,20 @@ class Partitions:
 
         '''
 
-        # serial
+        # Serial
         if processes < 2:
             result = [func(x, **kwargs) for x in self]
 
-        # parallel
+        # Parallel
         else:
             with mp.Pool(processes=processes) as p:
                 result = list(p.imap(partial(func, **kwargs), self))
 
-        # reconcile overlap
+        # Reconcile overlap
         result = [slice(result[i], by=self.split_on, low=a, high=b)
                   for i, (a, b) in enumerate(self.fbounds)]
 
-        # combine partitions
+        # Combine partitions
         return pd.concat(result).reset_index(drop=True)
 
     def zipmap(self, func, b, processes=1, **kwargs):
@@ -442,15 +428,15 @@ class Partitions:
 
         '''
 
-        # partition other dataset
+        # Partition other dataset
         partitions = (slice(b, by=self.split_on, low=a, high=b_)
                       for a, b_ in self.bounds)
 
-        # serial
+        # Serial
         if processes < 2:
             result = [func(a, b_, **kwargs) for a, b_ in zip(self, partitions)]
 
-        # parallel
+        # Parallel
         else:
             with mp.Pool(processes=processes) as p:
                 result = list(p.starmap(partial(func, **kwargs),
@@ -458,7 +444,7 @@ class Partitions:
 
         result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
 
-        # reconcile overlap
+        # Reconcile overlap
         tmp = [slice(result['a'][i], by=self.split_on, low=a, high=b_,
                      return_index=True)
                for i, (a, b_) in enumerate(self.fbounds)]
@@ -468,7 +454,7 @@ class Partitions:
         result['b'] = [p.iloc[i, :] if i is not None else None for p,
                        i in zip(result['b'], idx)]
 
-        # combine partitions
+        # Combine partitions
         result['a'] = pd.concat(result['a'])
         result['b'] = pd.concat(result['b'])
 
@@ -558,7 +544,7 @@ class MultiSamplePartitions:
                 current_bin = [idx[i]]
                 current_count = counts[i]
 
-        # add last unadded bin
+        # Add last unadded bin
         bins.append(np.array(current_bin))
         self._counts.append(current_count)
 
@@ -609,16 +595,16 @@ class MultiSamplePartitions:
 
         '''
 
-        # serial
+        # Serial
         if processes < 2:
             result = [func(x, **kwargs) for x in self]
 
-        # parallel
+        # Parallel
         else:
             with mp.Pool(processes=processes) as p:
                 result = list(p.imap(partial(func, **kwargs), self))
 
-        # combine partitions
+        # Combine partitions
         return pd.concat(result, ignore_index=True)
 
 

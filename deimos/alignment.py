@@ -42,73 +42,71 @@ def match(a, b, dims=['mz', 'drift_time', 'retention_time'],
     if a is None or b is None:
         return None, None
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
     relative = deimos.utils.safelist(relative)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, tol, relative])
 
-    # compute inter-feature distances
+    # Compute inter-feature distances
     idx = []
     for i, f in enumerate(dims):
         # vectors
         v1 = a[f].values.reshape(-1, 1)
         v2 = b[f].values.reshape(-1, 1)
 
-        # distances
+        # Distances
         d = scipy.spatial.distance.cdist(v1, v2)
 
         if relative[i] is True:
-            # divisor
+            # Divisor
             basis = np.repeat(v1, v2.shape[0], axis=1)
             fix = np.repeat(v2, v1.shape[0], axis=1).T
             basis = np.where(basis == 0, fix, basis)
 
-            # divide
+            # Divide
             d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
 
-        # check tol
+        # Check tol
         idx.append(d <= tol[i])
 
-    # stack truth arrays
+    # Stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
 
-    # compute normalized 3d distance
+    # Compute normalized 3d distance
     v1 = a[dims].values / tol
     v2 = b[dims].values / tol
-    # v1 = (v1 - v1.min(axis=0)) / (v1.max(axis=0) - v1.min(axis=0))
-    # v2 = (v2 - v1.min(axis=0)) / (v1.max(axis=0) - v1.min(axis=0))
     dist3d = scipy.spatial.distance.cdist(v1, v2, 'cityblock')
     dist3d = np.multiply(dist3d, idx)
 
-    # normalize to 0-1
+    # Normalize to 0-1
     mx = dist3d.max()
     if mx > 0:
         dist3d = dist3d / dist3d.max()
 
-    # intensities
+    # Intensities
     intensity = np.repeat(a['intensity'].values.reshape(-1, 1),
                           b.shape[0], axis=1)
     intensity = np.multiply(intensity, idx)
 
-    # max over dims
+    # Max over dims
     maxcols = np.max(intensity, axis=0, keepdims=True)
 
-    # zero out nonmax over dims
+    # Zero out nonmax over dims
     intensity[intensity != maxcols] = 0
 
-    # break ties by distance
+    # Break ties by distance
     intensity = intensity - dist3d
 
-    # max over clusters
+    # Max over clusters
     maxrows = np.max(intensity, axis=1, keepdims=True)
 
-    # where max and nonzero
+    # Where max and nonzero
     ii, jj = np.where((intensity == maxrows) & (intensity > 0))
 
-    # reorder
+    # Reorder
     a = a.iloc[ii]
     b = b.iloc[jj]
 
@@ -153,43 +151,43 @@ def tolerance(a, b, dims=['mz', 'drift_time', 'retention_time'],
     if a is None or b is None:
         return None, None
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
     relative = deimos.utils.safelist(relative)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, tol, relative])
 
-    # compute inter-feature distances
+    # Compute inter-feature distances
     idx = []
     for i, f in enumerate(dims):
-        # vectors
+        # Vectors
         v1 = a[f].values.reshape(-1, 1)
         v2 = b[f].values.reshape(-1, 1)
 
-        # distances
+        # Distances
         d = scipy.spatial.distance.cdist(v1, v2)
 
         if relative[i] is True:
-            # divisor
+            # Divisor
             basis = np.repeat(v1, v2.shape[0], axis=1)
             fix = np.repeat(v2, v1.shape[0], axis=1).T
             basis = np.where(basis == 0, fix, basis)
 
-            # divide
+            # Divide
             d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
 
-        # check tol
+        # Check tol
         idx.append(d <= tol[i])
 
-    # stack truth arrays
+    # Stack truth arrays
     idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
 
-    # per-dataset indices
+    # Per-dataset indices
     ii, jj = np.where(idx > 0)
 
-    # reorder
+    # Reorder
     a = a.iloc[ii]
     b = b.iloc[jj]
 
@@ -222,30 +220,33 @@ def fit_spline(a, b, align='retention_time', **kwargs):
 
     '''
 
-    # uniqueify
+    # Uniqueify
     x = a[align].values
     y = b[align].values
     arr = np.vstack((x, y)).T
     arr = np.unique(arr, axis=0)
 
-    # check kwargs
+    # Check kwargs
     if 'kernel' in kwargs:
         kernel = kwargs.get('kernel')
     else:
         kernel = 'linear'
 
+    # Construct interpolation axis
     newx = np.linspace(arr[:, 0].min(), arr[:, 0].max(), 1000)
 
+    # Linear kernel
     if kernel == 'linear':
         reg = scipy.stats.linregress(x, y)
         newy = reg.slope * newx + reg.intercept
 
+    # Other kernels
     else:
-        # fit
+        # Fit
         svr = SVR(**kwargs)
         svr.fit(arr[:, 0].reshape(-1, 1), arr[:, 1])
 
-        # predict
+        # Predict
         newy = svr.predict(newx.reshape(-1, 1))
 
     return scipy.interpolate.interp1d(newx, newy,
@@ -288,53 +289,53 @@ def agglomerative_clustering(features,
     if features is None:
         return None
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
     tol = deimos.utils.safelist(tol)
     relative = deimos.utils.safelist(relative)
 
-    # check dims
+    # Check dims
     deimos.utils.check_length([dims, tol, relative])
 
-    # copy input
+    # Copy input
     features = features.copy()
 
-    # connectivity
+    # Connectivity
     if 'sample_idx' not in features.columns:
         cmat = None
     else:
         vals = features['sample_idx'].values.reshape(-1, 1)
         cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
 
-    # compute inter-feature distances
+    # Compute inter-feature distances
     distances = []
     for i, d in enumerate(dims):
-        # vectors
+        # Vectors
         v1 = features[d].values.reshape(-1, 1)
 
-        # distances
+        # Distances
         dist = scipy.spatial.distance.cdist(v1, v1)
 
         if relative[i] is True:
-            # divisor
+            # Divisor
             basis = np.repeat(v1, v1.shape[0], axis=1)
             fix = np.repeat(v1, v1.shape[0], axis=1).T
             basis = np.where(basis == 0, fix, basis)
 
-            # divide
+            # Divide
             dist = np.divide(dist, basis, out=np.zeros_like(
                 basis), where=basis != 0)
 
-        # check tol
+        # Check tol
         distances.append(dist / tol[i])
 
-    # stack distances
+    # Stack distances
     distances = np.dstack(distances)
 
-    # max distance
+    # Max distance
     distances = np.max(distances, axis=-1)
 
-    # perform clustering
+    # Perform clustering
     try:
         clustering = AgglomerativeClustering(n_clusters=None,
                                              linkage='complete',
@@ -342,6 +343,8 @@ def agglomerative_clustering(features,
                                              distance_threshold=1,
                                              connectivity=cmat).fit(distances)
         features['cluster'] = clustering.labels_
+
+    # All data points are singleton clusters
     except:
         features['cluster'] = np.arange(len(features.index))
 

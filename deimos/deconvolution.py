@@ -1,8 +1,9 @@
-import deimos
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
 from scipy.spatial.kdtree import KDTree
+
+import deimos
 
 
 def cosine(a, b):
@@ -18,6 +19,7 @@ def cosine(a, b):
     -------
     float
         Cosine distance.
+
     '''
 
     a_ = a.flatten()
@@ -35,27 +37,29 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
         Input feature coordinates and intensities.
     dims : str or list
         Dimensions considered in generating 1D profile(s).
+
     Returns
     -------
     :obj:`dict` of :obj:`~scipy.interpolate.UnivariateSpline`
         Dictionary indexed by dimension containing univariate
         splines for each 1D profile.
+
     '''
 
-    # safely cast to list
+    # Safely cast to list
     dims = deimos.utils.safelist(dims)
 
     profiles = {}
     for dim in dims:
-        # collapse to 1D profile
+        # Collapse to 1D profile
         profile = deimos.collapse(features, keep=dim).sort_values(
             by=dim, ignore_index=True)
 
-        # interpolate spline
+        # Interpolate spline
         x = profile[dim].values
         y = profile['intensity'].values
 
-        # fit univariate spline
+        # Fit univariate spline
         try:
             uspline = UnivariateSpline(x, y, s=0, ext=1)
         except:
