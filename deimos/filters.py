@@ -383,7 +383,7 @@ def sparse_upper_star(idx, V):
     # get the indexes of the first nearest neighbor by birth
     _, nn = tree.query(ph[:, 0].reshape((-1, 1)), k=1, workers=-1)
 
-    return nn, ph[:, 0] - ph[:, 1]
+    return nn, (ph[:, 0] - ph[:, 1])
 
 
 def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
@@ -610,7 +610,7 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     return median
 
 
-def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
+def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retention_time'],
            radius=[0, 1, 1], iterations=1, tol=0.0):
     '''
     Smooth data by sparse mean filtration.
@@ -619,6 +619,10 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
+    index : dict
+        Index of features in original data array.
+    factors : dict
+        Unique sorted values per dimension.
     dims : str or list
         Dimensions to perform peak detection in.
     radius : float or list
@@ -644,12 +648,24 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
     # check dims
     deimos.utils.check_length([dims, radius])
 
+    # Check factors and index mutually exclusive
+    if (factors is not None) & (index is not None):
+        raise ValueError('Specify either `index`, `factors`, or neither.')
+
     # copy input
     features = features.copy()
 
-    # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.int32)
-                    for dim in dims]).T
+    # Build index from features directly
+    if (factors is None) & (index is None):
+        index = [pd.factorize(features[dim], sort=True)[0].astype(np.float32)
+                 for dim in dims]
+
+    # Build index from factors
+    if (factors is not None) & (index is None):
+        index = deimos.io.build_index(features, factors)
+
+    # Index supplied directly
+    index = np.vstack([index[dim] for dim in dims]).T
 
     # values
     V = features['intensity'].values
@@ -660,14 +676,14 @@ def smooth(features, dims=['mz', 'drift_time', 'retention_time'],
         # previous iteration
         V_prev = V.copy()
         resid_prev = resid
-        
+
         # compute smooth
-        V = deimos.filters.sparse_mean_filter(idx, V, radius=radius)
-        
+        V = deimos.filters.sparse_mean_filter(index, V, radius=radius)
+
         # calculate residual with previous iteration
         resid = np.sqrt(np.mean(np.square(V - V_prev)))
-        
-        # evaluate convergence   
+
+        # evaluate convergence
         if i > 0:
             # percent change in residual
             test = np.abs(resid - resid_prev) / resid_prev

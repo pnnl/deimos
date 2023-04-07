@@ -97,7 +97,7 @@ def local_maxima(features, dims=['mz', 'drift_time', 'retention_time'],
     return peaks
 
 
-def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
+def persistent_homology(features, index=None, factors=None, dims=['mz', 'drift_time', 'retention_time'],
                         radius=None):
     '''
     Peak detection by persistent homology, implemented as a sparse upper star
@@ -107,6 +107,10 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
+    index : dict
+        Index of features in original data array.
+    factors : dict
+        Unique sorted values per dimension.
     dims : str or list
         Dimensions to perform peak detection in.
     radius : float, list, or None
@@ -130,15 +134,29 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
     if radius is not None:
         deimos.utils.check_length([dims, radius])
 
-    # get indices
-    idx = np.vstack([pd.factorize(features[dim], sort=True)[0].astype(np.float32)
-                    for dim in dims]).T
+    # Check factors and index mutually exclusive
+    if (factors is not None) & (index is not None):
+        raise ValueError('Specify either `index`, `factors`, or neither.')
+
+    # Build index from features directly
+    if (factors is None) & (index is None):
+        index = [pd.factorize(features[dim], sort=True)[0].astype(np.float32)
+                 for dim in dims]
+
+    # Build index from factors
+    if (factors is not None) & (index is None):
+        index = deimos.io.build_index(features, factors)
+
+    # Index built, shape appropriately
+    index = np.vstack([index[dim] for dim in dims]).T
 
     # values
     V = features['intensity'].values
 
     # upper star filtration
-    pidx, pers = deimos.filters.sparse_upper_star(idx, V)
+    pidx, pers = deimos.filters.sparse_upper_star(index, V)
+    pidx = pidx[pers > 1]
+    pers = pers[pers > 1]
 
     # get peaks
     peaks = features.iloc[pidx, :].reset_index(drop=True)
@@ -148,7 +166,7 @@ def persistent_homology(features, dims=['mz', 'drift_time', 'retention_time'],
 
     # weighted mean
     if radius is not None:
-        vals = deimos.filters.sparse_weighted_mean_filter(idx, features[dims].values,
+        vals = deimos.filters.sparse_weighted_mean_filter(index, features[dims].values,
                                                           V, radius=radius, pindex=pidx)
         for i, dim in enumerate(dims):
             peaks[dim + '_weighted'] = vals[:, i]
