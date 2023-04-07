@@ -84,6 +84,57 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
     raise ValueError('Only HDF5 and mzML currently supported.')
 
 
+def build_factors(data, dims='detect'):
+    '''
+    Determine sorted unique elements (factors) for each dimension in data.
+
+    Parameters
+    ----------
+    data : :obj:`~pandas.DataFrame`
+        Feature coordinates and intensities.
+    dims : str or list
+        Dimensions to determine factors for. Attempts to autodetect by
+        default.
+
+    Returns
+    -------
+    dict
+        Unique sorted values per dimension.
+
+    '''
+
+    # Autodetect
+    if dims == 'detect':
+        dims = deimos.utils.detect_dims(data)
+
+    # Safely cast to list
+    dims = deimos.utils.safelist(dims)
+
+    # Construct per-dimension factor arrays
+    return {dim: pd.factorize(data[dim], sort=True)[1].astype(np.float32) for dim in dims}
+
+
+def build_index(data, factors):
+    '''
+    Construct data index from precomputed factors.
+
+    Parameters
+    ----------
+    data : :obj:`~pandas.DataFrame`
+        Feature coordinates and intensities.
+    factors : dict
+        Per-dimension arrays of unique values.
+
+    Returns
+    -------
+    dict
+        Index per dimension.
+
+    '''
+
+    return {dim: np.searchsorted(factors[dim], data[dim]).astype(np.float32) for dim in factors}
+
+
 def save(path, data, key='ms1', **kwargs):
     '''
     Saves :obj:`~pandas.DataFrame` to HDF5 or MGF container.
