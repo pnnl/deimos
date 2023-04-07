@@ -137,7 +137,7 @@ def persistent_homology(features, index=None, factors=None, dims=['mz', 'drift_t
 
     # Build index from factors
     if (factors is not None) & (index is None):
-        index = deimos.io.build_index(features, factors)
+        index = deimos.build_index(features, factors)
 
     # Index built, shape appropriately
     index = np.vstack([index[dim] for dim in dims]).T
