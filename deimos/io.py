@@ -367,7 +367,7 @@ def load_hdf(path, key='ms1', columns=None, chunksize=1E7, meta=None):
 
     Returns
     -------
-    :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
+    :obj:`~pandas.DataFrame`
         Feature coordinates and intensities for the specified level.
         Pandas is used when loading a single file, Dask for multiple files.
 

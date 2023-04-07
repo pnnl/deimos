@@ -35,7 +35,7 @@ def detect(features, dims=['mz', 'drift_time', 'retention_time'],
 
     Returns
     -------
-    :obj:`pandas.DataFrame`
+    :obj:`~pandas.DataFrame`
         Features grouped by isotopic pattern.
 
     '''
