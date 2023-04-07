@@ -38,11 +38,6 @@ class CCSCalibration:
         '''
         Helper method to check for calibration parameters.
 
-        Raises
-        ------
-        ValueError
-            If `self.tfix` or `self.beta` are None.
-
         '''
 
         if (self.beta is None) or (self.tfix is None):
@@ -76,12 +71,6 @@ class CCSCalibration:
         power : bool
             Indicate whether to use linearize power function for calibration,
             i.e. in traveling wave ion moblility spectrometry.
-
-        Raises
-        ------
-        ValueError
-            If appropriate keyword arguments are not supplied (either `mz`,
-            `ta`, `ccs`, and `q`; or `beta` and `tfix`).
 
         '''
 
@@ -243,12 +232,6 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
     :obj:`~deimos.calibration.CCSCalibration`
         Instance of calibrated `~deimos.calibration.CCSCalibration`
         object.
-
-    Raises
-    ------
-    ValueError
-        If appropriate keyword arguments are not supplied (either `mz`,
-        `ta`, `ccs`, and `q`; or `beta` and `tfix`).
 
     '''
 

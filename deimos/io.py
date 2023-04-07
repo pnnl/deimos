@@ -39,7 +39,7 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
 
     Returns
     -------
-    :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame` or dict of :obj:`~pandas.DataFrame`
+    :obj:`~pandas.DataFrame` or :obj:`dict` of :obj:`~pandas.DataFrame`
         Feature coordinates and intensities for the specified level.
         Pandas is used when loading a single file, Dask for multiple files.
         Loading an mzML file returns a dictionary with keys per MS level.
@@ -216,7 +216,7 @@ def load_mzml(path, accession={}, dtype=np.float32):
 
     Returns
     -------
-    dict of :obj:`~pandas.DataFrame`
+    :obj:`dict` of :obj:`~pandas.DataFrame`
         Dictionary containing parsed feature coordinates and intensities, indexed
         by keys per MS level.
 

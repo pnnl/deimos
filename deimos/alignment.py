@@ -32,11 +32,6 @@ def match(a, b, dims=['mz', 'drift_time', 'retention_time'],
         Features matched within tolerances. E.g., `a[i..n]`and `b[i..n]` each
         represent matched features.
 
-    Raises
-    ------
-    ValueError
-        If `dims`, `tol`, and `relative` are not the same length.
-
     '''
 
     if a is None or b is None:
@@ -140,11 +135,6 @@ def tolerance(a, b, dims=['mz', 'drift_time', 'retention_time'],
     a, b : :obj:`~pandas.DataFrame`
         Features matched within tolerances. E.g., `a[i..n]` and `b[i..n]` each
         represent matched features.
-
-    Raises
-    ------
-    ValueError
-        If `dims`, `tol`, and `relative` are not the same length.
 
     '''
 
@@ -278,11 +268,6 @@ def agglomerative_clustering(features,
     -------
     features : :obj:`~pandas.DataFrame`
         Features concatenated over samples with cluster labels.
-
-    Raises
-    ------
-    ValueError
-        If `dims`, `tol`, and `relative` are not the same length.
 
     '''
 
