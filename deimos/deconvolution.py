@@ -70,8 +70,8 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
     return profiles
 
 
-def offset_correction(dt_ms2, mz_ms2, mz_ms1, ce=0,
-                      params=[1.02067031, -0.02062323,  0.00176694]):
+def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=0,
+                            params=[1.02067031, -0.02062323,  0.00176694]):
     # Cast params as array
     params = np.array(params).reshape(-1, 1)
     
