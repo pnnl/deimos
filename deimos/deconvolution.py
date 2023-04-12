@@ -70,27 +70,30 @@ def get_1D_profiles(features, dims=['mz', 'drift_time', 'retention_time']):
     return profiles
 
 
-def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=0,
-                            params=[0.03025101, 0.99329585, 0.03465899, -0.02081317, -1.07780131]):
+def offset_correction(dt_ms2, mz_ms2, mz_ms1, ce=0,
+                      params=[1.02067031, -0.02062323,  0.00176694]):
     # Cast params as array
     params = np.array(params).reshape(-1, 1)
-
+    
     # Convert collision energy to array
-    ce = np.ones_like(dt_ms2) / ce
-
+    ce = np.ones_like(dt_ms2) * np.log(ce)
+    
     # Create constant vector
     const = np.ones_like(dt_ms2)
-
+    
     # Sqrt
     mu_ms1 = np.sqrt(mz_ms1)
     mu_ms2 = np.sqrt(mz_ms2)
-
+    
+    # Ratio
+    mu_ratio = mu_ms2 / mu_ms1
+    
     # Create dependent array
-    x = np.stack((const, dt_ms2, mu_ms1, mu_ms2, ce), axis=1)
-
+    x = np.stack((const, mu_ratio, ce), axis=1)
+    
     # Predict
-    y = np.dot(x, params)
-
+    y = np.dot(x, params).flatten() * dt_ms2
+    
     return y
 
 
