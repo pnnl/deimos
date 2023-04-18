@@ -6,88 +6,118 @@ from os.path import *
 import pandas as pd
 
 
-# infer wildcards from inputs
+# Infer wildcards from inputs
 fns = [basename(x) for x in glob.glob(join('input', '*.*'))]
 IDS = [splitext(splitext(x)[0])[0] for x in fns]
 lookup = {k: v for k, v in zip(IDS, fns)}
 
 
+# Collect all outputs
 rule all:
     input:
         expand(join('output', 'peakpicked', '{id}.h5'), id=IDS),
 
 
+# Convert mzML to HDF5
 rule mzml2hdf:
     input:
         lambda wildcards: join('input', lookup[wildcards.id])
     output:
-        join('output', 'parsed', '{id}.h5')
+        join('output', 'parsed', '{id}.h5'),
+        join('output', 'factors', '{id}.npy')
     run:
-        # read/parse mzml
+        # Read/parse mzml
         data = deimos.load(input[0], accession=config['accession'])
 
-        # save as hdf5
+        factors = {}
+        # Enumerate MS levels
         for k, v in data.items():
+            # Build factors
+            factors[k] = deimos.build_factors(v, dims=config['dims'])
+            
+            # Save as hdf5
             deimos.save(output[0], v, key=k, mode='a')
+        
+        # Save factors
+        np.save(output[1], factors)
 
 
+# Threshold data by intensity
 rule threshold:
     input:
         rules.mzml2hdf.output
     output:
         join('output', 'thresholded', '{id}.h5')
     run:
-        # get keys
+        # Get keys
         keys = list(h5py.File(input[0], 'r').keys())
 
+        # Enumerate MS levels
         for k in keys:
-            # load data
+            # Load data
             data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
 
-            # threshold
+            # Threshold
             data = deimos.threshold(data, threshold=config['threshold'])
 
-            # save
+            # Save
             deimos.save(output[0], data, key=k, mode='a')   
 
 
+# Smooth data
 rule smooth:
     input:
+        rules.mzml2hdf.output[1],
         rules.threshold.output
     output:
         join('output', 'smoothed', '{id}.h5')
     run:
-        # get keys
-        keys = list(h5py.File(input[0], 'r').keys())
+        # Load factors
+        factors = np.load(input[0], allow_pickle=True).item()
 
+        # Get keys
+        keys = list(h5py.File(input[1], 'r').keys())
+
+        # Enumerate MS levels
         for k in keys:
-            # load data
-            data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
+            # Load data
+            data = deimos.load(input[1], key=k, columns=config['dims'] + ['intensity'])
 
-            # perform smoothing
-            data = deimos.filters.smooth(data, dims=config['dims'],
-                                         radius=config['radius']['smooth'])
+            # Perform smoothing
+            data = deimos.filters.smooth(data,
+                                         factors=factors[k],
+                                         dims=config['dims'],
+                                         iterations=config['smooth']['iters'],
+                                         radius=config['smooth']['radius'])
 
-            # save
+            # Save
             deimos.save(output[0], data, key=k, mode='a')
 
 
+# Perform peak detection
 rule peakpick:
     input:
+        rules.mzml2hdf.output[1],
         rules.smooth.output
     output:
         join('output', 'peakpicked', '{id}.h5')
     run:
-        # get keys
-        keys = list(h5py.File(input[0], 'r').keys())
+        # Load factors
+        factors = np.load(input[0], allow_pickle=True).item()
 
+        # Get keys
+        keys = list(h5py.File(input[1], 'r').keys())
+
+        # Enumerate MS levels
         for k in keys:
-            # load data
-            data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
+            # Load data
+            data = deimos.load(input[1], key=k, columns=config['dims'] + ['intensity'])
 
-            # perform peakpicking
-            peaks = deimos.peakpick.persistent_homology(data, dims=config['dims'],
-                                                        radius=config['radius']['weighted_mean'])
+            # Perform peakpicking
+            peaks = deimos.peakpick.persistent_homology(data,
+                                                        factors=factors[k],
+                                                        dims=config['dims'],
+                                                        radius=config['weighted_mean']['radius'])
 
-            # save
+            # Save
             deimos.save(output[0], peaks, key=k, mode='a')
