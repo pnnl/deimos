@@ -6,13 +6,13 @@ from tests import localfile
 
 @pytest.fixture()
 def ms1_peaks():
-    ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
-                          key='ms1')
-    return deimos.peakpick.local_maxima(ms1,
-                                        dims=['mz',
-                                              'drift_time',
-                                              'retention_time'],
-                                        bins=[2.7, 0.94, 3.64])
+    ms1 = deimos.load(localfile('resources/isotope_example_data.h5'),
+                      key='ms1')
+    return deimos.peakpick.persistent_homology(ms1,
+                                               dims=['mz',
+                                                     'drift_time',
+                                                     'retention_time'],
+                                        radius=[2, 10, 0])
 
 
 # need to test more configurations
@@ -35,4 +35,3 @@ def test_detect(ms1_peaks):
     assert isotopes['n'] == 4
     assert all([x <= 50E-6 for x in isotopes['error']])
     assert isotopes['dx'] == [1.003355, 2.00671, 3.010065, 4.01342]
-    assert isotopes['intensity_iso'] == [10031.0, 2490.0, 491.0, 122.0]

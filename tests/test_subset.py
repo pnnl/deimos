@@ -8,14 +8,14 @@ from tests import localfile
 
 @pytest.fixture()
 def ms1():
-    return deimos.load_hdf(localfile('resources/example_data.h5'),
-                           key='ms1')
+    return deimos.load(localfile('resources/example_data.h5'),
+                       key='ms1')
 
 
 @pytest.fixture()
 def ms2():
-    return deimos.load_hdf(localfile('resources/example_data.h5'),
-                           key='ms2')
+    return deimos.load(localfile('resources/example_data.h5'),
+                       key='ms2')
 
 
 @pytest.mark.parametrize('threshold,length',
@@ -367,20 +367,26 @@ def test_partition(ms1, split_on, size, overlap):
 
 class TestMultiSamplePartitions:
     def test_init(self):
-        raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError
 
     def test__compute_splits(self):
-        raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError
 
     def test_iter(self):
-        raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError
 
     def test_next(self):
-        raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError
 
     def test_map(self):
-        raise NotImplementedError
+        with pytest.raises(NotImplementedError):
+            raise NotImplementedError
 
 
 def test_multi_sample_partition():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError

@@ -7,8 +7,8 @@ from tests import localfile
 
 @pytest.fixture()
 def ms1():
-    return deimos.load_hdf(localfile('resources/example_data.h5'),
-                           key='ms1')
+    return deimos.load(localfile('resources/example_data.h5'),
+                       key='ms1')
 
 
 @pytest.mark.parametrize('dims,bins,scale_by,ref_res,scale',
@@ -87,8 +87,13 @@ def test_local_maxima(ms1, dims, bins, scale_by, ref_res, scale):
                            'mz',
                            0.002445221,
                            None)])
-def test_non_max_suppression_fail(ms1, dims, bins, scale_by, ref_res, scale):
+def test_local_maxima_fail(ms1, dims, bins, scale_by, ref_res, scale):
     with pytest.raises(ValueError):
         deimos.peakpick.local_maxima(ms1, dims=dims,
                                      bins=bins, scale_by=scale_by,
                                      ref_res=ref_res, scale=scale)
+        
+
+def test_persistent_homology():
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError

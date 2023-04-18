@@ -25,6 +25,8 @@ def test_has_module(module):
 @pytest.mark.parametrize('attr',
                          [('save'),
                           ('load'),
+                          ('build_index'),
+                          ('build_factors'),
                           ('get_accessions'),
                           ('threshold'),
                           ('collapse'),
@@ -48,29 +50,37 @@ def test_alignment_namespace(attr):
 
 @pytest.mark.parametrize('attr',
                          [('CCSCalibration'),
-                          ('calibrate_ccs')])
+                          ('calibrate_ccs'),
+                          ('tunemix')])
 def test_calibration_namespace(attr):
     assert hasattr(deimos.calibration, attr)
 
 
 @pytest.mark.parametrize('attr',
                          [('get_1D_profiles'),
-                          ('MS2Deconvolution'),
-                          ('deconvolve_ms2')])
+                          ('offset_correction_model'),
+                          ('MS2Deconvolution')])
 def test_calibration_namespace(attr):
     assert hasattr(deimos.deconvolution, attr)
 
 
 @pytest.mark.parametrize('attr',
                          [('std'),
+                          ('std_pdf'),
                           ('maximum'),
                           ('minimum'),
                           ('sum'),
                           ('mean'),
+                          ('mean_pdf'),
                           ('matched_gaussian'),
-                          #   ('snr'),
-                          #   ('kurtosis'),
-                          ('count')])
+                          ('count'),
+                          ('skew_pdf'),
+                          ('kurtosis_pdf'),
+                          ('sparse_upper_star'),
+                          ('sparse_mean_filter'),
+                          ('sparse_weighted_mean_filter'),
+                          ('sparse_median_filter'),
+                          ('smooth')])
 def test_filters_namespace(attr):
     assert hasattr(deimos.filters, attr)
 
@@ -85,6 +95,8 @@ def test_grid_namespace(attr):
 @pytest.mark.parametrize('attr',
                          [('save'),
                           ('load'),
+                          ('build_factors'),
+                          ('build_index'),
                           ('get_accessions'),
                           ('load_mzml'),
                           ('save_hdf'),
@@ -103,7 +115,8 @@ def test_isotopes_namespace(attr):
 
 
 @pytest.mark.parametrize('attr',
-                         [('local_maxima')])
+                         [('local_maxima'),
+                          ('persistent_homology')])
 def test_peakpick_namespace(attr):
     assert hasattr(deimos.peakpick, attr)
 
@@ -142,6 +155,8 @@ def test_utils_namespace(attr):
 @pytest.mark.parametrize('toplevel,attr',
                          [(deimos.save, deimos.io.save),
                           (deimos.load, deimos.io.load),
+                          (deimos.build_factors, deimos.io.build_factors),
+                          (deimos.build_index, deimos.io.build_index),
                           (deimos.get_accessions, deimos.io.get_accessions),
                           (deimos.threshold, deimos.subset.threshold),
                           (deimos.collapse, deimos.subset.collapse),

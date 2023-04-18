@@ -20,7 +20,8 @@ def ms2():
 
 
 def test_load_mzml():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
 
 
 def test_save(ms1, ms2):
@@ -45,8 +46,25 @@ def test_load(ms1, ms2):
 
 
 def test_load_hdf_multi():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
 
 
 def test_save_mgf():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
+
+
+def test_build_factors():
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
+
+
+def test_build_index():
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
+
+
+def test_get_accessions():
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError

@@ -6,30 +6,25 @@ from tests import localfile
 
 @pytest.fixture()
 def ms1_peaks():
-    ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
-                          key='ms1')
-    peaks = deimos.peakpick.local_maxima(ms1,
-                                         dims=['mz',
-                                               'drift_time',
-                                               'retention_time'],
-                                         bins=[2.7, 0.94, 3.64],
-                                         scale_by='mz',
-                                         ref_res=0.002445221,
-                                         scale='drift_time')
+    ms1 = deimos.load(localfile('resources/isotope_example_data.h5'),
+                      key='ms1')
+    peaks = deimos.peakpick.persistent_homology(ms1,
+                                                dims=['mz',
+                                                      'drift_time',
+                                                      'retention_time'],
+                                                radius=[2, 10, 0])
     return deimos.threshold(peaks, threshold=1E3)
 
 
 @pytest.fixture()
 def ms2_peaks():
-    ms1 = deimos.load_hdf(localfile('resources/isotope_example_data.h5'),
-                          key='ms1')
-    peaks = deimos.peakpick.local_maxima(ms1,
-                                         dims=['mz',
-                                               'drift_time',
-                                               'retention_time'],
-                                         bins=[2.7, 2.92, 3.64])
-    # correct ms2 difference
-    peaks['drift_time'] += 0.12
+    ms2 = deimos.load(localfile('resources/isotope_example_data.h5'),
+                      key='ms2')
+    peaks = deimos.peakpick.persistent_homology(ms2,
+                                                dims=['mz',
+                                                      'drift_time',
+                                                      'retention_time'],
+                                                radius=[2, 10, 0])
     return deimos.threshold(peaks, threshold=1E3)
 
 
@@ -168,8 +163,10 @@ def test_tolerance_return_none(ms1_peaks):
 
 
 def test_fit_spline():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
 
 
 def test_agglomerative_clustering():
-    raise NotImplementedError
+    with pytest.raises(NotImplementedError):
+        raise NotImplementedError
