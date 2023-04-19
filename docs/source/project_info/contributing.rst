@@ -26,7 +26,7 @@ Report Bugs
 Please report bugs `here <https://github.com/pnnl/deimos/issues>`_.
 When reporting, please include:
 
-* Your operating system and version.
+* Your operating system and version
 * The version(s) of the package dependency (or dependencies) that produce the bug
 * Detailed steps to reproduce the bug
 * Any details about your local setup that might be helpful in troubleshooting
@@ -34,15 +34,15 @@ When reporting, please include:
 Fix Bugs
 ========
 
-Look through the Github issues for bugs.
-If you want to start working on a bug, please write short message on the issue tracker to prevent duplicate work.
+Look through the GitHub issues for bugs.
+If you want to start working on a bug, please write a short message on the issue tracker to prevent duplicate work.
 Bugfixes should be submitted as pull requests.
 
 Implement Features
 ==================
 
-Look through the Github issues for features.
-If you want to start working on an issue, please write short message on the issue tracker to prevent duplicate work.
+Look through the GitHub issues for features.
+If you want to start working on an issue, please write a short message on the issue tracker to prevent duplicate work.
 Implemented features should be submitted as pull requests.
 
 Write Documentation
@@ -56,7 +56,7 @@ Changes to documentation should be submitted as pull requests.
 Submitting a Pull Request
 -------------------------
 
-To update the documentation, fix bugs or add new features you need to create a pull request.
+To update the documentation, fix bugs, or add new features you need to create a pull request.
 Any changes you make to your local copy of the code will be made easily available for review and eventual integration into the code base.
 To create a pull request:
 

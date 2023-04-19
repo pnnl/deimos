@@ -3,25 +3,21 @@
 ================
 Acknowledgements
 ================
-
 DEIMoS is a product of efforts from numerous individuals, without whom this project would not be possible.
 All listings are alphabetical.
 
 Development Lead
 ----------------
-
 - Sean Colby
 
 Developers
 ----------
-
 - Jessica Bade
 - Christine Chang
 - Marjolein Oostrom
 
 Subject Matter Experts
 ----------------------
-
 - Aivett Bilbao-Peña
 - Yehia Ibrahim
 - Tom Metz
@@ -40,5 +36,4 @@ Key Users
 
 Contributors
 ------------
-
 - None so far! Please see the :ref:`contributing` section.

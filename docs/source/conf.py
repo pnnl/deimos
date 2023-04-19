@@ -6,6 +6,8 @@
 
 # -- Path setup --------------------------------------------------------------
 
+import deimos
+from datetime import datetime
 import os
 import sys
 
@@ -14,16 +16,19 @@ import sys
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 sys.path.insert(0, os.path.abspath('../../'))
-from datetime import datetime
-import deimos
-
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'deimos'
-copyright = '2019-{}, Pacific Northwest National Laboratory'.format(datetime.today().year)
+version = deimos.__version__
+current_year = datetime.today().year
+copyright = '2019-{}, Pacific Northwest National Laboratory'.format(
+    current_year)
 author = 'Sean M. Colby'
+rst_prolog = """
+.. |current_year| replace:: {}
+""".format(current_year)
 
 
 # -- General configuration ---------------------------------------------------
