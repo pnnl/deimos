@@ -25,6 +25,7 @@ and (iii) mitigate convolution artifacts in tandem mass spectra.
 	:maxdepth: 1
 
 	getting_started/installation
+	getting_started/example_data
 	getting_started/cli
 
 .. toctree::
