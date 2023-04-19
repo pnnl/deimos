@@ -6,7 +6,6 @@
 
 # -- Path setup --------------------------------------------------------------
 
-import deimos
 from datetime import datetime
 import os
 import sys
@@ -16,6 +15,7 @@ import sys
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 sys.path.insert(0, os.path.abspath('../../'))
+import deimos
 
 
 # -- Project information -----------------------------------------------------
