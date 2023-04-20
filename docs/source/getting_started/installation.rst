@@ -21,7 +21,7 @@ Create the virtual environment:
 .. code-block:: console
   
   $ cd deimos/
-  $ conda create -n deimos -f environment.yml
+  $ conda env create -f environment.yml
 
 Activate the virtual environment:
 
