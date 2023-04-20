@@ -21,7 +21,7 @@ build:
 
 requirements:
   host:
-    - python >=3.7
+    - python =3.9
     - pip
   run:
     - dask
@@ -31,7 +31,7 @@ requirements:
     - pandas
     - pymzml
     - pytables
-    - python >=3.7
+    - python =3.9
     - ripser
     - scikit-learn
     - scipy
