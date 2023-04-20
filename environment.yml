@@ -11,7 +11,7 @@ dependencies:
   - pandas
   - pymzml
   - pytables
-  - python =3.9
+  - python =3.8
   - ripser
   - scikit-learn
   - scipy

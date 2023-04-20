@@ -38,17 +38,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Build environment
+      - name: Setup environment
         uses: conda-incubator/setup-miniconda@v2
         with:
-          mamba-version: "*"
-          python-version: 3.9
-          channels: conda-forge,bioconda,anaconda
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          python-version: 3.8
+          channels: conda-forge,bioconda
+          environment-file: environment.yml
           use-only-tar-bz2: true
-          auto-update-conda: true
           auto-activate-base: false
           activate-environment: deimos
-          environment-file: environment.yml
       
       - name: Install DEIMoS
         run: pip install -e .
@@ -60,8 +61,8 @@ jobs:
             pytest
   
   Deploy:
-    needs:
-      - Test
+    # needs:
+    #   - Test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     
@@ -69,16 +70,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # - name: Build environment
-      #   uses: conda-incubator/setup-miniconda@v2
-      #   with:
-      #     mamba-version: "*"
-      #     python-version: 3.9
-      #     channels: conda-forge,bioconda,anaconda
-      #     use-only-tar-bz2: true
-      #     auto-update-conda: true
-      #     activate-environment: deimos
-      #     environment-file: environment.yml
+      - name: Setup environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          python-version: 3.8
+          channels: conda-forge,bioconda
+          use-only-tar-bz2: true
+          auto-activate-base: true
+
+      - name: Install boa
+        run: mamba install boa
       
       # - name: Install DEIMoS
       #   run: pip install -e .
@@ -91,8 +95,21 @@ jobs:
       #   with:
       #     password: ${{ secrets.PYPI_API_TOKEN }}
 
-      - name: Publish conda package
-        uses: maxibor/conda-package-publish-action@v1.1
-        with:
-          subDir: 'conda-recipe'
-          AnacondaToken: ${{ secrets.ANACONDA_TOKEN }}
+      - name: Build conda package
+        run: |
+            mkdir build/
+            conda mambabuild conda-recipe/ --output-folder build/
+      
+      - name: Convert to win-64
+        run: conda convert -p win-64 build/linux-64/*.tar.bz2 -o build/
+
+      - name: Convert to osx-64
+        run: conda convert -p osx-64 build/linux-64/*.tar.bz2 -o build/
+
+      - name: Upload packages
+        env:
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+        run: |
+            anaconda upload build/linux-64/*.tar.bz2
+            anaconda upload build/osx-64/*.tar.bz2
+            anaconda upload build/windows-64/*.tar.bz2
