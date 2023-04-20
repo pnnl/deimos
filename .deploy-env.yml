@@ -1,8 +1,0 @@
-name: deploy-env
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - anaconda-client
-  - boa

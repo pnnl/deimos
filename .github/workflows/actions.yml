@@ -56,9 +56,9 @@ jobs:
     
       - name: Test environment
         run: |
-            which deimos
-            deimos --help
-            pytest
+          which deimos
+          deimos --help
+          pytest
   
   Deploy:
     needs:
@@ -78,15 +78,17 @@ jobs:
           use-mamba: true
           python-version: 3.8
           channels: conda-forge,bioconda
-          environment-file: .deploy-env.yml
           use-only-tar-bz2: true
-          auto-activate-base: false
-          activate-environment: deploy-env
+          auto-activate-base: true
+
+      - name: Install dependencies
+        run: |
+          mamba install boa anaconda-client
 
       - name: Build conda package
         run: |
-            mkdir build/
-            conda mambabuild conda-recipe/ --output-folder build/
+          mkdir build/
+          conda mambabuild conda-recipe/ --output-folder build/
       
       - name: Convert to win-64
         run: conda convert -p win-64 build/linux-64/*.tar.bz2 -o build/
@@ -98,6 +100,6 @@ jobs:
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-            anaconda upload build/linux-64/*.tar.bz2
-            anaconda upload build/osx-64/*.tar.bz2
-            anaconda upload build/windows-64/*.tar.bz2
+          anaconda upload build/linux-64/*.tar.bz2
+          anaconda upload build/osx-64/*.tar.bz2
+          anaconda upload build/windows-64/*.tar.bz2
