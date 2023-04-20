@@ -81,8 +81,10 @@ jobs:
           use-only-tar-bz2: true
           auto-activate-base: true
 
-      - name: Install boa
-        run: mamba install boa
+      - name: Install packages
+        run: |
+            mamba install boa
+            mamba install anaconda
       
       # - name: Install DEIMoS
       #   run: pip install -e .
