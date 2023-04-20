@@ -105,4 +105,4 @@ jobs:
         run: |
           anaconda upload build/linux-64/*.tar.bz2
           anaconda upload build/osx-64/*.tar.bz2
-          anaconda upload build/windows-64/*.tar.bz2
+          anaconda upload build/win-64/*.tar.bz2
