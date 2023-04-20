@@ -23,7 +23,7 @@ setup(
     author_email='sean.colby@pnnl.gov',
     url='https://github.com/pnnl/deimos',
     install_requires=requirements,
-    python_requires='==3.8',
+    python_requires='==3.8.*',
     license=license,
     packages=pkgs,
     entry_points={
