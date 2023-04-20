@@ -78,24 +78,10 @@ jobs:
           use-mamba: true
           python-version: 3.8
           channels: conda-forge,bioconda
+          environment-file: .deploy-env.yml
           use-only-tar-bz2: true
-          auto-activate-base: true
-
-      - name: Install packages
-        run: |
-            mamba install boa
-            mamba install anaconda
-      
-      # - name: Install DEIMoS
-      #   run: pip install -e .
-
-      # - name: Build PyPI package
-      #   run: python -m build
-
-      # - name: Publish PyPI package
-      #   uses: pypa/gh-action-pypi-publish@release/v1
-      #   with:
-      #     password: ${{ secrets.PYPI_API_TOKEN }}
+          auto-activate-base: false
+          activate-environment: deploy-env
 
       - name: Build conda package
         run: |
