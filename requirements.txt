@@ -7,6 +7,6 @@ pymzml
 # ripser
 scikit-learn
 scipy
-snakemake
+# snakemake
 statsmodels
 tables
