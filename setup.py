@@ -29,5 +29,5 @@ setup(
     entry_points={
         'console_scripts': ['deimos = deimos.cli:main']
     },
-    package_data={'': ['*.smk', '*.yaml']},
+    package_data={'': ['*.smk', '*.yml']},
 )
