@@ -1,0 +1,97 @@
+
+name: Continuous Integration / Deployment
+on: [pull_request, push]
+
+jobs:
+  Format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Apply formatting
+        uses: github/super-linter@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_PYTHON_PYLINT: true
+          VALIDATE_PYTHON_FLAKE8: true
+          VALIDATE_PYTHON_ISORT: true
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IGNORE_GITIGNORED_FILES: true
+
+  Test:
+    name: ${{ matrix.os }}
+    needs: -Format
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: [3.7, 3.8, 3.9]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build environment
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          mamba-version: "*"
+          python-version: ${{ matrix.python }}
+          channels: conda-forge,bioconda,anaconda
+          use-only-tar-bz2: true
+          auto-update-conda: true
+          activate-environment: deimos
+          environment-file: environment.yml
+      
+      - name: Install DEIMoS
+        run: pip install -e .
+    
+      - name: Test environment
+        run: |
+            which deimos
+            deimos --help
+            pytest
+  
+  Deploy:
+    needs: -Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # - name: Build environment
+      #   uses: conda-incubator/setup-miniconda@v2
+      #   with:
+      #     mamba-version: "*"
+      #     python-version: 3.9
+      #     channels: conda-forge,bioconda,anaconda
+      #     use-only-tar-bz2: true
+      #     auto-update-conda: true
+      #     activate-environment: deimos
+      #     environment-file: environment.yml
+      
+      # - name: Install DEIMoS
+      #   run: pip install -e .
+
+      # - name: Build PyPI package
+      #   run: python -m build
+
+      # - name: Publish PyPI package
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Publish conda package
+        uses: fcakyon/conda-publish-action@v1.3
+        with:
+          subdir: 'conda-recipe'
+          anacondatoken: ${{ secrets.ANACONDA_TOKEN }}
+          platforms: 'win-64 osx-64 linux-64 noarch'
