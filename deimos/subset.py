@@ -561,9 +561,9 @@ class MultiSamplePartitions:
                                                  self.bounds[self.counter][1])
 
             if self.dask:
-                subset = self.features.query(q).compute()
+                subset = self.features.query(q).compute().reset_index(drop=True)
             else:
-                subset = self.features.query(q)
+                subset = self.features.query(q).reset_index(drop=True)
 
             self.counter += 1
             if len(subset.index) > 1:
