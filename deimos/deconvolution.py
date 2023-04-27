@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.spatial.kdtree import KDTree
+from scipy.spatial import KDTree
 
 import deimos
 
