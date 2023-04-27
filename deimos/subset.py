@@ -561,13 +561,12 @@ class MultiSamplePartitions:
                                                  self.bounds[self.counter][1])
 
             if self.dask:
-                subset = self.features.query(q).compute().reset_index(drop=True)
+                subset = self.features.query(q).compute()
             else:
-                subset = self.features.query(q).reset_index(drop=True)
+                subset = self.features.query(q)
 
             self.counter += 1
             if len(subset.index) > 1:
-                subset['partition_idx'] = self.counter
                 return subset
             else:
                 return None
@@ -603,6 +602,11 @@ class MultiSamplePartitions:
         else:
             with mp.Pool(processes=processes) as p:
                 result = list(p.imap(partial(func, **kwargs), self))
+
+        # Add partition index
+        for i in range(len(result)):
+            if result[i] is not None:
+                result[i]['partition_idx'] = i
 
         # Combine partitions
         return pd.concat(result, ignore_index=True)
