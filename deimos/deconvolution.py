@@ -24,6 +24,7 @@ def cosine(a, b):
 
     a_ = a.flatten()
     b_ = b.flatten()
+
     return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
 
 
@@ -340,7 +341,7 @@ class MS2Deconvolution:
         # Enumerate MS1 featres
         for name, grp in self.decon_pairs.groupby(by=['index_ms1'], as_index=False):
             # MS1 feature index
-            idx_i = int(name)
+            idx_i = int(name[0])
 
             # Extracted ion
             ms1_xi = ms1_xis[idx_i]
