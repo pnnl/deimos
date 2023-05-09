@@ -324,58 +324,108 @@ def kurtosis_pdf(edges, a, size):
     return res
 
 
+def embed_unique_indices(a):
+
+    def count_tens(n):
+        # Count tens
+        ntens = (n - 1) // 10
+
+        while True:
+            ntens_test = (ntens + n - 1) // 10
+
+            if ntens_test == ntens:
+                return ntens
+            else:
+                ntens = ntens_test
+
+    def arange_exclude_10s(n):
+        # How many 10s will there be?
+        ntens = count_tens(n)
+
+        # Base array
+        arr = np.arange(0, n + ntens)
+
+        # Exclude 10s
+        arr = arr[(arr == 0) | (arr % 10 != 0)][:n]
+
+        return arr
+
+    # Creates an array of indices, sorted by unique element
+    idx_sort = np.argsort(a)
+    idx_unsort = np.argsort(idx_sort)
+
+    # Sorts records array so all unique elements are together
+    sorted_a = a[idx_sort]
+
+    # Returns the unique values, the index of the first occurrence,
+    # and the count for each element
+    vals, idx_start, count = np.unique(sorted_a, return_index=True, return_counts=True)
+
+    # Splits the indices into separate arrays
+    splits = np.split(idx_sort, idx_start[1:])
+
+    # Creates unique indices for each split
+    idx_unq = np.concatenate([arange_exclude_10s(len(x)) for x in splits])
+
+    # Reorders according to input array
+    idx_unq = idx_unq[idx_unsort]
+
+    # Magnitude of each index
+    idx_unq_mag = np.power(10, np.floor(np.log10(idx_unq, where=idx_unq > 0)) + 1)
+
+    # Result
+    return a + idx_unq / idx_unq_mag
+
+
 def sparse_upper_star(idx, V):
     '''
     Sparse implementation of an upper star filtration.
-
     Parameters
     ----------
     idx : :obj:`~numpy.array`
         Edge indices for each dimension (MxN).
     V : :obj:`~numpy.array`
         Array of intensity data (Mx1).
-
     Returns
     -------
     idx : :obj:`~numpy.array`
         Index of filtered points (Mx1).
     persistence : :obj:`~numpy.array`
         Persistence of each filtered point (Mx1).
-
     '''
 
-    # Add noise to uniqueify
-    V = V.copy() + np.random.uniform(0, 1, V.shape)
+    # Invert
+    V = -1 * V.copy().astype(int)
+
+    # Embed indices
+    V = embed_unique_indices(V)
 
     # Connectivity matrix
     cmat = KDTree(idx)
     cmat = cmat.sparse_distance_matrix(
         cmat, 1, p=np.inf, output_type='coo_matrix')
     cmat.setdiag(1)
+    cmat = sparse.triu(cmat)
 
     # Pairwise minimums
     I, J = cmat.nonzero()
-    d = np.minimum(V[I], V[J])
+    d = np.maximum(V[I], V[J])
 
     # Delete connectiity matrix
     cmat_shape = cmat.shape
     del cmat
 
     # Sparse distance matrix
-    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape, dtype=V.dtype)
+    sdm = sparse.coo_matrix((d, (I, J)), shape=cmat_shape)
 
     # Delete pairwise mins
     del d, I, J
 
     # Persistence homology
-    # Negative for upper star, then revert
-    ph = -ripser(-sdm, distance_matrix=True, maxdim=0)["dgms"][0]
-
-    # Delete distance matrix
-    del sdm
+    ph = ripser(sdm, distance_matrix=True, maxdim=0)['dgms'][0]
 
     # Bound death values
-    ph[ph[:, 1] == -np.inf, 1] = np.min(V)
+    ph[ph[:, 1] == np.inf, 1] = np.max(V)
 
     # Construct tree to query against
     tree = KDTree(V.reshape((-1, 1)))
@@ -383,7 +433,7 @@ def sparse_upper_star(idx, V):
     # Get the indexes of the first nearest neighbor by birth
     _, nn = tree.query(ph[:, 0].reshape((-1, 1)), k=1, workers=-1)
 
-    return nn, (ph[:, 0] - ph[:, 1])
+    return nn, -(ph[:, 0] // 1 - ph[:, 1] // 1)
 
 
 def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
