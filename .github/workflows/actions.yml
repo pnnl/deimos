@@ -1,4 +1,3 @@
-
 name: Continuous Integration / Deployment
 on: [pull_request, push]
 
@@ -79,10 +78,8 @@ jobs:
           use-mamba: true
           python-version: 3.8
           channels: conda-forge,bioconda
-          environment-file: environment.yml
           use-only-tar-bz2: true
-          auto-activate-base: false
-          activate-environment: deimos
+          auto-activate-base: true
 
       - name: Install dependencies
         run: |
