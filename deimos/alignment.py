@@ -324,7 +324,7 @@ def agglomerative_clustering(features,
     try:
         clustering = AgglomerativeClustering(n_clusters=None,
                                              linkage='complete',
-                                             affinity='precomputed',
+                                             metric='precomputed',
                                              distance_threshold=1,
                                              connectivity=cmat).fit(distances)
         features['cluster'] = clustering.labels_

@@ -162,12 +162,24 @@ def save(path, data, key='ms1', **kwargs):
     if ext in ['.h5', '.hdf']:
         return deimos.io.save_hdf(path, data, key=key, **kwargs)
 
-    # Mzml
+    # MGF
     if ext in ['.mgf']:
         return deimos.io.save_mgf(path, data, **kwargs)
+    
+    # MGF
+    if ext in ['.msp']:
+        return deimos.io.save_msp(path, data, **kwargs)
+    
+    # CSV
+    if ext in ['.csv']:
+        return data.to_csv(path, sep=',', index=False, **kwargs)
+    
+    # TSV
+    if ext in ['.tsv', '.txt']:
+        return data.to_csv(path, sep='\t', index=False, **kwargs)
 
     # Other
-    raise ValueError('Only HDF5 and MGF currently supported.')
+    raise ValueError('Only HDF5, MGF, MSP, TSV, and CSV formats currently supported.')
 
 
 def get_accessions(path):
@@ -521,7 +533,13 @@ def _load_hdf(path, level='ms1'):
         return pd.DataFrame({k: g[k] for k in list(g.keys())})
 
 
-def save_mgf(path, features, charge='1+'):
+def save_mgf(path, features,
+             groupby='index_ms1',
+             precursor_mz='mz_ms1',
+             fragment_mz='mz_ms2',
+             fragment_intensity='intensity_ms2',
+             precursor_metadata=None,
+             sample_metadata=None):
     '''
     Saves data to MGF format.
 
@@ -531,26 +549,175 @@ def save_mgf(path, features, charge='1+'):
         Path to output file.
     features : :obj:`~pandas.DataFrame`
         Precursor m/z and intensities paired to MS2 spectra.
+    groupby : str or list of str
+        Column(s) to group fragments by.
+    precursor_mz : str
+        Column containing precursor m/z values.
+    fragment_mz : str
+        Column containing fragment m/z values.
+    fragment_intensity : str
+        Column containing fragment intensity values.
+    precursor_metadata : dict
+        Precursor metadata key:value pairs of {MGF entry name}:{column name}.
+    sample_metadata : dict
+        Sample metadata key:value pairs of {MGF entry name}:{value}. 
 
     '''
+    
+    # Initialize default fields
+    metadata = ['TITLE', 'PEPMASS', 'PEPINTENSITY', 'CHARGE',
+                'PRECURSORTYPE', 'INSTRUMENTTYPE',
+                'INSTRUMENT', 'IONMODE', 'COLLISIONENERGY',
+                'SMILES', 'INCHI', 'INCHIKEY', 'FORMULA',
+                'RETENTIONTIME', 'DRIFTTIME', 'CCS']
+    metadata = OrderedDict([(x, None) for x in metadata])
+    
+    # Initialize precursor metadata dict
+    if precursor_metadata is None:
+        precursor_metadata = {}
+        
+    # Initialize sample metadata dict
+    if sample_metadata is None:
+        sample_metadata = {}
+    
+    # Add required field
+    precursor_metadata['PEPMASS'] = precursor_mz
+    
+    # Update defaults
+    metadata.update(precursor_metadata)
+    metadata.update(sample_metadata)
+    
+    # Build template
+    template = 'BEGIN IONS\n'
+    columns = []
+    for k in metadata:
+        # Key from precursor metadata
+        if k in precursor_metadata:
+            template += k + '={}\n'
+            columns.append(metadata[k])
+            
+        # Key from sample metadata
+        elif k in sample_metadata:
+            template += k + '={}\n'.format(metadata[k])
+        
+        # Key was not specified
+        else:
+            pass
 
-    template = ('BEGIN IONS\n'
-                'PEPMASS={} {}\n'
-                'CHARGE={}\n'
-                'TITLE=Spectrum {}\n'
-                '{}\n'
-                'END IONS\n')
-
+    # Append MS2 template information
+    template += ('{}\n'
+                 'END IONS\n\n')
+    
+    # Open file object
     with open(path, 'w') as f:
-        for i, row in features.iterrows():
-            precursor_mz = row['mz']
-            precursor_int = row['intensity']
-            ms2 = row['ms2']
+        # Enumerate groups
+        for name, grp in features.groupby(by=groupby):
+            
+            # Format MS2 string
+            ms2_str = '\n'.join('{}\t{}'.format(a, b) for a, b in zip(grp[fragment_mz].values,
+                                                                      grp[fragment_intensity].values))
+            
+            # Precursor metadata values
+            values = list(grp[columns].values[0])
+            
+            # Add MS2 info
+            values += [ms2_str]
+            
+            # Write to template
+            f.write(template.format(*values))
 
-            # Check for ms2 spectra
-            if ms2 is not np.nan:
-                f.write(template.format(precursor_mz,
-                                        precursor_int,
-                                        charge,
-                                        i,
-                                        ms2.replace(';', '\n')))
+
+def save_msp(path, features,
+             groupby='index_ms1',
+             precursor_mz='mz_ms1',
+             fragment_mz='mz_ms2',
+             fragment_intensity='intensity_ms2',
+             precursor_metadata=None,
+             sample_metadata=None):
+    '''
+    Saves data to MSP format.
+
+    Parameters
+    ----------
+    path : str
+        Path to output file.
+    features : :obj:`~pandas.DataFrame`
+        Precursor m/z and intensities paired to MS2 spectra.
+    groupby : str or list of str
+        Column(s) to group fragments by.
+    precursor_mz : str
+        Column containing precursor m/z values.
+    fragment_mz : str
+        Column containing fragment m/z values.
+    fragment_intensity : str
+        Column containing fragment intensity values.
+    precursor_metadata : dict
+        Precursor metadata key:value pairs of {MSP entry name}:{column name}.
+    sample_metadata : dict
+        Sample metadata key:value pairs of {MSP entry name}:{value}. 
+
+    '''
+    
+    # Initialize default fields
+    metadata = ['NAME', 'PRECURSORMZ', 'PRECURSORINTENSITY',
+                'PRECURSORTYPE', 'INSTRUMENTTYPE',
+                'INSTRUMENT', 'IONMODE', 'COLLISIONENERGY',
+                'SMILES', 'INCHI', 'INCHIKEY', 'FORMULA',
+                'RETENTIONTIME', 'DRIFTTIME', 'CCS']
+    metadata = OrderedDict([(x, None) for x in metadata])
+    
+    # Initialize precursor metadata dict
+    if precursor_metadata is None:
+        precursor_metadata = {}
+        
+    # Initialize sample metadata dict
+    if sample_metadata is None:
+        sample_metadata = {}
+    
+    # Add required field
+    precursor_metadata['PRECURSORMZ'] = precursor_mz
+    
+    # Update defaults
+    metadata.update(precursor_metadata)
+    metadata.update(sample_metadata)
+    
+    # Build template
+    template = ''
+    columns = []
+    for k in metadata:
+        # Key from precursor metadata
+        if k in precursor_metadata:
+            template += k + ': {}\n'
+            columns.append(metadata[k])
+            
+        # Key from sample metadata
+        elif k in sample_metadata:
+            template += k + ': {}\n'.format(metadata[k])
+        
+        # Key was not specified
+        else:
+            pass
+
+    # Append MS2 template information
+    template += ('Num Peaks: {}\n'
+                 '{}\n\n')
+    
+    # Open file object
+    with open(path, 'w') as f:
+        # Enumerate groups
+        for name, grp in features.groupby(by=groupby):
+            # Number of MS2
+            n = len(grp.index)
+            
+            # Format MS2 string
+            ms2_str = '\n'.join('{}\t{}'.format(a, b) for a, b in zip(grp[fragment_mz].values,
+                                                                      grp[fragment_intensity].values))
+            
+            # Precursor metadata values
+            values = list(grp[columns].values[0])
+            
+            # Add MS2 info
+            values += [n, ms2_str]
+            
+            # Write to template
+            f.write(template.format(*values))

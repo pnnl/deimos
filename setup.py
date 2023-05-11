@@ -1,7 +1,11 @@
+import os
 from setuptools import find_packages, setup
+import sys
 
-with open('deimos/__init__.py') as f:
-    exec([x for x in f.readlines() if '__version__' in x][0])
+sys.path.append(os.path.dirname(__file__))
+
+import deimos
+
 
 with open('README.md') as f:
     readme = f.read()
@@ -16,7 +20,7 @@ pkgs = find_packages(exclude=('examples', 'docs', 'tests'))
 
 setup(
     name='deimos',
-    version=__version__,
+    version=deimos.__version__,
     description='Data Extraction for Integrated Multidimensional Spectrometry',
     long_description=readme,
     author='Sean M. Colby',
