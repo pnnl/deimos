@@ -371,7 +371,10 @@ def embed_unique_indices(a):
     idx_unq = idx_unq[idx_unsort]
 
     # Magnitude of each index
-    idx_unq_mag = np.power(10, np.floor(np.log10(idx_unq, where=idx_unq > 0)) + 1)
+    exp = np.log10(idx_unq,
+                   where=idx_unq > 0,
+                   out=np.zeros_like(idx_unq, dtype=np.float64))
+    idx_unq_mag = np.power(10, np.floor(exp) + 1)
 
     # Result
     return a + idx_unq / idx_unq_mag
