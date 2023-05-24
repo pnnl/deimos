@@ -9,11 +9,13 @@ dependencies:
   - matplotlib
   - numpy
   - pandas
+  - pip
   - pymzml
   - pytables
   - python =3.8
-  - ripser
   - scikit-learn
   - scipy
   - snakemake
   - statsmodels
+  - pip:
+    - ripser==0.6.4

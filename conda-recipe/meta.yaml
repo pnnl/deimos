@@ -15,7 +15,7 @@ extra:
 
 build:
   number: 0
-  script: "{{ PYTHON }} -m pip install . -vv"
+  script: "{{ PYTHON }} -m pip install -vv --no-deps ."
   entry_points:
     - deimos = deimos.cli:main
 
@@ -32,7 +32,7 @@ requirements:
     - pymzml
     - pytables
     - python =3.8
-    - ripser
+    - ripser =0.6.4
     - scikit-learn
     - scipy
     - snakemake

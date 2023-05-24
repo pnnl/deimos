@@ -83,12 +83,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          mamba install boa anaconda-client
+          mamba install boa anaconda-client conda-verify
 
       - name: Build conda package
         run: |
           mkdir build/
           conda mambabuild conda-recipe/ --output-folder build/
+          conda index build/
       
       - name: Convert to win-64
         run: conda convert -p win-64 build/linux-64/*.tar.bz2 -o build/

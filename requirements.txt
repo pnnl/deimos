@@ -4,9 +4,9 @@ matplotlib
 numpy
 pandas
 pymzml
-# ripser
+ripser
 scikit-learn
 scipy
-# snakemake
+snakemake
 statsmodels
 tables
