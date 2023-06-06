@@ -23,23 +23,38 @@ rule mzml2hdf:
     input:
         lambda wildcards: join('input', lookup[wildcards.id])
     output:
-        join('output', 'parsed', '{id}.h5'),
-        join('output', 'factors', '{id}.npy')
+        join('output', 'parsed', '{id}.h5')
     run:
         # Read/parse mzml
         data = deimos.load(input[0], accession=config['accession'])
 
-        factors = {}
         # Enumerate MS levels
         for k, v in data.items():
-            # Build factors
-            factors[k] = deimos.build_factors(v, dims=config['dims'])
-            
             # Save as hdf5
             deimos.save(output[0], v, key=k, mode='a')
-        
+
+
+# Build factors
+rule factorize:
+    input:
+        rules.mzml2hdf.output
+    output:
+        join('output', 'factors', '{id}.npy')
+    run:
+        # Get keys
+        keys = list(h5py.File(input[0], 'r').keys())
+
+        factors = {}
+        # Enumerate MS levels
+        for k in keys:
+            # Load data
+            data = deimos.load(input[0], key=k, columns=config['dims'] + ['intensity'])
+
+            # Build factors
+            factors[k] = deimos.build_factors(data, dims=config['dims'])
+
         # Save factors
-        np.save(output[1], factors)
+        np.save(output[0], factors)
 
 
 # Threshold data by intensity
@@ -67,7 +82,7 @@ rule threshold:
 # Smooth data
 rule smooth:
     input:
-        rules.mzml2hdf.output[1],
+        rules.factorize.output,
         rules.threshold.output
     output:
         join('output', 'smoothed', '{id}.h5')
@@ -97,7 +112,7 @@ rule smooth:
 # Perform peak detection
 rule peakpick:
     input:
-        rules.mzml2hdf.output[1],
+        rules.factorize.output,
         rules.smooth.output
     output:
         join('output', 'peakpicked', '{id}.h5')
