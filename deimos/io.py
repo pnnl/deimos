@@ -4,6 +4,7 @@ from collections import OrderedDict, defaultdict
 
 import dask.dataframe as dd
 import h5py
+import hdf5plugin
 import numpy as np
 import pandas as pd
 import pymzml
@@ -32,7 +33,7 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
         single file.
     accession : dict
         Key-value pairs signaling which features to parse for in the mzML file.
-        mzML format only. See :func:`~deimos.io.get_accessions` to obtain
+        mzML and MZA format only. See :func:`~deimos.io.get_accessions` to obtain
         available values.
     dtype : data type
         Data type to encode values. mzML format only.
@@ -42,7 +43,7 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
     :obj:`~pandas.DataFrame` or :obj:`dict` of :obj:`~pandas.DataFrame`
         Feature coordinates and intensities for the specified level.
         Pandas is used when loading a single file, Dask for multiple files.
-        Loading an mzML file returns a dictionary with keys per MS level.
+        Loading an mzML or MZA file returns a dictionary with keys per MS level.
 
     '''
 
@@ -79,6 +80,10 @@ def load(path, key='ms1', columns=None, chunksize=1E7, meta=None, accession={}, 
     # Mzml
     if ext in ['.gz', '.mzml']:
         return deimos.io.load_mzml(path, accession=accession, dtype=dtype)
+
+    # MZA
+    if ext in ['.mza']:
+        return deimos.io.load_mza(path, accession=accession)
 
     # Other
     raise ValueError('Only HDF5 and mzML currently supported.')
@@ -165,21 +170,22 @@ def save(path, data, key='ms1', **kwargs):
     # MGF
     if ext in ['.mgf']:
         return deimos.io.save_mgf(path, data, **kwargs)
-    
+
     # MGF
     if ext in ['.msp']:
         return deimos.io.save_msp(path, data, **kwargs)
-    
+
     # CSV
     if ext in ['.csv']:
         return data.to_csv(path, sep=',', index=False, **kwargs)
-    
+
     # TSV
     if ext in ['.tsv', '.txt']:
         return data.to_csv(path, sep='\t', index=False, **kwargs)
 
     # Other
-    raise ValueError('Only HDF5, MGF, MSP, TSV, and CSV formats currently supported.')
+    raise ValueError(
+        'Only HDF5, MGF, MSP, TSV, and CSV formats currently supported.')
 
 
 def get_accessions(path):
@@ -335,6 +341,84 @@ def load_mzml(path, accession={}, dtype=np.float32):
         res[level] = pd.DataFrame(res[level], columns=cols[level])
 
     return res
+
+
+def load_mza(path, accession={}):
+    '''
+    Loads in an MZA file, parsing for accession values, to yield a
+    :obj:`~pandas.DataFrame`.
+
+    Parameters
+    ----------
+    path : str
+        Path to input mzML file.
+    accession : dict
+        Key-value pairs signaling which features to parse for in the mzML file.
+        See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
+        frame, m/z, and intensity are parsed by default.
+
+    Returns
+    -------
+    :obj:`dict` of :obj:`~pandas.DataFrame`
+        Dictionary containing parsed feature coordinates and intensities, indexed
+        by keys per MS level.
+
+    '''
+
+    # Invert dict
+    accession_inv = {v: k for k, v in accession.items()}
+
+    # Ensure complete metadata
+    metadata_fields = list(accession.values())
+    metadata_fields += ['Scan', 'MSLevel']
+    metadata_fields = set(metadata_fields)
+
+    # Intitialize result container
+    container = defaultdict(list)
+
+    # Open mza file
+    with h5py.File(path, 'r') as mza:
+
+        # Access metadata
+        metadata = pd.DataFrame(
+            {x: mza["Metadata"][x][()] for x in metadata_fields})
+
+        # Enumerate scans
+        for i, row in metadata.iterrows():
+
+            scan = int(row['Scan'])
+            ms_level = int(row['MSLevel'])
+
+            # m/z values
+            mzs = mza['Arrays_mz/{}'.format(scan)][:]
+
+            # Intensity values
+            ints = mza['Arrays_intensity/{}'.format(scan)][:]
+
+            # Initialize scan dataframe
+            df = pd.DataFrame({'mz': mzs, 'intensity': ints})
+
+            # Populate other metadata fields
+            for field in metadata_fields:
+                if field not in ['Scan', 'MSLevel']:
+                    df[field] = row[field]
+
+            # Append to appropriate MS level
+            container['ms{}'.format(ms_level)].append(df)
+
+    # Concatenate scan dataframes
+    container = {k: pd.concat(v, ignore_index=True)
+                 for k, v in container.items()}
+
+    # Drop all-zero columns
+    container = {k: v.loc[:, (v != 0).any(axis=0)]
+                 for k, v in container.items()}
+
+    # Rename columns
+    container = {k: v.rename(columns=accession_inv)
+                 for k, v in container.items()}
+
+    return container
 
 
 def save_hdf(path, data, key='ms1', complevel=5, **kwargs):
@@ -563,7 +647,7 @@ def save_mgf(path, features,
         Sample metadata key:value pairs of {MGF entry name}:{value}. 
 
     '''
-    
+
     # Initialize default fields
     metadata = ['TITLE', 'PEPMASS', 'PEPINTENSITY', 'CHARGE',
                 'PRECURSORTYPE', 'INSTRUMENTTYPE',
@@ -571,22 +655,22 @@ def save_mgf(path, features,
                 'SMILES', 'INCHI', 'INCHIKEY', 'FORMULA',
                 'RETENTIONTIME', 'DRIFTTIME', 'CCS']
     metadata = OrderedDict([(x, None) for x in metadata])
-    
+
     # Initialize precursor metadata dict
     if precursor_metadata is None:
         precursor_metadata = {}
-        
+
     # Initialize sample metadata dict
     if sample_metadata is None:
         sample_metadata = {}
-    
+
     # Add required field
     precursor_metadata['PEPMASS'] = precursor_mz
-    
+
     # Update defaults
     metadata.update(precursor_metadata)
     metadata.update(sample_metadata)
-    
+
     # Build template
     template = 'BEGIN IONS\n'
     columns = []
@@ -595,11 +679,11 @@ def save_mgf(path, features,
         if k in precursor_metadata:
             template += k + '={}\n'
             columns.append(metadata[k])
-            
+
         # Key from sample metadata
         elif k in sample_metadata:
             template += k + '={}\n'.format(metadata[k])
-        
+
         # Key was not specified
         else:
             pass
@@ -607,22 +691,22 @@ def save_mgf(path, features,
     # Append MS2 template information
     template += ('{}\n'
                  'END IONS\n\n')
-    
+
     # Open file object
     with open(path, 'w') as f:
         # Enumerate groups
         for name, grp in features.groupby(by=groupby):
-            
+
             # Format MS2 string
             ms2_str = '\n'.join('{}\t{}'.format(a, b) for a, b in zip(grp[fragment_mz].values,
                                                                       grp[fragment_intensity].values))
-            
+
             # Precursor metadata values
             values = list(grp[columns].values[0])
-            
+
             # Add MS2 info
             values += [ms2_str]
-            
+
             # Write to template
             f.write(template.format(*values))
 
@@ -657,7 +741,7 @@ def save_msp(path, features,
         Sample metadata key:value pairs of {MSP entry name}:{value}. 
 
     '''
-    
+
     # Initialize default fields
     metadata = ['NAME', 'PRECURSORMZ', 'PRECURSORINTENSITY',
                 'PRECURSORTYPE', 'INSTRUMENTTYPE',
@@ -665,22 +749,22 @@ def save_msp(path, features,
                 'SMILES', 'INCHI', 'INCHIKEY', 'FORMULA',
                 'RETENTIONTIME', 'DRIFTTIME', 'CCS']
     metadata = OrderedDict([(x, None) for x in metadata])
-    
+
     # Initialize precursor metadata dict
     if precursor_metadata is None:
         precursor_metadata = {}
-        
+
     # Initialize sample metadata dict
     if sample_metadata is None:
         sample_metadata = {}
-    
+
     # Add required field
     precursor_metadata['PRECURSORMZ'] = precursor_mz
-    
+
     # Update defaults
     metadata.update(precursor_metadata)
     metadata.update(sample_metadata)
-    
+
     # Build template
     template = ''
     columns = []
@@ -689,11 +773,11 @@ def save_msp(path, features,
         if k in precursor_metadata:
             template += k + ': {}\n'
             columns.append(metadata[k])
-            
+
         # Key from sample metadata
         elif k in sample_metadata:
             template += k + ': {}\n'.format(metadata[k])
-        
+
         # Key was not specified
         else:
             pass
@@ -701,23 +785,23 @@ def save_msp(path, features,
     # Append MS2 template information
     template += ('Num Peaks: {}\n'
                  '{}\n\n')
-    
+
     # Open file object
     with open(path, 'w') as f:
         # Enumerate groups
         for name, grp in features.groupby(by=groupby):
             # Number of MS2
             n = len(grp.index)
-            
+
             # Format MS2 string
             ms2_str = '\n'.join('{}\t{}'.format(a, b) for a, b in zip(grp[fragment_mz].values,
                                                                       grp[fragment_intensity].values))
-            
+
             # Precursor metadata values
             values = list(grp[columns].values[0])
-            
+
             # Add MS2 info
             values += [n, ms2_str]
-            
+
             # Write to template
             f.write(template.format(*values))
