@@ -426,12 +426,15 @@ def merge_features(features,
 
     # Drop within-tolerance points
     to_drop = []
-    for i in range(len(pairs)):
-        parent = pairs[i, 0]
-        child = pairs[i, 1]
+    while len(pairs) > 0:
+        # Find root parents and their children
+        root_parents = np.setdiff1d(np.unique(pairs[:, 0]), np.unique(pairs[:, 1])) 
+        id_root_parents = np.isin(pairs[:, 0], root_parents) 
+        children_of_roots = np.unique(pairs[id_root_parents, 1]) 
+        to_drop = np.append(to_drop, children_of_roots) 
 
-        if (child not in to_drop) \
-            & np.all(~np.in1d(parent, to_drop)):
-            to_drop.append(child)
+        # Set up pairs array for next iteration 
+        pairs = pairs[~np.isin(pairs[:, 1], to_drop), :]
+        pairs = pairs[~np.isin(pairs[:, 0], to_drop), :] 
 
     return features.reset_index(drop=True).drop(index=np.array(to_drop))
