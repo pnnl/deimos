@@ -1,5 +1,6 @@
 dask
 h5py
+hdf5plugin
 matplotlib
 numpy
 pandas
