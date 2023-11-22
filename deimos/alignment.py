@@ -1,5 +1,7 @@
 import numpy as np
 import scipy
+from scipy import sparse
+from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.svm import SVR
@@ -334,3 +336,105 @@ def agglomerative_clustering(features,
         features['cluster'] = np.arange(len(features.index))
 
     return features
+
+
+def merge_features(features,
+                   dims=['mz', 'drift_time', 'retention_time'],
+                   tol=[20E-6, 0.03, 0.3],
+                   relative=[True, True, False]):
+    '''
+    Merge features within provided tolerances.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
+        Input feature coordinates and intensities per sample.
+    dims : str or list
+        Dimensions considered in clustering.
+    tol : float or list
+        Tolerance in each dimension to define maximum cluster tolerance.
+        distance.
+    relative : bool or list
+        Whether to use relative or absolute tolerances per dimension.
+
+    Returns
+    -------
+    features : :obj:`~pandas.DataFrame`
+        Features concatenated over samples with cluster labels.
+
+    '''
+
+    if features is None:
+        return None
+
+    # Safely cast to list
+    dims = deimos.utils.safelist(dims)
+    tol = deimos.utils.safelist(tol)
+    relative = deimos.utils.safelist(relative)
+
+    # Check dims
+    deimos.utils.check_length([dims, tol, relative])
+
+    # Copy input
+    features = features.copy()
+    
+    # Sort
+    features = features.sort_values(by='intensity', ascending=False).reset_index(drop=True)
+
+    # Compute inter-feature distances
+    distances = None
+    for i in range(len(dims)):
+        # Construct k-d tree for drift time
+        values = features[dims[i]].values
+        tree = KDTree(values.reshape(-1, 1))
+        
+        max_tol = tol[i]
+        if relative[i] is True:
+            # Maximum absolute tolerance
+            max_tol = tol[i] * values.max()
+            
+        # Compute sparse distance matrix
+        sdm = tree.sparse_distance_matrix(tree, max_tol, output_type='coo_matrix')
+
+        # Only consider forward case, exclude diagonal
+        sdm = sparse.triu(sdm, k=1)
+
+        # Filter relative distances
+        if relative[i] is True:
+            # Compute relative distances
+            rel_dists = sdm.data / values[sdm.row] # or col?
+            
+            # Indices of relative distances less than tolerance
+            idx = rel_dists <= tol[i]
+            
+            # Reconstruct sparse distance matrix
+            sdm = sparse.coo_matrix((rel_dists[idx], (sdm.row[idx], sdm.col[idx])),
+                                    shape=(len(values), len(values)))
+        
+        # Cast as binary matrix
+        sdm.data = np.ones_like(sdm.data)
+
+        # Stack distances
+        if distances is None:
+            distances = sdm
+        else:
+            distances = distances.multiply(sdm)
+    
+    # Extract indices of within-tolerance points
+    distances = distances.tocoo()
+    pairs = np.stack((distances.row, distances.col), axis=1)
+
+    # Drop within-tolerance points
+    to_drop = []
+    while len(pairs) > 0:
+        # Find root parents and their children
+        root_parents = np.setdiff1d(np.unique(pairs[:, 0]), np.unique(pairs[:, 1])) 
+        id_root_parents = np.isin(pairs[:, 0], root_parents) 
+        children_of_roots = np.unique(pairs[id_root_parents, 1]) 
+        to_drop = np.append(to_drop, children_of_roots) 
+
+        # Set up pairs array for next iteration 
+        pairs = pairs[~np.isin(pairs[:, 1], to_drop), :]
+        pairs = pairs[~np.isin(pairs[:, 0], to_drop), :] 
+
+    return features.reset_index(drop=True).drop(index=np.array(to_drop))
