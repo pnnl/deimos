@@ -76,7 +76,7 @@ jobs:
           miniforge-variant: Mambaforge
           miniforge-version: latest
           use-mamba: true
-          python-version: 3.8
+          python-version: 3.12
           channels: conda-forge,bioconda
           use-only-tar-bz2: true
           auto-activate-base: true
