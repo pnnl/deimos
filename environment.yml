@@ -13,7 +13,7 @@ dependencies:
   - pip
   - pymzml
   - pytables
-  - python =3.8
+  - python
   - scikit-learn
   - scipy
   - snakemake
