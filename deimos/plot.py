@@ -68,7 +68,7 @@ def stem(
 
     # Plot
     _, stemlines, _ = ax.stem(
-        x, y, markerfmt=" ", basefmt=" ", linefmt="k-", use_line_collection=True
+        x, y, markerfmt=" ", basefmt=" ", linefmt="k-"
     )
     plt.setp(stemlines, "linewidth", width)
     if points is True:
@@ -215,12 +215,12 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
     sync_x_with_y(axes["rt-mz"], axes["dt-rt"])
 
     # Mz
-    tmp = deimos.collapse(features, keep="mz")
+    tmp = deimos.collapse(features, keep="mz").sort_values(by="mz")
     stem(tmp["mz"].values, tmp["intensity"].values, xlabel="m/z", ax=axes["mz"])
     plt.setp(axes["mz"].get_xticklabels(), ha="center", rotation=0)
 
     # Dt
-    tmp = deimos.collapse(features, keep="drift_time")
+    tmp = deimos.collapse(features, keep="drift_time").sort_values(by="drift_time")
     fill_between(
         tmp["drift_time"].values,
         tmp["intensity"].values,
@@ -230,7 +230,7 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
     plt.setp(axes["dt"].get_xticklabels(), ha="center", rotation=0)
 
     # Rt
-    tmp = deimos.collapse(features, keep="retention_time")
+    tmp = deimos.collapse(features, keep="retention_time").sort_values(by="retention_time")
     fill_between(
         tmp["retention_time"].values,
         tmp["intensity"].values,
@@ -277,6 +277,11 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
 
     axes["rt-mz"].xaxis.label.set_visible(False)
     axes["rt-mz"].tick_params(labelbottom=False)
+
+    # Ensure correct axis scaling
+    axes['mz-dt'].axis('auto')
+    axes['dt-rt'].axis('auto')
+    axes['rt-mz'].axis('auto')
 
     return axes
 

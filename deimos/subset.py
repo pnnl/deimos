@@ -32,7 +32,7 @@ def threshold(features, by='intensity', threshold=0):
     return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(features, keep=['mz', 'drift_time', 'retention_time'], how=np.sum):
+def collapse(features, keep=['mz', 'drift_time', 'retention_time'], how='sum'):
     '''
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
