@@ -1,12 +1,35 @@
+import warnings
+
 import numpy as np
+import tabula
 from scipy.interpolate import interp1d
 from scipy.stats import linregress
 
 import deimos
 
+AGILENT_CCS_REFERENCE = {
+    "pos": {
+        "mz": [
+            118.086255,
+            322.048121,
+            622.028960,
+            922.009798,
+            1221.990636,
+            1521.971475,
+        ],
+        "ccs": [121.3, 153.7, 203, 243.6, 282.2, 317],
+        "q": [1, 1, 1, 1, 1, 1],
+    },
+    "neg": {
+        "mz": [301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+        "ccs": [140, 180.8, 255.3, 284.8, 319],
+        "q": [1, 1, 1, 1, 1, 1],
+    },
+}
+
 
 class CCSCalibration:
-    '''
+    """
     Performs calibration and stores result to enable convenient application.
 
     Attributes
@@ -20,34 +43,41 @@ class CCSCalibration:
     fit : dict of float
         Fit parameters of calibration curve.
 
-    '''
+    """
 
     def __init__(self):
-        '''
+        """
         Initializes :obj:`~deimos.calibration.CCSCalibration` object.
 
-        '''
+        """
 
         # Initialize variables
         self.buffer_mass = None
         self.beta = None
         self.tfix = None
-        self.fit = {'r': None, 'p': None, 'se': None}
+        self.fit = {"r": None, "p": None, "se": None}
 
     def _check(self):
-        '''
+        """
         Helper method to check for calibration parameters.
 
-        '''
+        """
 
         if (self.beta is None) or (self.tfix is None):
-            raise ValueError('Must perform calibration to yield beta and '
-                             'tfix.')
+            raise ValueError("Must perform calibration to yield beta and " "tfix.")
 
-    def calibrate(self, mz=None, ta=None, ccs=None, q=None,
-                  beta=None, tfix=None, buffer_mass=28.013,
-                  power=False):
-        '''
+    def calibrate(
+        self,
+        mz=None,
+        ta=None,
+        ccs=None,
+        q=None,
+        beta=None,
+        tfix=None,
+        buffer_mass=28.013,
+        power=False,
+    ):
+        """
         Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
         otherwise calibration parameters `beta` and `tfix` must be supplied
         directly.
@@ -72,7 +102,7 @@ class CCSCalibration:
             Indicate whether to use linearize power function for calibration,
             i.e. in traveling wave ion moblility spectrometry.
 
-        '''
+        """
 
         # Buffer mass
         self.buffer_mass = buffer_mass
@@ -81,32 +111,38 @@ class CCSCalibration:
         self.power = power
 
         # Calibrant arrays supplied
-        if (mz is not None) and (ta is not None) and (ccs is not None) \
-           and (q is not None):
+        if (
+            (mz is not None)
+            and (ta is not None)
+            and (ccs is not None)
+            and (q is not None)
+        ):
             self.mz = np.array(mz)
             self.ta = np.array(ta)
             self.ccs = np.array(ccs)
             self.q = np.array(q)
 
             # Derived variables
-            self.gamma = np.sqrt(
-                self.mz * self.q / (self.mz * self.q + self.buffer_mass)) / self.q
+            self.gamma = (
+                np.sqrt(self.mz * self.q / (self.mz * self.q + self.buffer_mass))
+                / self.q
+            )
             self.reduced_ccs = self.ccs * self.gamma
 
             # Linear regression
             if self.power:
-                beta, tfix, r, p, se = linregress(np.log(self.reduced_ccs),
-                                                  np.log(self.ta))
+                beta, tfix, r, p, se = linregress(
+                    np.log(self.reduced_ccs), np.log(self.ta)
+                )
             else:
-                beta, tfix, r, p, se = linregress(self.reduced_ccs,
-                                                  self.ta)
+                beta, tfix, r, p, se = linregress(self.reduced_ccs, self.ta)
 
             # Store params
             self.beta = beta
             self.tfix = tfix
-            self.fit['r'] = r
-            self.fit['p'] = p
-            self.fit['se'] = se
+            self.fit["r"] = r
+            self.fit["p"] = p
+            self.fit["se"] = se
             return
 
         # Beta and tfix supplied
@@ -116,11 +152,12 @@ class CCSCalibration:
             self.tfix = tfix
             return
 
-        raise ValueError('Must supply arrays for calibration or calibration '
-                         'parameters.')
+        raise ValueError(
+            "Must supply arrays for calibration or calibration " "parameters."
+        )
 
     def arrival2ccs(self, mz, ta, q=1):
-        '''
+        """
         Calculates collision cross section (CCS) from arrival time, m/z, and
         nominal charge, according to calibration parameters.
 
@@ -138,7 +175,7 @@ class CCSCalibration:
         :obj:`~numpy.array`
             Feature collision cross section (A^2).
 
-        '''
+        """
 
         # Check for required attributes
         self._check()
@@ -159,7 +196,7 @@ class CCSCalibration:
         return (ta - self.tfix) / (self.beta * gamma)
 
     def ccs2arrival(self, mz, ccs, q=1):
-        '''
+        """
         Calculates arrival time from collsion cross section (CCS), m/z, and
         nominal charge, according to calibration parameters.
 
@@ -177,7 +214,7 @@ class CCSCalibration:
         :obj:`~numpy.array`
             Feature arrival time (ms).
 
-        '''
+        """
 
         # Check for required attributes
         self._check()
@@ -199,9 +236,17 @@ class CCSCalibration:
             return self.beta * gamma * ccs + self.tfix
 
 
-def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
-                  beta=None, tfix=None, buffer_mass=28.013, power=False):
-    '''
+def calibrate_ccs(
+    mz=None,
+    ta=None,
+    ccs=None,
+    q=None,
+    beta=None,
+    tfix=None,
+    buffer_mass=28.013,
+    power=False,
+):
+    """
     Convenience function for :class:`~deimos.calibration.CCSCalibration`.
     Performs calibration if `mz`, `ta`, `ccs`, and `q` arrays are provided,
     otherwise calibration parameters `beta` and `tfix` must be supplied
@@ -233,25 +278,37 @@ def calibrate_ccs(mz=None, ta=None, ccs=None, q=None,
         Instance of calibrated `~deimos.calibration.CCSCalibration`
         object.
 
-    '''
+    """
 
     # Initialize calibration instance
     ccs_cal = CCSCalibration()
 
     # Perform calibration
-    ccs_cal.calibrate(mz=mz, ta=ta, ccs=ccs, q=q, beta=beta, tfix=tfix,
-                      buffer_mass=buffer_mass, power=power)
+    ccs_cal.calibrate(
+        mz=mz,
+        ta=ta,
+        ccs=ccs,
+        q=q,
+        beta=beta,
+        tfix=tfix,
+        buffer_mass=buffer_mass,
+        power=power,
+    )
 
     return ccs_cal
 
 
-def tunemix(features,
-            mz=[112.985587, 301.998139, 601.978977,
-                1033.988109, 1333.968947, 1633.949786],
-            ccs=[108.4, 139.8, 179.9, 254.2, 283.6, 317.7],
-            q=[1, 1, 1, 1, 1, 1], buffer_mass=28.013, mz_tol=200E-6, dt_tol=0.04,
-            power=False):
-    '''
+def tunemix(
+    features,
+    mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+    ccs=[108.4, 139.8, 179.9, 254.2, 283.6, 317.7],
+    q=[1, 1, 1, 1, 1, 1],
+    buffer_mass=28.013,
+    mz_tol=200e-6,
+    dt_tol=0.04,
+    power=False,
+):
+    """
     Provided tune mix data with known calibration ions (i.e. known m/z, CCS, and nominal charge),
     determine the arrival time for each to define a CCS calibration.
 
@@ -279,7 +336,7 @@ def tunemix(features,
         Instance of calibrated `~deimos.calibration.CCSCalibration`
         object.
 
-    '''
+    """
 
     # Cast to numpy array
     mz = np.array(mz)
@@ -293,23 +350,25 @@ def tunemix(features,
     ta = []
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
         # Slice ms1
-        subset = deimos.slice(features, by='mz',
-                              low=mz_i - 0.1 * mz_tol,
-                              high=mz_i + mz_i * 0.9 * mz_tol)
+        subset = deimos.slice(
+            features, by="mz", low=mz_i - 0.1 * mz_tol, high=mz_i + mz_i * 0.9 * mz_tol
+        )
 
         # Extract dt info
-        dt_profile = deimos.collapse(subset, keep='drift_time')
-        dt_i = dt_profile.sort_values(by='intensity', ascending=False)[
-            'drift_time'].values[0]
+        dt_profile = deimos.collapse(subset, keep="drift_time")
+        dt_i = dt_profile.sort_values(by="intensity", ascending=False)[
+            "drift_time"
+        ].values[0]
         dt_profile = deimos.locate(
-            dt_profile, by='drift_time', loc=dt_i, tol=dt_tol * dt_i).sort_values(by='drift_time')
+            dt_profile, by="drift_time", loc=dt_i, tol=dt_tol * dt_i
+        ).sort_values(by="drift_time")
 
         # X and Y arrays
-        x = dt_profile['drift_time'].values
-        y = dt_profile['intensity'].values
+        x = dt_profile["drift_time"].values
+        y = dt_profile["intensity"].values
 
         # Interpolate spline
-        spl = interp1d(x, y, kind='quadratic')
+        spl = interp1d(x, y, kind="quadratic")
 
         # Higher resolution x-axis
         newx = np.arange(x.min(), x.max(), 0.001)
@@ -323,5 +382,142 @@ def tunemix(features,
 
     # Calibrate
     ta = np.array(ta)
-    return deimos.calibration.calibrate_ccs(mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass,
-                                            power=power)
+    return deimos.calibration.calibrate_ccs(
+        mz=mz, ta=ta, ccs=ccs, q=q, buffer_mass=buffer_mass, power=power
+    )
+
+
+def parse_agilent_calibration_pdf(path, mode="pos", tol=15e-3):
+    """
+    Reads calibration information from Agilent PDF.
+
+    Parameters
+    ----------
+    path : str
+        Path to PDF file.
+    mode : str
+        Ionization mode.
+    tol : float
+        m/z tolerance to identify calibrant ions.
+
+    Returns
+    -------
+    tof_cal : :obj:`~pandas.DataFrame`
+        Calibration data for the time-of-flight instrument.
+    im_cal : :obj:`~pandas.DataFrame`
+        Calibration data for the ion mobility instrument.
+
+    """
+
+    def map_mz_to_ccs(mz, mode="pos", tol=15e-3):
+        masses = np.array(AGILENT_CCS_REFERENCE[mode]["mz"])
+        ccss = np.array(AGILENT_CCS_REFERENCE[mode]["ccs"])
+
+        dists = np.abs(mz - masses)
+
+        if np.min(dists) > tol:
+            return np.nan
+
+        return ccss[np.argmin(dists)]
+
+    if "pos" in mode.lower():
+        mode = "pos"
+    elif "neg" in mode.lower():
+        mode = "neg"
+
+    # Read PDF tables
+    with warnings.catch_warnings(action="ignore"):
+        dfs = tabula.read_pdf(path, pages="all")
+
+    # IM calibration
+    im_cal = dfs[0].loc[2:].reset_index(drop=True)
+    im_cal.columns = [
+        "theoretical",
+        "actual",
+        "tof abundance",
+        "tof resolution",
+        "corrected residuals",
+        "im drift time (ms)",
+        "im abundance",
+        "im resolution",
+    ]
+
+    # Replace commas
+    for col in ["tof abundance", "tof resolution", "im abundance"]:
+        im_cal[col] = im_cal[col].str.replace(",", "").astype(float)
+
+    # Cast as float
+    for col in [
+        "theoretical",
+        "actual",
+        "corrected residuals",
+        "im drift time (ms)",
+        "im resolution",
+    ]:
+        im_cal[col] = im_cal[col].astype(float)
+
+    # TOF calibration
+    tmp = dfs[1].loc[2:].reset_index(drop=True)
+    tof_cal = tmp["TOF Mass Calibration Data"].str.split(" ", n=2, expand=True)
+    tof_cal.columns = ["theoretical", "actual", "time"]
+
+    # Rename botched col names
+    for src_col, target_col in zip(
+        tmp.columns[1:],
+        [
+            "abundance",
+            "calibration abundance",
+            "resolution",
+            "primary residuals",
+            "corrected residuals",
+        ],
+    ):
+        tof_cal[target_col] = tmp[src_col].str.replace(",", "").astype(float)
+
+    # Cast as float
+    for col in ["theoretical", "actual", "time"]:
+        tof_cal[col] = tof_cal[col].astype(float)
+
+    # Add ionization mode column
+    im_cal["mode"] = mode
+    tof_cal["mode"] = mode
+
+    # Add CCS values to IM calibration
+    im_cal["ccs"] = [
+        map_mz_to_ccs(x, mode=mode, tol=tol) for x in im_cal["theoretical"].values
+    ]
+
+    return tof_cal, im_cal
+
+
+def calibrate_ccs_agilent_pdf(path, mode="pos", tol=15e-3):
+    """
+    Reads calibration information from Agilent PDF and performs CCS calibration.
+
+    Parameters
+    ----------
+    path : str
+        Path to PDF file.
+    mode : str
+        Ionization mode.
+    tol : float
+        m/z tolerance to identify calibrant ions.
+
+    Returns
+    -------
+    :obj:`~deimos.calibration.CCSCalibration`
+        Instance of calibrated `~deimos.calibration.CCSCalibration`
+        object.
+
+    """
+
+    _, im_cal = parse_agilent_calibration_pdf(path, mode=mode, tol=tol)
+
+    return calibrate_ccs(
+        mz=im_cal["actual"].values,
+        ta=im_cal["im drift time (ms)"].values,
+        ccs=im_cal["ccs"].values,
+        q=np.ones(len(im_cal.index)),
+        buffer_mass=28.013,
+        power=False,
+    )
