@@ -16,4 +16,4 @@ scipy
 snakemake
 statsmodels
 tables
-tabula
+tabula-py
