@@ -38,7 +38,7 @@ requirements:
     - scipy
     - snakemake <8
     - statsmodels
-    - tabula
+    - tabula-py
 
 test:
   imports:
