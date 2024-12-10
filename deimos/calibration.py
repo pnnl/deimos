@@ -18,22 +18,8 @@ AGILENT_CCS_REFERENCE = {
             1221.990636,
             1521.971475,
         ],
-        "ccs": [
-            121.30,
-            153.73,
-            202.96,
-            243.64,
-            282.20,
-            316.96
-        ],
-        "q": [
-            1,
-            1,
-            1,
-            1,
-            1,
-            1
-        ],
+        "ccs": [121.30, 153.73, 202.96, 243.64, 282.20, 316.96],
+        "q": [1, 1, 1, 1, 1, 1],
     },
     "neg": {
         "mz": [
@@ -183,6 +169,11 @@ class MassCalibration:
         return self.beta * mz + self.tfix
 
     def plot(self):
+        """
+        Plot calibration and residuals.
+
+        """
+
         if (self.reference_mz is None) or (self.mz is None):
             raise RuntimeError("Calibration must be performed from m/z values.")
 
@@ -194,8 +185,8 @@ class MassCalibration:
         ax[0].scatter(self.mz, self.reference_mz)
         ax[0].plot(mz_test, mz_cal, linewidth=1, color="k", linestyle="--")
 
-        ax[0].set_xlabel("detected m/z", fontweight="bold")
-        ax[0].set_ylabel("reference m/z", fontweight="bold")
+        ax[0].set_xlabel("Detected m/z", fontweight="bold")
+        ax[0].set_ylabel("Reference m/z", fontweight="bold")
 
         ax[1].scatter(
             self.apply(self.mz),
@@ -203,8 +194,8 @@ class MassCalibration:
         )
         ax[1].axhline(0, linewidth=1, color="k", linestyle="--")
 
-        ax[1].set_xlabel("calibrated m/z", fontweight="bold")
-        ax[1].set_ylabel("residual (ppm)", fontweight="bold")
+        ax[1].set_xlabel("Calibrated m/z", fontweight="bold")
+        ax[1].set_ylabel("Residual (ppm)", fontweight="bold")
 
         plt.tight_layout()
         plt.show()
@@ -509,6 +500,48 @@ class CCSCalibration:
         # Linear model
         else:
             return self.beta * gamma * ccs + self.tfix
+
+    def plot(self):
+        """
+        Plot calibration and residuals.
+
+        """
+
+        if (self.ccs is None) or (self.ta is None) or (self.mz is None):
+            raise RuntimeError("Calibration must be performed from measured values.")
+
+        fig, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
+
+        y_test = np.arange(self.reduced_ccs.min(), self.reduced_ccs.max(), 0.5)
+
+        if self.power:
+            x_test = np.exp(self.beta * np.log(y_test) + self.tfix)
+        else:
+            x_test = self.beta * y_test + self.tfix
+
+        ax[0].scatter(self.ta, self.reduced_ccs)
+        ax[0].plot(x_test, y_test, linewidth=1, linestyle="--", color="k")
+
+        ax[0].set_xlabel("Arrival Time", fontweight="bold")
+        ax[0].set_ylabel("Reduced CCS", fontweight="bold")
+
+        if self.power:
+            ax[1].scatter(
+                self.arrival2ccs(self.mz, self.ta),
+                100 * (self.arrival2ccs(self.mz, self.ta) - self.ccs) / self.ccs,
+            )
+        else:
+            ax[1].scatter(
+                self.arrival2ccs(self.mz, self.ta),
+                100 * (self.arrival2ccs(self.mz, self.ta) - self.ccs) / self.ccs,
+            )
+        ax[1].axhline(0, linewidth=1, color="k", linestyle="--")
+
+        ax[1].set_xlabel("Calibrated CCS", fontweight="bold")
+        ax[1].set_ylabel("Residual (%)", fontweight="bold")
+
+        plt.tight_layout()
+        plt.show()
 
 
 def calibrate_ccs(
