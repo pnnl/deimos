@@ -1,5 +1,6 @@
 import warnings
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tabula
 from scipy.interpolate import interp1d
@@ -17,8 +18,22 @@ AGILENT_CCS_REFERENCE = {
             1221.990636,
             1521.971475,
         ],
-        "ccs": [121.30, 153.73, 202.96, 243.64, 282.20, 316.96],
-        "q": [1, 1, 1, 1, 1, 1],
+        "ccs": [
+            121.30,
+            153.73,
+            202.96,
+            243.64,
+            282.20,
+            316.96
+        ],
+        "q": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
     },
     "neg": {
         "mz": [
@@ -31,12 +46,261 @@ AGILENT_CCS_REFERENCE = {
         ],
         "ccs": [
             # 108.23,
-            140.04, 180.77, 255.34, 284.76, 319.03],
+            140.04,
+            180.77,
+            255.34,
+            284.76,
+            319.03,
+        ],
         "q": [
-            # 1, 
-            1, 1, 1, 1, 1],
+            # 1,
+            1,
+            1,
+            1,
+            1,
+            1,
+        ],
     },
 }
+
+
+class MassCalibration:
+    """
+    Performs mass calibration and stores result to enable convenient application.
+
+    Attributes
+    ----------
+    beta : float
+        Slope of calibration curve.
+    tfix : float
+        Intercept of calibration curve.
+    mz : :obj:`~numpy.array`
+            Observed mass-to-charge ratios.
+    reference_mz : :obj:`~numpy.array`
+        Reference mass-to-charge ratios.
+    fit : dict of float
+        Fit parameters of calibration curve.
+
+    """
+
+    def __init__(self):
+        """
+        Initializes :obj:`~deimos.calibration.MassCalibration` object.
+
+        """
+
+        # Initialize variables
+        self.beta = None
+        self.tfix = None
+        self.reference_mz = None
+        self.mz = None
+        self.fit = {"r": None, "p": None, "se": None}
+
+    def _check(self):
+        """
+        Helper method to check for calibration parameters.
+
+        """
+
+        if (self.beta is None) or (self.tfix is None):
+            raise RuntimeError("Must perform calibration to yield `beta` and `tfix`.")
+
+    def calibrate(
+        self,
+        mz=None,
+        reference_mz=None,
+        beta=None,
+        tfix=None,
+    ):
+        """
+        Performs calibration if `mz` and `reference_mz` arrays are provided,
+        otherwise calibration parameters `beta` and `tfix` must be supplied
+        directly.
+
+        Parameters
+        ----------
+        mz : :obj:`~numpy.array`
+            Observed mass-to-charge ratios.
+        reference_mz : :obj:`~numpy.array`
+            Reference mass-to-charge ratios.
+        beta : float
+            Provide calibration parameter "beta" (slope) directly.
+        tfix : float
+            Provide calibration parameter "tfix" (intercept) directly.
+
+        """
+
+        # Calibrant arrays supplied
+        if (mz is not None) and (reference_mz is not None):
+            self.mz = np.array(mz)
+            self.reference_mz = np.array(reference_mz)
+
+            # Linear regression
+            beta, tfix, r, p, se = linregress(self.mz, self.reference_mz)
+
+            # Store params
+            self.beta = beta
+            self.tfix = tfix
+            self.fit["r"] = r
+            self.fit["p"] = p
+            self.fit["se"] = se
+            return
+
+        # Beta and tfix supplied
+        if (beta is not None) and (tfix is not None):
+            # store params
+            self.beta = beta
+            self.tfix = tfix
+            return
+
+        raise ValueError(
+            "Must supply arrays for calibration or calibration parameters."
+        )
+
+    def apply(self, mz):
+        """
+        Calculates calibration m/z according to calibration parameters.
+
+        Parameters
+        ----------
+        mz : float or list of float
+            Feature mass-to-charge ratio.
+
+        Returns
+        -------
+        :obj:`~numpy.array`
+            Calibrated mass-to-charge ratio.
+
+        """
+
+        # Check for required attributes
+        self._check()
+
+        # Cast to numpy array
+        mz = np.array(mz)
+
+        # Linear model
+        return self.beta * mz + self.tfix
+
+    def plot(self):
+        if (self.reference_mz is None) or (self.mz is None):
+            raise RuntimeError("Calibration must be performed from m/z values.")
+
+        fig, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
+
+        mz_test = np.arange(self.reference_mz.min(), self.reference_mz.max(), 0.5)
+        mz_cal = self.apply(mz_test)
+
+        ax[0].scatter(self.mz, self.reference_mz)
+        ax[0].plot(mz_test, mz_cal, linewidth=1, color="k", linestyle="--")
+
+        ax[0].set_xlabel("detected m/z", fontweight="bold")
+        ax[0].set_ylabel("reference m/z", fontweight="bold")
+
+        ax[1].scatter(
+            self.apply(self.mz),
+            1e6 * (self.apply(self.mz) - self.reference_mz) / self.reference_mz,
+        )
+        ax[1].axhline(0, linewidth=1, color="k", linestyle="--")
+
+        ax[1].set_xlabel("calibrated m/z", fontweight="bold")
+        ax[1].set_ylabel("residual (ppm)", fontweight="bold")
+
+        plt.tight_layout()
+        plt.show()
+
+
+def calibrate_mass(mz=None, reference_mz=None, beta=None, tfix=None):
+    """
+    Convenience function for :class:`~deimos.calibration.MassCalibration`.
+    Performs calibration if `mz` and `reference_mz` arrays are provided,
+    otherwise calibration parameters `beta` and `tfix` must be supplied
+    directly.
+
+    Parameters
+    ----------
+    mz : :obj:`~numpy.array`
+        Observed mass-to-charge ratios.
+    reference_mz : :obj:`~numpy.array`
+        Reference mass-to-charge ratios.
+    beta : float
+        Provide calibration parameter "beta" (slope) directly.
+    tfix : float
+        Provide calibration parameter "tfix" (intercept) directly.
+
+    Returns
+    -------
+    :obj:`~deimos.calibration.MassCalibration`
+        Instance of calibrated `~deimos.calibration.MassCalibration`
+        object.
+
+    """
+
+    # Initialize calibration instance
+    mass_cal = MassCalibration()
+
+    # Perform calibration
+    mass_cal.calibrate(
+        mz=mz,
+        reference_mz=reference_mz,
+        beta=beta,
+        tfix=tfix,
+    )
+
+    return mass_cal
+
+
+def tunemix_mz(
+    features,
+    mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+    mz_tol=200e-6,
+):
+    """
+    Provided tune mix data with known calibration ions (i.e. known m/z),
+    determine the mass calibration.
+
+    Parameters
+    ----------
+    mz : :obj:`~numpy.array`
+        Calibration mass-to-charge ratios.
+    mz_tol : float
+        Tolerance in ppm to isolate tune ion.
+
+    Returns
+    -------
+    :obj:`~deimos.calibration.MassCalibration`
+        Instance of calibrated `~deimos.calibration.MassCalibration`
+        object.
+
+    """
+
+    # Cast to numpy array
+    mz = np.array(mz)
+
+    # Iterate tune ions
+    observed_mz = []
+    for mz_i in mz:
+        # Slice MS1
+        subset = deimos.slice(
+            features, by="mz", low=mz_i * (1 - mz_tol), high=mz_i * (1 + mz_tol)
+        )
+
+        if subset is None:
+            raise ValueError("Calibrant ion with m/z {:.4f} not found.".format(mz_i))
+
+        # Sum over other dimensions
+        ss_mz = deimos.collapse(subset, keep="mz")
+
+        # Intensity-weighted mass
+        mz_j = np.sum(ss_mz["mz"].values * ss_mz["intensity"].values) / np.sum(
+            ss_mz["intensity"].values
+        )
+
+        observed_mz.append(mz_j)
+
+    # Calibrate
+    observed_mz = np.array(observed_mz)
+    return deimos.calibration.calibrate_mass(mz=observed_mz, reference_mz=mz)
 
 
 class CCSCalibration:
@@ -75,7 +339,7 @@ class CCSCalibration:
         """
 
         if (self.beta is None) or (self.tfix is None):
-            raise ValueError("Must perform calibration to yield beta and " "tfix.")
+            raise RuntimeError("Must perform calibration to yield beta and " "tfix.")
 
     def calibrate(
         self,
