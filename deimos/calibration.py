@@ -362,7 +362,7 @@ def tunemix(
     for mz_i, ccs_i, q_i in zip(mz, ccs, q):
         # Slice ms1
         subset = deimos.slice(
-            features, by="mz", low=mz_i * (1 - mz_tol), high=mz_i * (1 - mz_tol)
+            features, by="mz", low=mz_i * (1 - mz_tol), high=mz_i * (1 + mz_tol)
         )
 
         # Extract dt info
