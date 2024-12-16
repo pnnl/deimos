@@ -245,6 +245,7 @@ def tunemix_mz(
     features,
     mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
     mz_tol=200e-6,
+    method='apex'
 ):
     """
     Provided tune mix data with known calibration ions (i.e. known m/z),
@@ -256,6 +257,9 @@ def tunemix_mz(
         Calibration mass-to-charge ratios.
     mz_tol : float
         Tolerance in ppm to isolate tune ion.
+    method : str
+        Indicate whether feature centroid or apex will be used to determine
+        calibration points.
 
     Returns
     -------
@@ -264,6 +268,9 @@ def tunemix_mz(
         object.
 
     """
+
+    if method.lower() not in ["centroid", "apex"]:
+        raise ValueError("Calibration method must be 'apex' or 'centroid'.")
 
     # Cast to numpy array
     mz = np.array(mz)
@@ -283,9 +290,13 @@ def tunemix_mz(
         ss_mz = deimos.collapse(subset, keep="mz")
 
         # Intensity-weighted mass
-        mz_j = np.sum(ss_mz["mz"].values * ss_mz["intensity"].values) / np.sum(
-            ss_mz["intensity"].values
-        )
+        if method.lower() == "centroid":
+            mz_j = np.sum(ss_mz["mz"].values * ss_mz["intensity"].values) / np.sum(
+                ss_mz["intensity"].values
+            )
+        # Apex
+        elif method.lower() == "apex":
+            mz_j = ss_mz["mz"].values[np.argmax(ss_mz["intensity"].values)]
 
         observed_mz.append(mz_j)
 
