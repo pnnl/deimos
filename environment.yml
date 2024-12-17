@@ -20,4 +20,4 @@ dependencies:
   - statsmodels
   - tabula-py
   - pip:
-    - ripser==0.6.4
+    - ripser==0.6.10
