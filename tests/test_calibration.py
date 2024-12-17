@@ -10,18 +10,12 @@ def ccs_cal():
 
 @pytest.fixture()
 def pos():
-    return {'mz': [118.086255, 322.048121, 622.028960, 922.009798, 1221.990636, 1521.971475],
-            'ta': [13.72, 18.65, 25.20, 30.44, 35.36, 39.83],
-            'ccs': [121.3, 153.7, 203, 243.6, 282.2, 317],
-            'q': [1, 1, 1, 1, 1, 1]}
+    return deimos.calibration.AGILENT_CCS_REFERENCE['pos']
 
 
 @pytest.fixture()
 def neg():
-    return {'mz': [301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
-            'ta': [17.04, 22.53, 32.13, 36.15, 40.70],
-            'ccs': [140, 180.8, 255.3, 284.8, 319],
-            'q': [1, 1, 1, 1, 1]}
+    return deimos.calibration.AGILENT_CCS_REFERENCE['neg']
 
 
 class TestCCSCalibration:
