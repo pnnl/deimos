@@ -439,7 +439,7 @@ def save_hdf(path, data, key='ms1', complevel=5, **kwargs):
 
     '''
 
-    data.to_hdf(path, key, format='table', complib='blosc',
+    data.to_hdf(path, key=key, format='table', complib='blosc',
                 complevel=complevel, **kwargs)
 
 
