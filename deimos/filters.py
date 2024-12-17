@@ -10,7 +10,7 @@ import deimos
 
 
 def std(a, size):
-    '''
+    """
     N-dimensional convolution of a standard deviation filter.
 
     Parameters
@@ -25,15 +25,15 @@ def std(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
-    c1 = ndi.uniform_filter(a, size, mode='reflect')
-    c2 = ndi.uniform_filter(np.square(a), size, mode='reflect')
+    c1 = ndi.uniform_filter(a, size, mode="reflect")
+    c2 = ndi.uniform_filter(np.square(a), size, mode="reflect")
     return np.abs(np.lib.scimath.sqrt(c2 - np.square(c1)))
 
 
 def std_pdf(edges, a, size):
-    '''
+    """
     N-dimensional convolution of a standard deviation probability density
     function filter.
 
@@ -51,18 +51,17 @@ def std_pdf(edges, a, size):
     list of :obj:`~numpy.array`
         Filtered edge data.
 
-    '''
+    """
 
-    edges = np.meshgrid(*edges, indexing='ij')
-    f = ndi.uniform_filter(a, size=size, mode='constant')
+    edges = np.meshgrid(*edges, indexing="ij")
+    f = ndi.uniform_filter(a, size=size, mode="constant")
 
     res = []
     for e in edges:
-        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        wmu = ndi.uniform_filter(a * e, size=size, mode="constant")
         mu = wmu / f
 
-        wvar = ndi.uniform_filter(
-            a * (e - mu) ** 2, size=size, mode='constant')
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode="constant")
         var = wvar / f
         res.append(np.sqrt(var))
 
@@ -70,7 +69,7 @@ def std_pdf(edges, a, size):
 
 
 def maximum(a, size):
-    '''
+    """
     N-dimensional convolution of a maximum filter.
 
     Parameters
@@ -85,13 +84,13 @@ def maximum(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
-    return ndi.maximum_filter(a, size=size, mode='constant', cval=-np.inf)
+    return ndi.maximum_filter(a, size=size, mode="constant", cval=-np.inf)
 
 
 def minimum(a, size):
-    '''
+    """
     N-dimensional convolution of a minimum filter.
 
     Parameters
@@ -106,13 +105,13 @@ def minimum(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
-    return ndi.minimum_filter(a, size=size, mode='constant', cval=np.inf)
+    return ndi.minimum_filter(a, size=size, mode="constant", cval=np.inf)
 
 
 def sum(a, size):
-    '''
+    """
     N-dimensional convolution of a sum filter.
 
     Parameters
@@ -127,21 +126,21 @@ def sum(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
     size = deimos.utils.safelist(size)
 
     if len(size) == 1:
         size = size[0]
-        ksize = size ** a.ndim
+        ksize = size**a.ndim
     else:
         ksize = np.prod(size)
 
-    return ksize * ndi.uniform_filter(a, size, mode='constant', cval=0.0)
+    return ksize * ndi.uniform_filter(a, size, mode="constant", cval=0.0)
 
 
 def mean(a, size):
-    '''
+    """
     N-dimensional convolution of a mean filter.
 
     Parameters
@@ -156,13 +155,13 @@ def mean(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
-    return ndi.uniform_filter(a, size=size, mode='constant', cval=0.0)
+    return ndi.uniform_filter(a, size=size, mode="constant", cval=0.0)
 
 
 def mean_pdf(edges, a, size):
-    '''
+    """
     N-dimensional convolution of a mean probability density function filter.
 
     Parameters
@@ -179,21 +178,21 @@ def mean_pdf(edges, a, size):
     list of :obj:`~numpy.array`
         Filtered edge data.
 
-    '''
+    """
 
-    edges = np.meshgrid(*edges, indexing='ij')
-    f = ndi.uniform_filter(a, size=size, mode='constant')
+    edges = np.meshgrid(*edges, indexing="ij")
+    f = ndi.uniform_filter(a, size=size, mode="constant")
 
     res = []
     for e in edges:
-        w = ndi.uniform_filter(a * e, size=size, mode='constant')
+        w = ndi.uniform_filter(a * e, size=size, mode="constant")
         res.append(w / f)
 
     return res
 
 
 def matched_gaussian(a, size):
-    '''
+    """
     N-dimensional convolution of a matched Gaussian filter.
 
     Parameters
@@ -208,13 +207,13 @@ def matched_gaussian(a, size):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
-    return np.square(ndi.gaussian_filter(a, size, mode='constant', cval=0.0))
+    return np.square(ndi.gaussian_filter(a, size, mode="constant", cval=0.0))
 
 
 def count(a, size, nonzero=False):
-    '''
+    """
     N-dimensional convolution of a counting filter.
 
     Parameters
@@ -231,7 +230,7 @@ def count(a, size, nonzero=False):
     :obj:`~numpy.array`
         Filtered intensity data.
 
-    '''
+    """
 
     if nonzero is True:
         a = np.where(np.nan_to_num(a) > 0, 1.0, 0.0)
@@ -242,7 +241,7 @@ def count(a, size, nonzero=False):
 
 
 def skew_pdf(edges, a, size):
-    '''
+    """
     N-dimensional convolution of a skew probability density function filter.
 
     Parameters
@@ -259,23 +258,23 @@ def skew_pdf(edges, a, size):
     list of :obj:`~numpy.array`
         Filtered edge data.
 
-    '''
+    """
 
-    edges = np.meshgrid(*edges, indexing='ij')
-    f = ndi.uniform_filter(a, size=size, mode='constant')
+    edges = np.meshgrid(*edges, indexing="ij")
+    f = ndi.uniform_filter(a, size=size, mode="constant")
 
     res = []
     for e in edges:
-        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        wmu = ndi.uniform_filter(a * e, size=size, mode="constant")
         mu = wmu / f
 
-        wvar = ndi.uniform_filter(
-            a * (e - mu) ** 2, size=size, mode='constant')
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode="constant")
         var = wvar / f
         sigma = np.sqrt(var)
 
         wskew = ndi.uniform_filter(
-            a * ((e - mu) / sigma) ** 3, size=size, mode='constant')
+            a * ((e - mu) / sigma) ** 3, size=size, mode="constant"
+        )
         skew = wskew / f
         res.append(skew)
 
@@ -283,7 +282,7 @@ def skew_pdf(edges, a, size):
 
 
 def kurtosis_pdf(edges, a, size):
-    '''
+    """
     N-dimensional convolution of a kurtosis probability density function
     filter.
 
@@ -301,23 +300,23 @@ def kurtosis_pdf(edges, a, size):
     list of :obj:`~numpy.array`
         Filtered edge data.
 
-    '''
+    """
 
-    edges = np.meshgrid(*edges, indexing='ij')
-    f = ndi.uniform_filter(a, size=size, mode='constant')
+    edges = np.meshgrid(*edges, indexing="ij")
+    f = ndi.uniform_filter(a, size=size, mode="constant")
 
     res = []
     for e in edges:
-        wmu = ndi.uniform_filter(a * e, size=size, mode='constant')
+        wmu = ndi.uniform_filter(a * e, size=size, mode="constant")
         mu = wmu / f
 
-        wvar = ndi.uniform_filter(
-            a * (e - mu) ** 2, size=size, mode='constant')
+        wvar = ndi.uniform_filter(a * (e - mu) ** 2, size=size, mode="constant")
         var = wvar / f
         sigma = np.sqrt(var)
 
         wkurtosis = ndi.uniform_filter(
-            a * ((e - mu) / sigma) ** 4, size=size, mode='constant')
+            a * ((e - mu) / sigma) ** 4, size=size, mode="constant"
+        )
         kurtosis = wkurtosis / f
         res.append(kurtosis - 3)
 
@@ -325,7 +324,6 @@ def kurtosis_pdf(edges, a, size):
 
 
 def embed_unique_indices(a):
-
     def count_tens(n):
         # Count tens
         ntens = (n - 1) // 10
@@ -371,9 +369,9 @@ def embed_unique_indices(a):
     idx_unq = idx_unq[idx_unsort]
 
     # Magnitude of each index
-    exp = np.log10(idx_unq,
-                   where=idx_unq > 0,
-                   out=np.zeros_like(idx_unq, dtype=np.float64))
+    exp = np.log10(
+        idx_unq, where=idx_unq > 0, out=np.zeros_like(idx_unq, dtype=np.float64)
+    )
     idx_unq_mag = np.power(10, np.floor(exp) + 1)
 
     # Result
@@ -381,7 +379,7 @@ def embed_unique_indices(a):
 
 
 def sparse_upper_star(idx, V):
-    '''
+    """
     Sparse implementation of an upper star filtration.
     Parameters
     ----------
@@ -395,7 +393,7 @@ def sparse_upper_star(idx, V):
         Index of filtered points (Mx1).
     persistence : :obj:`~numpy.array`
         Persistence of each filtered point (Mx1).
-    '''
+    """
 
     # Invert
     V = -1 * V.copy().astype(int)
@@ -405,8 +403,7 @@ def sparse_upper_star(idx, V):
 
     # Connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(
-        cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type="coo_matrix")
     cmat.setdiag(1)
     cmat = sparse.triu(cmat)
 
@@ -425,7 +422,7 @@ def sparse_upper_star(idx, V):
     del d, I, J
 
     # Persistence homology
-    ph = ripser(sdm, distance_matrix=True, maxdim=0)['dgms'][0]
+    ph = ripser(sdm, distance_matrix=True, maxdim=0)["dgms"][0]
 
     # Bound death values
     ph[ph[:, 1] == np.inf, 1] = np.max(V)
@@ -440,7 +437,7 @@ def sparse_upper_star(idx, V):
 
 
 def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
-    '''
+    """
     Sparse implementation of a mean filter.
 
     Parameters
@@ -458,7 +455,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     :obj:`~numpy.array`
         Filtered intensities (Mx1).
 
-    '''
+    """
 
     # Copy indices
     idx = idx.copy().astype(V.dtype)
@@ -479,8 +476,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
 
     # Connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(
-        cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type="coo_matrix")
     cmat.setdiag(1)
 
     # Pair indices
@@ -491,20 +487,20 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     del cmat
 
     # Sum over columns
-    V_sum = sparse.bsr_matrix((V[J], (I, I)),
-                              shape=cmat_shape,
-                              dtype=V.dtype).diagonal(0)
+    V_sum = sparse.bsr_matrix((V[J], (I, I)), shape=cmat_shape, dtype=V.dtype).diagonal(
+        0
+    )
 
     # Count over columns
-    V_count = sparse.bsr_matrix((np.ones_like(J), (I, I)),
-                                shape=cmat_shape,
-                                dtype=V.dtype).diagonal(0)
+    V_count = sparse.bsr_matrix(
+        (np.ones_like(J), (I, I)), shape=cmat_shape, dtype=V.dtype
+    ).diagonal(0)
 
     return V_sum / V_count
 
 
 def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
-    '''
+    """
     Sparse implementation of a weighted mean filter.
 
     Parameters
@@ -526,7 +522,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
     :obj:`~numpy.array`
         Filtered edges (MxN).
 
-    '''
+    """
 
     # Copy indices
     idx = idx.copy().astype(w.dtype)
@@ -553,7 +549,8 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
     tree_all = KDTree(idx)
     tree_subset = KDTree(idx[pindex])
     cmat = tree_subset.sparse_distance_matrix(
-        tree_all, 1, p=np.inf, output_type='coo_matrix')
+        tree_all, 1, p=np.inf, output_type="coo_matrix"
+    )
     del tree_all, tree_subset
 
     # Pair indices
@@ -569,9 +566,9 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
 
     # Sum weights over columns
     # Only need to do this once
-    V_count = sparse.bsr_matrix((w[J], (I, I)),
-                                shape=cmat_shape,
-                                dtype=w.dtype).diagonal(0)
+    V_count = sparse.bsr_matrix(
+        (w[J], (I, I)), shape=cmat_shape, dtype=w.dtype
+    ).diagonal(0)
 
     # Reshape V if 1D
     if V.ndim == 1:
@@ -583,9 +580,9 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
     # Enumerate value columns
     for i in range(V_out.shape[1]):
         # Sum weighted values over columns
-        V_sum = sparse.bsr_matrix((w[J] * V[J, i], (I, I)),
-                                  shape=cmat_shape,
-                                  dtype=w.dtype).diagonal(0)
+        V_sum = sparse.bsr_matrix(
+            (w[J] * V[J, i], (I, I)), shape=cmat_shape, dtype=w.dtype
+        ).diagonal(0)
 
         V_out[:, i] = V_sum / V_count
 
@@ -597,7 +594,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
 
 
 def sparse_median_filter(idx, V, radius=[0, 1, 1]):
-    '''
+    """
     Sparse implementation of a median filter.
 
     Parameters
@@ -615,7 +612,7 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     :obj:`~numpy.array`
         Filtered intensities (Mx1).
 
-    '''
+    """
 
     # Copy indices
     idx = idx.copy().astype(V.dtype)
@@ -636,8 +633,7 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
 
     # Connectivity matrix
     cmat = KDTree(idx)
-    cmat = cmat.sparse_distance_matrix(
-        cmat, 1, p=np.inf, output_type='coo_matrix')
+    cmat = cmat.sparse_distance_matrix(cmat, 1, p=np.inf, output_type="coo_matrix")
     cmat.setdiag(1)
 
     # Pair indices
@@ -647,9 +643,7 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     cmat_shape = cmat.shape
     del cmat
 
-    X = sparse.csc_matrix((V[I], (I, J)),
-                          shape=cmat_shape,
-                          dtype=V.dtype)
+    X = sparse.csc_matrix((V[I], (I, J)), shape=cmat_shape, dtype=V.dtype)
 
     indptr = X.indptr
     n_samples, n_features = X.shape
@@ -663,9 +657,16 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     return median
 
 
-def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retention_time'],
-           radius=[0, 1, 1], iterations=1, tol=0.0):
-    '''
+def smooth(
+    features,
+    index=None,
+    factors=None,
+    dims=["mz", "drift_time", "retention_time"],
+    radius=[0, 1, 1],
+    iterations=1,
+    tol=0.0,
+):
+    """
     Smooth data by sparse mean filtration.
 
     Parameters
@@ -692,7 +693,7 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
     :obj:`~pandas.DataFrame`
         Smoothed feature coordinates and intensities.
 
-    '''
+    """
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -703,15 +704,17 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
 
     # Check factors and index mutually exclusive
     if (factors is not None) & (index is not None):
-        raise ValueError('Specify either `index`, `factors`, or neither.')
+        raise ValueError("Specify either `index`, `factors`, or neither.")
 
     # Copy input
     features = features.copy()
 
     # Build index from features directly
     if (factors is None) & (index is None):
-        index = {dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
-                 for dim in dims}
+        index = {
+            dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
+            for dim in dims
+        }
 
     # Build index from factors
     if (factors is not None) & (index is None):
@@ -721,7 +724,7 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
     index = np.vstack([index[dim] for dim in dims]).T
 
     # Values
-    V = features['intensity'].values
+    V = features["intensity"].values
 
     # Residual exit criteria
     resid = np.inf
@@ -748,6 +751,6 @@ def smooth(features, index=None, factors=None, dims=['mz', 'drift_time', 'retent
                 break
 
     # Overwrite values
-    features['intensity'] = V
+    features["intensity"] = V
 
     return features

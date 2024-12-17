@@ -245,7 +245,7 @@ def tunemix_mz(
     features,
     mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
     mz_tol=200e-6,
-    method='apex'
+    method="apex"
 ):
     """
     Provided tune mix data with known calibration ions (i.e. known m/z),

@@ -73,11 +73,7 @@ class TestMassCalibration:
 
     @pytest.mark.parametrize(
         "calc,beta,tfix,beta_exp,tfix_exp",
-        [
-            (False, 1, 0, 1, 0), 
-            (True, 1, 0, 1, 0), 
-            (True, None, None, 1, 0)
-        ],
+        [(False, 1, 0, 1, 0), (True, 1, 0, 1, 0), (True, None, None, 1, 0)],
     )
     def test_calibrate(self, mass_cal, pos, calc, beta, tfix, beta_exp, tfix_exp):
         if calc is True:
