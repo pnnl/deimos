@@ -433,6 +433,29 @@ class CCSCalibration:
             "Must supply arrays for calibration or calibration " "parameters."
         )
 
+    def apply(self, mz, ta, q=1):
+        """
+        Calculates collision cross section (CCS) from arrival time, m/z, and
+        nominal charge, according to calibration parameters.
+
+        Parameters
+        ----------
+        mz : float or list of float
+            Feature mass-to-charge ratio.
+        ta : float or list of float
+            Feature arrival time (ms).
+        q : int or list of int
+            Feature nominal charge.
+
+        Returns
+        -------
+        :obj:`~numpy.array`
+            Feature collision cross section (A^2).
+
+        """
+
+        return self.arrival2ccs(mz, ta, q)
+
     def arrival2ccs(self, mz, ta, q=1):
         """
         Calculates collision cross section (CCS) from arrival time, m/z, and
