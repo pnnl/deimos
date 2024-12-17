@@ -270,7 +270,7 @@ def tunemix_mz(
     """
 
     if method.lower() not in ["centroid", "apex"]:
-        raise ValueError("Calibration method must be "apex" or "centroid".")
+        raise ValueError("Calibration method must be 'apex' or 'centroid'.")
 
     # Cast to numpy array
     mz = np.array(mz)
