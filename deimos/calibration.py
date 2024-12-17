@@ -696,6 +696,9 @@ def tunemix(
             features, by="mz", low=mz_i * (1 - mz_tol), high=mz_i * (1 + mz_tol)
         )
 
+        if subset is None:
+            raise ValueError("Calibrant ion with m/z {:.4f} not found.".format(mz_i))
+
         # Extract dt info
         dt_profile = deimos.collapse(subset, keep="drift_time")
         dt_i = dt_profile.sort_values(by="intensity", ascending=False)[
