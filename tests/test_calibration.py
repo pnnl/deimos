@@ -58,7 +58,7 @@ class TestCCSCalibration:
         ccs_cal.beta = beta
         ccs_cal.tfix = tfix
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             ccs_cal._check()
 
     @pytest.mark.parametrize('calc,beta,tfix,beta_exp,tfix_exp',
