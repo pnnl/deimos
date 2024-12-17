@@ -4,8 +4,8 @@ import pandas as pd
 import deimos
 
 
-def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
-    '''
+def data2grid(features, dims=["mz", "drift_time", "retention_time"]):
+    """
     Converts data frame representation to a dense, N-dimensional grid.
 
     Parameters
@@ -23,7 +23,7 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
     grid : :obj:`~numpy.array`
         Resulting N-dimensional grid.
 
-    '''
+    """
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -33,21 +33,19 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
         features = deimos.collapse(features, keep=dims, how="sum")
 
     # Unique indices
-    idx = [np.unique(features.loc[:, d].values,
-                     return_inverse=True) for d in dims]
+    idx = [np.unique(features.loc[:, d].values, return_inverse=True) for d in dims]
     idx_i = [x[-1] for x in idx]
     idx = [x[0] for x in idx]
 
     # Populate grid
     grid = np.zeros([len(x) for x in idx], dtype=float)
-    grid[tuple(idx_i)] = features.loc[:, 'intensity'].values
+    grid[tuple(idx_i)] = features.loc[:, "intensity"].values
 
     return idx, grid
 
 
-def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
-            additional=None):
-    '''
+def grid2df(edges, grid, dims=["mz", "drift_time", "retention_time"], additional=None):
+    """
     Converts dense grid representation to a data frame.
 
     Parameters
@@ -67,7 +65,7 @@ def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
         Feature coordinates, intensities, and any other attributes from
         `additional`.
 
-    '''
+    """
 
     # Cast to list safely
     dims = deimos.utils.safelist(dims)
@@ -85,12 +83,12 @@ def grid2df(edges, grid, dims=['mz', 'drift_time', 'retention_time'],
     grid = grid[idx].reshape(-1, 1)
 
     # Edges to grid
-    data = np.meshgrid(*edges, indexing='ij')
+    data = np.meshgrid(*edges, indexing="ij")
     data = [x.reshape(-1, 1)[idx] for x in data]
 
     # Append intensity
     data.append(grid)
-    cols.append('intensity')
+    cols.append("intensity")
 
     # Append additional columns
     if additional is not None:

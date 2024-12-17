@@ -9,7 +9,7 @@ from tests import localfile
 def test_get_1D_profiles():
     with pytest.raises(NotImplementedError):
         raise NotImplementedError
-    
+
 
 def test_offset_correction_model():
     with pytest.raises(NotImplementedError):
@@ -17,7 +17,6 @@ def test_offset_correction_model():
 
 
 class TestMS2Deconvolution:
-
     def test_init(self):
         with pytest.raises(NotImplementedError):
             raise NotImplementedError
