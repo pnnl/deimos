@@ -63,8 +63,8 @@ class TestCCSCalibration:
 
     @pytest.mark.parametrize('calc,beta,tfix,beta_exp,tfix_exp',
                              [(False, 1, 0, 1, 0),
-                              (True, 1, 0, 0.12722, -0.11387),
-                              (True, None, None, 0.12722, -0.11387)])
+                              (True, 1, 0, 0.12723, -0.11744),
+                              (True, None, None, 0.12723, -0.11744)])
     def test_calibrate(self, ccs_cal, pos, calc, beta, tfix, beta_exp, tfix_exp):
         if calc is True:
             ccs_cal.calibrate(beta=beta, tfix=tfix, **pos)
@@ -97,8 +97,8 @@ class TestCCSCalibration:
 
 @pytest.mark.parametrize('calc,beta,tfix,beta_exp,tfix_exp',
                          [(False, 1, 0, 1, 0),
-                          (True, 1, 0, 0.12722, -0.11387),
-                          (True, None, None, 0.12722, -0.11387)])
+                          (True, 1, 0, 0.12723, -0.11744),
+                          (True, None, None, 0.12723, -0.11744)])
 def test_calibrate_ccs(pos, calc, beta, tfix, beta_exp, tfix_exp):
     if calc is True:
         ccs_cal = deimos.calibration.calibrate_ccs(beta=beta, tfix=tfix, **pos)
