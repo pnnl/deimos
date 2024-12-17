@@ -30,7 +30,7 @@ def data2grid(features, dims=['mz', 'drift_time', 'retention_time']):
 
     # Collapse data if necessary
     if len(dims) < len(deimos.utils.detect_dims(features)):
-        features = deimos.collapse(features, keep=dims, how=np.sum)
+        features = deimos.collapse(features, keep=dims, how="sum")
 
     # Unique indices
     idx = [np.unique(features.loc[:, d].values,

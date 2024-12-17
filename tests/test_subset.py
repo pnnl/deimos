@@ -29,9 +29,9 @@ def test_threshold(ms1, threshold, length):
 
 
 @pytest.mark.parametrize('keep,how,length',
-                         [(['mz', 'drift_time'], np.sum, 651076),
-                          (['retention_time'], np.max, 41),
-                          (['mz', 'drift_time', 'retention_time'], np.sum, 1958605)])
+                         [(['mz', 'drift_time'], "sum", 651076),
+                          (['retention_time'], "max", 41),
+                          (['mz', 'drift_time', 'retention_time'], "sum", 1958605)])
 def test_collapse(ms1, keep, how, length):
     collapsed = deimos.collapse(ms1, keep=keep, how=how)
 
