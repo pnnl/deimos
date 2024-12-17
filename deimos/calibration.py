@@ -430,7 +430,7 @@ class CCSCalibration:
             return
 
         raise ValueError(
-            "Must supply arrays for calibration or calibration " "parameters."
+            "Must supply arrays for calibration or calibration parameters."
         )
 
     def apply(self, mz, ta, q=1):
