@@ -14,8 +14,9 @@ extra:
     - bioconda
 
 build:
+  noarch: python
   number: 0
-  script: "{{ PYTHON }} -m pip install -vv --no-deps ."
+  script: "{{ PYTHON }} -m pip install -vv --no-deps . ripser"
   entry_points:
     - deimos = deimos.cli:main
 
@@ -33,7 +34,7 @@ requirements:
     - pymzml
     - pytables
     - python
-    - ripser =0.6.10
+    # - ripser =0.6.10 # Allow pip to handle this one
     - scikit-learn
     - scipy
     - snakemake <8
