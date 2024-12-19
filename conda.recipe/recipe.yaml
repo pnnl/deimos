@@ -17,13 +17,15 @@ build:
   noarch: python
   number: 0
   script: python -m pip install -vv --no-deps .
-  entry_points:
-    - deimos = deimos.cli:main
+  python:
+    entry_points:
+      - deimos = deimos.cli:main
 
 requirements:
   host:
     - python
     - pip
+    - setuptools
   run:
     - dask
     - h5py
