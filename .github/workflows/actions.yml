@@ -73,10 +73,8 @@ jobs:
       - name: Build conda package
         uses: prefix-dev/rattler-build-action@v0.2.24
         with:
-          # Needs to be unique for each matrix entry
           recipe-path: conda.recipe/recipe.yaml
           build-args: >
-            --target-platform noarch
             --output-dir build/
             -c conda-forge
             -c bioconda
