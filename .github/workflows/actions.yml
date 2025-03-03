@@ -40,7 +40,7 @@ jobs:
       - name: Setup environment
         uses: conda-incubator/setup-miniconda@v2
         with:
-          miniforge-variant: Mambaforge
+          miniforge-variant: miniforge3
           miniforge-version: latest
           use-mamba: true
           environment-file: environment.yml
@@ -49,7 +49,7 @@ jobs:
           activate-environment: deimos
       
       - name: Install DEIMoS
-        run: pip install -e .
+        run: pip install --no-deps .
     
       - name: Test environment
         run: |
@@ -58,49 +58,32 @@ jobs:
           pytest
   
   Deploy:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     needs:
       - Test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
     defaults:
       run:
         shell: bash -l {0}
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Setup environment
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          use-mamba: true
-          python-version: 3.12
-          channels: conda-forge,bioconda
-          use-only-tar-bz2: true
-          auto-activate-base: true
-
-      - name: Install dependencies
-        run: |
-          mamba install boa anaconda-client conda-verify
-
+        uses: actions/checkout@v4
+  
       - name: Build conda package
-        run: |
-          mkdir build/
-          conda mambabuild conda-recipe/ --output-folder build/
-          conda index build/
+        uses: prefix-dev/rattler-build-action@v0.2.24
+        with:
+          recipe-path: conda.recipe/recipe.yaml
+          build-args: >
+            --output-dir build/
+            -c conda-forge
+            -c bioconda
       
-      - name: Convert to win-64
-        run: conda convert -p win-64 build/linux-64/*.tar.bz2 -o build/
-
-      - name: Convert to osx-64
-        run: conda convert -p osx-64 build/linux-64/*.tar.bz2 -o build/
-
-      - name: Upload packages
+      - name: Upload conda package
         env:
-          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
+          ANACONDA_API_KEY: ${{ secrets.ANACONDA_TOKEN }}
         run: |
-          anaconda upload build/linux-64/*.tar.bz2
-          anaconda upload build/osx-64/*.tar.bz2
-          anaconda upload build/win-64/*.tar.bz2
+          for pkg in $(find build/ -type f \( -name "*.conda" -o -name "*.tar.bz2" \) ); do
+            echo "Uploading ${pkg}"
+            rattler-build upload anaconda --owner smcolby "${pkg}"
+          done

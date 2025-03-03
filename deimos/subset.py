@@ -8,8 +8,8 @@ import pandas as pd
 import deimos
 
 
-def threshold(features, by='intensity', threshold=0):
-    '''
+def threshold(features, by="intensity", threshold=0):
+    """
     Thresholds input :obj:`~pandas.DataFrame` using `by` keyword, greater than
     value passed to `threshold`.
 
@@ -27,13 +27,13 @@ def threshold(features, by='intensity', threshold=0):
     :obj:`~pandas.DataFrame`
         Thresholded feature coordinates.
 
-    '''
+    """
 
     return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(features, keep=['mz', 'drift_time', 'retention_time'], how='sum'):
-    '''
+def collapse(features, keep=["mz", "drift_time", "retention_time"], how="sum"):
+    """
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
 
@@ -52,16 +52,19 @@ def collapse(features, keep=['mz', 'drift_time', 'retention_time'], how='sum'):
         Collapsed feature coordinates and aggregated
         intensities.
 
-    '''
+    """
 
-    return features.groupby(by=keep,
-                            as_index=False,
-                            sort=False).agg({'intensity': how})
+    return features.groupby(by=keep, as_index=False, sort=False).agg({"intensity": how})
 
 
-def locate(features, by=['mz', 'drift_time', 'retention_time'],
-           loc=[0, 0, 0], tol=[0, 0, 0], return_index=False):
-    '''
+def locate(
+    features,
+    by=["mz", "drift_time", "retention_time"],
+    loc=[0, 0, 0],
+    tol=[0, 0, 0],
+    return_index=False,
+):
+    """
     Given a coordinate and tolerances, return a subset of the
     data.
 
@@ -86,7 +89,7 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    '''
+    """
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -134,10 +137,16 @@ def locate(features, by=['mz', 'drift_time', 'retention_time'],
         return None
 
 
-def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
-                loc=[0, 0, 0], low=[0, 0, 0], high=[0, 0, 0],
-                relative=[False, False, False], return_index=False):
-    '''
+def locate_asym(
+    features,
+    by=["mz", "drift_time", "retention_time"],
+    loc=[0, 0, 0],
+    low=[0, 0, 0],
+    high=[0, 0, 0],
+    relative=[False, False, False],
+    return_index=False,
+):
+    """
     Given a coordinate and asymmetrical tolerances, return a subset of the
     data.
 
@@ -166,7 +175,7 @@ def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    '''
+    """
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -189,12 +198,19 @@ def locate_asym(features, by=['mz', 'drift_time', 'retention_time'],
             lb.append(x + lower)
             ub.append(x + upper)
 
-    return deimos.subset.slice(features, by=by, low=lb, high=ub, return_index=return_index)
+    return deimos.subset.slice(
+        features, by=by, low=lb, high=ub, return_index=return_index
+    )
 
 
-def slice(features, by=['mz', 'drift_time', 'retention_time'],
-          low=[0, 0, 0], high=[0, 0, 0], return_index=False):
-    '''
+def slice(
+    features,
+    by=["mz", "drift_time", "retention_time"],
+    low=[0, 0, 0],
+    high=[0, 0, 0],
+    return_index=False,
+):
+    """
     Given a feature coordinate and bounds, return a subset of the data.
 
     Parameters
@@ -218,7 +234,7 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
         If `return_index` is True, boolean index of subset elements,
         i.e. `features[index] = subset`.
 
-    '''
+    """
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -267,7 +283,7 @@ def slice(features, by=['mz', 'drift_time', 'retention_time'],
 
 
 class Partitions:
-    '''
+    """
     Generator object that will lazily build and return each partition.
 
     Attributes
@@ -281,10 +297,10 @@ class Partitions:
     overlap : float
         Amount of overlap between partitions to ameliorate edge effects.
 
-    '''
+    """
 
-    def __init__(self, features, split_on='mz', size=1000, overlap=0.05):
-        '''
+    def __init__(self, features, split_on="mz", size=1000, overlap=0.05):
+        """
         Initialize :obj:`~deimos.subset.Partitions` instance.
 
         Parameters
@@ -298,7 +314,7 @@ class Partitions:
         overlap : float
             Amount of overlap between partitions to ameliorate edge effects.
 
-        '''
+        """
 
         self.features = features
         self.split_on = split_on
@@ -308,10 +324,10 @@ class Partitions:
         self._compute_splits()
 
     def _compute_splits(self):
-        '''
+        """
         Determines data splits for partitioning.
 
-        '''
+        """
 
         # Unique to split on
         idx = np.unique(self.features[self.split_on].values)
@@ -351,7 +367,7 @@ class Partitions:
         self.fbounds = fbounds
 
     def __iter__(self):
-        '''
+        """
         Yields each partition.
 
         Yields
@@ -359,13 +375,13 @@ class Partitions:
         :obj:`~pandas.DataFrame`
             Partition of feature coordinates and intensities.
 
-        '''
+        """
 
         for a, b in self.bounds:
             yield slice(self.features, by=self.split_on, low=a, high=b)
 
     def map(self, func, processes=1, **kwargs):
-        '''
+        """
         Maps `func` to each partition, then returns the combined result,
         accounting for overlap regions.
 
@@ -384,7 +400,7 @@ class Partitions:
         :obj:`~pandas.DataFrame`
             Combined result of `func` applied to partitions.
 
-        '''
+        """
 
         # Serial
         if processes < 2:
@@ -396,14 +412,16 @@ class Partitions:
                 result = list(p.imap(partial(func, **kwargs), self))
 
         # Reconcile overlap
-        result = [slice(result[i], by=self.split_on, low=a, high=b)
-                  for i, (a, b) in enumerate(self.fbounds)]
+        result = [
+            slice(result[i], by=self.split_on, low=a, high=b)
+            for i, (a, b) in enumerate(self.fbounds)
+        ]
 
         # Combine partitions
         return pd.concat(result).reset_index(drop=True)
 
     def zipmap(self, func, b, processes=1, **kwargs):
-        '''
+        """
         Maps `func` to each partition pair resulting from the zip operation of
         `self` and `b`, then returns the combined result, accounting for
         overlap regions.
@@ -426,11 +444,12 @@ class Partitions:
         a, b : :obj:`~pandas.DataFrame`
             Result of `func` applied to paired partitions.
 
-        '''
+        """
 
         # Partition other dataset
-        partitions = (slice(b, by=self.split_on, low=a, high=b_)
-                      for a, b_ in self.bounds)
+        partitions = (
+            slice(b, by=self.split_on, low=a, high=b_) for a, b_ in self.bounds
+        )
 
         # Serial
         if processes < 2:
@@ -439,30 +458,31 @@ class Partitions:
         # Parallel
         else:
             with mp.Pool(processes=processes) as p:
-                result = list(p.starmap(partial(func, **kwargs),
-                                        zip(self, partitions)))
+                result = list(p.starmap(partial(func, **kwargs), zip(self, partitions)))
 
-        result = {'a': [x[0] for x in result], 'b': [x[1] for x in result]}
+        result = {"a": [x[0] for x in result], "b": [x[1] for x in result]}
 
         # Reconcile overlap
-        tmp = [slice(result['a'][i], by=self.split_on, low=a, high=b_,
-                     return_index=True)
-               for i, (a, b_) in enumerate(self.fbounds)]
+        tmp = [
+            slice(result["a"][i], by=self.split_on, low=a, high=b_, return_index=True)
+            for i, (a, b_) in enumerate(self.fbounds)
+        ]
 
-        result['a'] = [x[0] for x in tmp]
+        result["a"] = [x[0] for x in tmp]
         idx = [x[1] for x in tmp]
-        result['b'] = [p.iloc[i, :] if i is not None else None for p,
-                       i in zip(result['b'], idx)]
+        result["b"] = [
+            p.iloc[i, :] if i is not None else None for p, i in zip(result["b"], idx)
+        ]
 
         # Combine partitions
-        result['a'] = pd.concat(result['a'])
-        result['b'] = pd.concat(result['b'])
+        result["a"] = pd.concat(result["a"])
+        result["b"] = pd.concat(result["b"])
 
-        return result['a'], result['b']
+        return result["a"], result["b"]
 
 
 class MultiSamplePartitions:
-    '''
+    """
     Generator object that will lazily build and return each partition constructed
     from multiple samples.
 
@@ -477,10 +497,10 @@ class MultiSamplePartitions:
     tol : float
         Largest allowed distance between unique `split_on` observations.
 
-    '''
+    """
 
-    def __init__(self, features, split_on='mz', size=500, tol=25E-6):
-        '''
+    def __init__(self, features, split_on="mz", size=500, tol=25e-6):
+        """
         Initialize :obj:`~deimos.subset.Partitions` instance.
 
         Parameters
@@ -494,7 +514,7 @@ class MultiSamplePartitions:
         tol : float
             Largest allowed distance between unique `split_on` observations.
 
-        '''
+        """
 
         self.features = features
         self.split_on = split_on
@@ -509,16 +529,15 @@ class MultiSamplePartitions:
         self._compute_splits()
 
     def _compute_splits(self):
-        '''
+        """
         Determines data splits for partitioning.
 
-        '''
+        """
 
         self.counter = 0
 
         if self.dask:
-            idx = self.features.groupby(
-                by=self.split_on).size().compute().sort_index()
+            idx = self.features.groupby(by=self.split_on).size().compute().sort_index()
         else:
             idx = self.features.groupby(by=self.split_on).size().sort_index()
 
@@ -555,10 +574,12 @@ class MultiSamplePartitions:
 
     def __next__(self):
         if self.counter < len(self.bounds):
-            q = '({} >= {}) & ({} <= {})'.format(self.split_on,
-                                                 self.bounds[self.counter][0],
-                                                 self.split_on,
-                                                 self.bounds[self.counter][1])
+            q = "({} >= {}) & ({} <= {})".format(
+                self.split_on,
+                self.bounds[self.counter][0],
+                self.split_on,
+                self.bounds[self.counter][1],
+            )
 
             if self.dask:
                 subset = self.features.query(q).compute()
@@ -574,7 +595,7 @@ class MultiSamplePartitions:
         raise StopIteration
 
     def map(self, func, processes=1, **kwargs):
-        '''
+        """
         Maps `func` to each partition, then returns the combined result.
 
         Parameters
@@ -592,7 +613,7 @@ class MultiSamplePartitions:
         :obj:`~pandas.DataFrame`
             Combined result of `func` applied to partitions.
 
-        '''
+        """
 
         # Serial
         if processes < 2:
@@ -606,14 +627,14 @@ class MultiSamplePartitions:
         # Add partition index
         for i in range(len(result)):
             if result[i] is not None:
-                result[i]['partition_idx'] = i
+                result[i]["partition_idx"] = i
 
         # Combine partitions
         return pd.concat(result, ignore_index=True)
 
 
-def partition(features, split_on='mz', size=1000, overlap=0.05):
-    '''
+def partition(features, split_on="mz", size=1000, overlap=0.05):
+    """
     Partitions data along a given dimension.
 
     Parameters
@@ -632,13 +653,13 @@ def partition(features, split_on='mz', size=1000, overlap=0.05):
     :obj:`~deimos.subset.Partitions`
         A generator object that will lazily build and return each partition.
 
-    '''
+    """
 
     return Partitions(features, split_on, size, overlap)
 
 
-def multi_sample_partition(features, split_on='mz', size=500, tol=25E-6):
-    '''
+def multi_sample_partition(features, split_on="mz", size=500, tol=25e-6):
+    """
     Partitions data along a given dimension. For use with features across
     multiple samples, e.g. in alignment.
 
@@ -658,6 +679,6 @@ def multi_sample_partition(features, split_on='mz', size=500, tol=25E-6):
     :obj:`~deimos.subset.Partitions`
         A generator object that will lazily build and return each partition.
 
-    '''
+    """
 
     return MultiSamplePartitions(features, split_on, size, tol)

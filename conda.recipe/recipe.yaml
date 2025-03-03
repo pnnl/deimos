@@ -1,9 +1,9 @@
-{% set data = load_setup_py_data(setup_file='../setup.py',
-                                 from_recipe_dir=True) %}
+context:
+  version: "1.5.0" # TODO: obtain this from package directly
 
 package:
   name: deimos
-  version: {{ data.get('version') }}
+  version: ${{ version }}
 
 source:
   path: ..
@@ -14,15 +14,18 @@ extra:
     - bioconda
 
 build:
+  noarch: python
   number: 0
-  script: "{{ PYTHON }} -m pip install -vv --no-deps ."
-  entry_points:
-    - deimos = deimos.cli:main
+  script: python -m pip install -vv --no-deps .
+  python:
+    entry_points:
+      - deimos = deimos.cli:main
 
 requirements:
   host:
     - python
     - pip
+    - setuptools
   run:
     - dask
     - h5py
@@ -33,15 +36,9 @@ requirements:
     - pymzml
     - pytables
     - python
-    - ripser =0.6.4
+    - ripser =0.6.10
     - scikit-learn
     - scipy
     - snakemake <8
     - statsmodels
     - tabula-py
-
-test:
-  imports:
-    - deimos
-  commands:
-    - deimos -h

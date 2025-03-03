@@ -40,7 +40,7 @@ def fill_between(x, y, xlabel="Drift Time (ms)", ylabel="Intensity", ax=None, dp
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
 
     # Plot
-    # ax.plot(x, y, color='black')
+    # ax.plot(x, y, color="black")
     ax.fill_between(x, y, color="lightgrey")
 
     # Axis setup
@@ -62,14 +62,11 @@ def fill_between(x, y, xlabel="Drift Time (ms)", ylabel="Intensity", ax=None, dp
 def stem(
     x, y, points=False, xlabel="m/z", ylabel="Intensity", width=0.1, ax=None, dpi=600
 ):
-
     if ax is None:
         fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
 
     # Plot
-    _, stemlines, _ = ax.stem(
-        x, y, markerfmt=" ", basefmt=" ", linefmt="k-"
-    )
+    _, stemlines, _ = ax.stem(x, y, markerfmt=" ", basefmt=" ", linefmt="k-")
     plt.setp(stemlines, "linewidth", width)
     if points is True:
         ax.scatter(x, y, s=1, c="k")
@@ -98,7 +95,7 @@ def grid(
     cmap="cividis",
     ax=None,
     dpi=600,
-    **kwargs
+    **kwargs,
 ):
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -230,7 +227,9 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
     plt.setp(axes["dt"].get_xticklabels(), ha="center", rotation=0)
 
     # Rt
-    tmp = deimos.collapse(features, keep="retention_time").sort_values(by="retention_time")
+    tmp = deimos.collapse(features, keep="retention_time").sort_values(
+        by="retention_time"
+    )
     fill_between(
         tmp["retention_time"].values,
         tmp["intensity"].values,
@@ -246,7 +245,7 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
         dims=["mz", "drift_time"],
         ax=axes["mz-dt"],
         norm=normalize_grid.get("mz-dt", None),
-        **grid_kwargs
+        **grid_kwargs,
     )
 
     axes["mz-dt"].xaxis.label.set_visible(False)
@@ -259,7 +258,7 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
         dims=["drift_time", "retention_time"],
         ax=axes["dt-rt"],
         norm=normalize_grid.get("dt-rt", None),
-        **grid_kwargs
+        **grid_kwargs,
     )
 
     axes["dt-rt"].xaxis.label.set_visible(False)
@@ -272,16 +271,16 @@ def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi
         dims=["retention_time", "mz"],
         ax=axes["rt-mz"],
         norm=normalize_grid.get("rt-mz", None),
-        **grid_kwargs
+        **grid_kwargs,
     )
 
     axes["rt-mz"].xaxis.label.set_visible(False)
     axes["rt-mz"].tick_params(labelbottom=False)
 
     # Ensure correct axis scaling
-    axes['mz-dt'].axis('auto')
-    axes['dt-rt'].axis('auto')
-    axes['rt-mz'].axis('auto')
+    axes["mz-dt"].axis("auto")
+    axes["dt-rt"].axis("auto")
+    axes["rt-mz"].axis("auto")
 
     return axes
 

@@ -1,9 +1,9 @@
 # Dimensions to perform analysis operations in
-dims: ['mz', 'drift_time', 'retention_time']
+dims: ["mz", "drift_time", "retention_time"]
 
 # mzML accession fields to access and name
-accession: {'drift_time': 'MS:1002476',
-            'retention_time': 'MS:1000016'}
+accession: {"drift_time": "MS:1002476",
+            "retention_time": "MS:1000016"}
 
 # Nominal intensity threshold
 threshold: 200
