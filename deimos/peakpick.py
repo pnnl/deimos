@@ -171,7 +171,10 @@ def persistent_homology(
         vals = deimos.filters.sparse_weighted_mean_filter(
             index, features[dims].values, V, radius=radius, pindex=pidx
         )
-        for i, dim in enumerate(dims):
-            peaks[dim + "_weighted"] = vals[:, i]
+        if len(dims) == 1:
+            peaks[dims[0] + "_weighted"] = vals
+        else:
+            for i, dim in enumerate(dims):
+                peaks[dim + "_weighted"] = vals[:, i]
 
     return peaks
