@@ -124,7 +124,7 @@ def detect(
 
     # Stats
     isotopes["error"] = (
-        np.abs((isotopes["mz_iso"] - isotopes["mz"]) - isotopes["dx"]) / isotopes["mz"]
+        np.abs((isotopes["mz_iso"] - isotopes["mz"]) - isotopes["dx"]) / isotopes["mz_iso"]
     )
     isotopes["decay"] = isotopes["intensity_iso"] / isotopes["intensity"]
 
@@ -146,6 +146,10 @@ def detect(
     # grouped["n_sum"] = [sum(x) for x in grouped["multiple"].values]
     # grouped["check"] = np.abs(grouped["n"] * (grouped["n"] + 1) / 2 - grouped["n_sum"])
 
-    return grouped.sort_values(by=["intensity", "n"], ascending=False).reset_index(
+    if grouped.empty:
+        return grouped
+    
+    grouped = grouped.sort_values(by=["intensity", "n"], ascending=False).reset_index(
         drop=True
     )
+    return grouped
