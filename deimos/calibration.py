@@ -333,6 +333,7 @@ class CCSCalibration:
 
         # Initialize variables
         self.buffer_mass = None
+        self.power = False
         self.a = None
         self.beta = None
         self.tfix = None
@@ -451,7 +452,7 @@ class CCSCalibration:
                 se = np.sqrt(np.diag(pcov))
             else:
                 self.a = 0
-                beta, tfix, r, p, se = linregress(self.reduced_ccs, self.ta)
+                beta, tfix, r, p, se = linregress(self.ta, self.reduced_ccs)
                 self.beta = beta
                 self.tfix = tfix
 
@@ -533,7 +534,7 @@ class CCSCalibration:
             return reduced_ccs / gamma
 
         # Linear model
-        return (ta - self.tfix) / (self.beta * gamma)
+        return (self.beta * ta + self.tfix) / gamma
 
     def ccs2arrival(self, mz, ccs, q=1):
         """
@@ -574,7 +575,7 @@ class CCSCalibration:
 
         # Linear model
         else:
-            return self.beta * gamma * ccs + self.tfix
+            return (gamma * ccs - self.tfix) / self.beta
 
     def plot(self):
         """
