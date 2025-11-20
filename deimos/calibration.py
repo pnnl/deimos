@@ -424,15 +424,47 @@ class CCSCalibration:
                 def power_func(x, a, b, c):
                     return a + b * np.power(x, c)
                 
-                # Initial guess for parameters [a, b, c]
-                p0 = [
-                    np.min(self.reduced_ccs),
-                    (np.max(self.reduced_ccs) - np.min(self.reduced_ccs)) / np.max(self.ta),
-                    0.5
+                # Better initial guess for parameters [a, b, c]
+                # Use a more robust approach for initial guesses
+                y_range = np.max(self.reduced_ccs) - np.min(self.reduced_ccs)
+                x_range = np.max(self.ta) - np.min(self.ta)
+                
+                # Try multiple starting points for robustness
+                p0_options = [
+                    [0, y_range / np.power(np.max(self.ta), 0.5), 0.5],
+                    [np.min(self.reduced_ccs) * 0.1, y_range / np.max(self.ta), 0.6],
+                    [0, np.mean(self.reduced_ccs) / np.power(np.mean(self.ta), 0.5), 0.4],
                 ]
                 
-                # Perform curve fitting
-                popt, pcov = curve_fit(power_func, self.ta, self.reduced_ccs, p0=p0)
+                # Try fitting with different initial guesses
+                best_fit = None
+                best_error = float('inf')
+                
+                for p0 in p0_options:
+                    try:
+                        popt, pcov = curve_fit(
+                            power_func, 
+                            self.ta, 
+                            self.reduced_ccs, 
+                            p0=p0,
+                            maxfev=2000  # Increase max function evaluations
+                        )
+                        
+                        # Calculate fit quality
+                        residuals = self.reduced_ccs - power_func(self.ta, *popt)
+                        rms_error = np.sqrt(np.mean(residuals**2))
+                        
+                        if rms_error < best_error:
+                            best_fit = (popt, pcov)
+                            best_error = rms_error
+                            
+                    except RuntimeError:
+                        continue
+                
+                if best_fit is None:
+                    raise RuntimeError("Power law calibration failed with all initial guesses")
+                
+                popt, pcov = best_fit
                 
                 # Store parameters
                 a, b, c = popt
