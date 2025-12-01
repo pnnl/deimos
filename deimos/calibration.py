@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tabula
 from scipy.interpolate import interp1d
+from scipy.optimize import curve_fit
 from scipy.stats import linregress
 
 import deimos
@@ -313,10 +314,12 @@ class CCSCalibration:
     ----------
     buffer_mass : float
         Mass of the buffer gas used in ion mobility experiment.
+    a : float
+        Additive offset for power model calibration.
     beta : float
-        Slope of calibration curve.
+        Slope of calibration curve (or exponent for power model).
     tfix : float
-        Intercept of calibration curve.
+        Intercept of calibration curve (or coefficient for power model).
     fit : dict of float
         Fit parameters of calibration curve.
 
@@ -330,6 +333,8 @@ class CCSCalibration:
 
         # Initialize variables
         self.buffer_mass = None
+        self.power = False
+        self.a = None
         self.beta = None
         self.tfix = None
         self.fit = {"r": None, "p": None, "se": None}
@@ -341,7 +346,9 @@ class CCSCalibration:
         """
 
         if (self.beta is None) or (self.tfix is None):
-            raise RuntimeError("Must perform calibration to yield beta and " "tfix.")
+            raise RuntimeError("Must perform calibration to yield beta and tfix.")
+        if self.power and (self.a is None):
+            raise RuntimeError("Must perform calibration to yield parameter a for power model.")
 
     def calibrate(
         self,
@@ -401,22 +408,87 @@ class CCSCalibration:
 
             # Derived variables
             self.gamma = (
-                np.sqrt(self.mz * self.q / (self.mz * self.q + self.buffer_mass))
+                np.sqrt(
+                    self.mz
+                    * self.q
+                    * self.buffer_mass
+                    / (self.mz * self.q + self.buffer_mass)
+                )
                 / self.q
             )
             self.reduced_ccs = self.ccs * self.gamma
 
             # Linear regression
             if self.power:
-                beta, tfix, r, p, se = linregress(
-                    np.log(self.reduced_ccs), np.log(self.ta)
-                )
+                # Define the power function: y = a + b * x^c
+                def power_func(x, a, b, c):
+                    return a + b * np.power(x, c)
+                
+                # Better initial guess for parameters [a, b, c]
+                # Use a more robust approach for initial guesses
+                y_range = np.max(self.reduced_ccs) - np.min(self.reduced_ccs)
+                x_range = np.max(self.ta) - np.min(self.ta)
+                
+                # Try multiple starting points for robustness
+                p0_options = [
+                    [0, y_range / np.power(np.max(self.ta), 0.5), 0.5],
+                    [np.min(self.reduced_ccs) * 0.1, y_range / np.max(self.ta), 0.6],
+                    [0, np.mean(self.reduced_ccs) / np.power(np.mean(self.ta), 0.5), 0.4],
+                ]
+                
+                # Try fitting with different initial guesses
+                best_fit = None
+                best_error = float('inf')
+                
+                for p0 in p0_options:
+                    try:
+                        popt, pcov = curve_fit(
+                            power_func, 
+                            self.ta, 
+                            self.reduced_ccs, 
+                            p0=p0,
+                            maxfev=2000  # Increase max function evaluations
+                        )
+                        
+                        # Calculate fit quality
+                        residuals = self.reduced_ccs - power_func(self.ta, *popt)
+                        rms_error = np.sqrt(np.mean(residuals**2))
+                        
+                        if rms_error < best_error:
+                            best_fit = (popt, pcov)
+                            best_error = rms_error
+                            
+                    except RuntimeError:
+                        continue
+                
+                if best_fit is None:
+                    raise RuntimeError("Power law calibration failed with all initial guesses")
+                
+                popt, pcov = best_fit
+                
+                # Store parameters
+                a, b, c = popt
+                self.a = a
+                self.tfix = b
+                self.beta = c
+                
+                # Calculate R-squared manually
+                residuals = self.reduced_ccs - power_func(self.ta, *popt)
+                ss_res = np.sum(residuals**2)
+                ss_tot = np.sum((self.reduced_ccs - np.mean(self.reduced_ccs))**2)
+                r_squared = 1 - (ss_res / ss_tot)
+                
+                # Store fit stats
+                r = np.sqrt(r_squared) if r_squared > 0 else 0
+                p = None
+                se = np.sqrt(np.diag(pcov))
             else:
-                beta, tfix, r, p, se = linregress(self.reduced_ccs, self.ta)
+                self.a = 0
+                beta, tfix, r, p, se = linregress(self.ta, self.reduced_ccs)
+                self.beta = beta
+                self.tfix = tfix
 
             # Store params
-            self.beta = beta
-            self.tfix = tfix
             self.fit["r"] = r
             self.fit["p"] = p
             self.fit["se"] = se
@@ -486,14 +558,15 @@ class CCSCalibration:
         q = np.array(q)
 
         # Derived variables
-        gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
+        gamma = np.sqrt(mz * q * self.buffer_mass / (mz * q + self.buffer_mass)) / q
 
         # Power model
         if self.power:
-            return np.exp((np.log(ta) - self.tfix) / self.beta) / gamma
+            reduced_ccs = self.a + self.tfix * np.power(ta, self.beta)
+            return reduced_ccs / gamma
 
         # Linear model
-        return (ta - self.tfix) / (self.beta * gamma)
+        return (self.beta * ta + self.tfix) / gamma
 
     def ccs2arrival(self, mz, ccs, q=1):
         """
@@ -525,15 +598,16 @@ class CCSCalibration:
         q = np.array(q)
 
         # Derived variables
-        gamma = np.sqrt(mz * q / (mz * q + self.buffer_mass)) / q
+        gamma = np.sqrt(mz * q * self.buffer_mass / (mz * q + self.buffer_mass)) / q
 
         # Power model
         if self.power:
-            return np.exp(self.beta * np.log(gamma * ccs) + self.tfix)
+            reduced_ccs = gamma * ccs
+            return np.power((reduced_ccs - self.a) / self.tfix, 1.0 / self.beta)
 
         # Linear model
         else:
-            return self.beta * gamma * ccs + self.tfix
+            return (gamma * ccs - self.tfix) / self.beta
 
     def plot(self):
         """
@@ -546,12 +620,12 @@ class CCSCalibration:
 
         fig, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
 
-        y_test = np.arange(self.reduced_ccs.min(), self.reduced_ccs.max(), 0.5)
+        x_test = np.linspace(self.ta.min(), self.ta.max(), 100)
 
         if self.power:
-            x_test = np.exp(self.beta * np.log(y_test) + self.tfix)
+            y_test = self.a + self.tfix * np.power(x_test, self.beta)
         else:
-            x_test = self.beta * y_test + self.tfix
+            y_test = self.beta * x_test + self.tfix
 
         ax[0].scatter(self.ta, self.reduced_ccs)
         ax[0].plot(x_test, y_test, linewidth=1, linestyle="--", color="k")
@@ -559,16 +633,10 @@ class CCSCalibration:
         ax[0].set_xlabel("Arrival Time", fontweight="bold")
         ax[0].set_ylabel("Reduced CCS", fontweight="bold")
 
-        if self.power:
-            ax[1].scatter(
-                self.arrival2ccs(self.mz, self.ta),
-                100 * (self.arrival2ccs(self.mz, self.ta) - self.ccs) / self.ccs,
-            )
-        else:
-            ax[1].scatter(
-                self.arrival2ccs(self.mz, self.ta),
-                100 * (self.arrival2ccs(self.mz, self.ta) - self.ccs) / self.ccs,
-            )
+        ax[1].scatter(
+            self.arrival2ccs(self.mz, self.ta, self.q),
+            100 * (self.arrival2ccs(self.mz, self.ta, self.q) - self.ccs) / self.ccs,
+        )
         ax[1].axhline(0, linewidth=1, color="k", linestyle="--")
 
         ax[1].set_xlabel("Calibrated CCS", fontweight="bold")

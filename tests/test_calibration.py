@@ -40,6 +40,16 @@ def neg():
     }
 
 
+@pytest.fixture()
+def twims_data():
+    """TWIMS-like data that would benefit from power function calibration"""
+    return {
+        "mz": [242.2846, 298.3472, 354.4099, 410.4726, 466.5356],
+        "ta": [1.55012, 4.56077, 7.76386, 11.11285, 14.59229],
+        "ccs": [165.8, 190.61, 213.84, 236.4, 258.55],
+        "q": [1, 1, 1, 1, 1],
+    }
+
 class TestMassCalibration:
     def test_init(self, ccs_cal):
         for attr, expected in zip(["beta", "tfix", "fit"], [None, None, dict]):
@@ -102,11 +112,11 @@ class TestMassCalibration:
     "calc,beta,tfix,beta_exp,tfix_exp",
     [
         (False, 1, 0, 1, 0),
-        (True, 1, 0, 0.12723, -0.11744),
-        (True, None, None, 0.12723, -0.11744),
+        (True, 1, 0, 41.596354, 4.898403),
+        (True, None, None, 41.596354, 4.898403),
     ],
 )
-def test_calibrate_ccs(pos, calc, beta, tfix, beta_exp, tfix_exp):
+def test_calibrate_ccs_standalone(pos, calc, beta, tfix, beta_exp, tfix_exp):
     if calc is True:
         mass_cal = deimos.calibration.calibrate_ccs(beta=beta, tfix=tfix, **pos)
         for k in ["r", "p", "se"]:
@@ -122,7 +132,7 @@ def test_calibrate_ccs(pos, calc, beta, tfix, beta_exp, tfix_exp):
 class TestCCSCalibration:
     def test_init(self, ccs_cal):
         for attr, expected in zip(
-            ["buffer_mass", "beta", "tfix", "fit"], [None, None, None, dict]
+            ["buffer_mass", "beta", "tfix", "fit", "power"], [None, None, None, dict, False]
         ):
             assert hasattr(ccs_cal, attr)
 
@@ -130,7 +140,8 @@ class TestCCSCalibration:
 
             if expected is None:
                 assert tmp is expected
-
+            elif expected is False:
+                assert tmp is False
             else:
                 assert type(tmp) is expected
 
@@ -156,8 +167,8 @@ class TestCCSCalibration:
         "calc,beta,tfix,beta_exp,tfix_exp",
         [
             (False, 1, 0, 1, 0),
-            (True, 1, 0, 0.12723, -0.11744),
-            (True, None, None, 0.12723, -0.11744),
+            (True, 1, 0, 41.596354, 4.898403),
+            (True, None, None, 41.596354, 4.898403),
         ],
     )
     def test_calibrate(self, ccs_cal, pos, calc, beta, tfix, beta_exp, tfix_exp):
@@ -189,16 +200,39 @@ class TestCCSCalibration:
 
             assert (error <= 0.005).all()
 
+    def test_calibrate_power(self, ccs_cal, twims_data):
+        """Test power function calibration for TWIMS data"""
+        ccs_cal.calibrate(power=True, **twims_data)
+        
+        # Check that power mode is enabled
+        assert ccs_cal.power is True
+        
+        # Check that all required attributes exist
+        assert hasattr(ccs_cal, 'a')
+        assert ccs_cal.a is not None
+        assert ccs_cal.beta is not None
+        assert ccs_cal.tfix is not None
+        
+        # Test forward conversion (arrival time -> CCS)
+        ccs = ccs_cal.arrival2ccs(twims_data["mz"], twims_data["ta"], q=twims_data["q"])
+        error = np.abs(ccs - twims_data["ccs"]) / twims_data["ccs"]
+        assert (error <= 0.01).all()  # Allow slightly higher tolerance for power function
+        
+        # Test reverse conversion (CCS -> arrival time)
+        ta = ccs_cal.ccs2arrival(twims_data["mz"], twims_data["ccs"], q=twims_data["q"])
+        error = np.abs(ta - twims_data["ta"]) / twims_data["ta"]
+        assert (error <= 0.01).all()
+
 
 @pytest.mark.parametrize(
     "calc,beta,tfix,beta_exp,tfix_exp",
     [
         (False, 1, 0, 1, 0),
-        (True, 1, 0, 0.12723, -0.11744),
-        (True, None, None, 0.12723, -0.11744),
+        (True, 1, 0, 41.596354, 4.898403),
+        (True, None, None, 41.596354, 4.898403),
     ],
 )
-def test_calibrate_ccs(pos, calc, beta, tfix, beta_exp, tfix_exp):
+def test_calibrate_ccs_function(pos, calc, beta, tfix, beta_exp, tfix_exp):
     if calc is True:
         ccs_cal = deimos.calibration.calibrate_ccs(beta=beta, tfix=tfix, **pos)
         for k in ["r", "p", "se"]:
@@ -209,3 +243,19 @@ def test_calibrate_ccs(pos, calc, beta, tfix, beta_exp, tfix_exp):
     assert type(ccs_cal) is deimos.calibration.CCSCalibration
     assert abs(ccs_cal.beta - beta_exp) <= 1e-3
     assert abs(ccs_cal.tfix - tfix_exp) <= 1e-3
+
+
+def test_calibrate_ccs_function_power(twims_data):
+    """Test power function calibration via calibrate_ccs function"""
+    ccs_cal = deimos.calibration.calibrate_ccs(power=True, **twims_data)
+    
+    assert type(ccs_cal) is deimos.calibration.CCSCalibration
+    assert ccs_cal.power is True
+    assert ccs_cal.a is not None
+    assert ccs_cal.beta is not None
+    assert ccs_cal.tfix is not None
+    
+    # Verify calibration accuracy
+    ccs = ccs_cal.arrival2ccs(twims_data["mz"], twims_data["ta"], q=twims_data["q"])
+    error = np.abs(ccs - twims_data["ccs"]) / twims_data["ccs"]
+    assert (error <= 0.01).all()
