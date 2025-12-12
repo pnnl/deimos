@@ -32,16 +32,19 @@ def detect(
     3. Vectorized search across all charge states and isotope multiples simultaneously
     4. Filters results by intensity decay (parent > isotope) and mass accuracy
     5. Groups isotopes by their parent feature
+    
+    The function supports both multi-dimensional data (LC-IMS-MS) and single-dimension
+    spectra. For single spectra, use dims=['mz'] and tol=[mz_tolerance].
 
     Parameters
     ----------
     features : :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities.
+        Input feature coordinates and intensities. Must contain 'mz' and 'intensity' columns.
     dims : str or list, default=["mz", "drift_time", "retention_time"]
         Dimensions to perform isotope detection in. Must include 'mz'.
     tol : float or list, default=[0.1, 0.2, 0.3]
-        Tolerance in each dimension to be considered a match. For m/z, this is the
-        absolute tolerance for the isotopic mass difference.
+        Tolerance in each dimension to be considered a match. Length must match dims.
+        For m/z, this is the absolute tolerance for the isotopic mass difference.
     delta : float, default=1.003355
         Expected spacing between isotopes in Da (e.g., C13 = 1.003355).
     max_isotopes : int, default=4
@@ -69,6 +72,26 @@ def detect(
         - error: List of relative errors
         - decay: List of intensity ratios (isotope/parent)
         - n: Number of isotopes detected
+    
+    Examples
+    --------
+    Multi-dimensional data (LC-IMS-MS):
+    
+    >>> isotopes = deimos.isotopes.detect(
+    ...     ms1_peaks,
+    ...     dims=["mz", "drift_time", "retention_time"],
+    ...     tol=[0.1, 0.2, 0.3],
+    ...     max_isotopes=5
+    ... )
+    
+    Single spectrum (m/z only):
+    
+    >>> isotopes = deimos.isotopes.detect(
+    ...     spectrum,
+    ...     dims=["mz"],
+    ...     tol=[0.1],
+    ...     max_isotopes=5
+    ... )
 
     """
 
