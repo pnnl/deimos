@@ -17,6 +17,7 @@ def detect(
     max_isotopes=4,
     max_charge=1,
     max_error=50e-6,
+    require_lower_intensity=True,
 ):
     """
     Perform isotope detection according to expected patterning using optimized
@@ -53,6 +54,14 @@ def detect(
         Maximum charge state to consider (isotopic spacing = delta / charge).
     max_error : float, default=50e-6
         Maximum relative error between expected and observed isotopic mass difference.
+    require_lower_intensity : bool, default=True
+        If True, filter isotope candidates to only include those with lower intensity
+        than their parent feature. This enforces the expected decay pattern where isotope
+        peaks are less abundant than the monoisotopic peak. For 13C isotopes, this is
+        typically valid up to ~1400 m/z (natural abundance ~1.1%). However, for heavier
+        elements with higher natural abundance (e.g., Fe-54/56 at ~5.8%/91.7%) or enriched
+        isotope labeling experiments, set this to False to detect patterns where isotopes
+        may have equal or greater intensity than the nominal parent peak.
 
     Returns
     -------
@@ -214,8 +223,10 @@ def detect(
     isotopes["decay"] = isotopes["intensity_iso"] / isotopes["intensity"]
 
     # Step 6: Apply filters
-    # Remove non-decreasing intensity (parent must be more intense than isotope)
-    isotopes = isotopes.loc[isotopes["intensity"] > isotopes["intensity_iso"], :]
+    # Conditionally filter by intensity decay pattern
+    if require_lower_intensity:
+        # Remove non-decreasing intensity (parent must be more intense than isotope)
+        isotopes = isotopes.loc[isotopes["intensity"] > isotopes["intensity_iso"], :]
 
     # Remove high mass error matches
     isotopes = isotopes.loc[isotopes["error"] < max_error, :]
