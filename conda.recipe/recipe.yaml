@@ -1,5 +1,5 @@
 context:
-  version: "1.6.0" # TODO: obtain this from package directly
+  version: "1.6.1" # TODO: obtain this from package directly
 
 package:
   name: deimos
