@@ -186,6 +186,23 @@ def test_fit_spline():
         raise NotImplementedError
 
 
-def test_agglomerative_clustering():
-    with pytest.raises(NotImplementedError):
-        raise NotImplementedError
+def test_agglomerative_clustering_same_sample_idx_not_merged():
+    features = pd.DataFrame(
+        {
+            "mz": [200.0, 200.0],
+            "ccs": [150.0, 150.1],
+            "intensity": [10.0, 20.0],
+            "sample_idx": [0, 0],
+        }
+    )
+
+    result = deimos.alignment.agglomerative_clustering(
+        features,
+        dims=["mz", "ccs"],
+        tol=[20e-6, 2.0],
+        relative=[True, False],
+    )
+
+    assert result is not None
+    assert "cluster" in result.columns
+    assert result["cluster"].nunique() == 2
