@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 from scipy import sparse
 from scipy.spatial import KDTree
-from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.svm import SVR
 
@@ -299,13 +298,6 @@ def agglomerative_clustering(
     # Copy input
     features = features.copy()
 
-    # Connectivity
-    if "sample_idx" not in features.columns:
-        cmat = None
-    else:
-        vals = features["sample_idx"].values.reshape(-1, 1)
-        cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
-
     # Compute inter-feature distances
     distances = []
     for i, d in enumerate(dims):
@@ -333,6 +325,12 @@ def agglomerative_clustering(
     # Max distance
     distances = np.max(distances, axis=-1)
 
+    if "sample_idx" in features.columns:
+        sample_idx = np.asarray(features["sample_idx"])
+        same_sample = sample_idx[:, None] == sample_idx[None, :]
+        np.fill_diagonal(same_sample, False)
+        distances[same_sample] = 2.0
+
     # Perform clustering
     try:
         clustering = AgglomerativeClustering(
@@ -340,7 +338,6 @@ def agglomerative_clustering(
             linkage="complete",
             metric="precomputed",
             distance_threshold=1,
-            connectivity=cmat,
         ).fit(distances)
         features["cluster"] = clustering.labels_
 
