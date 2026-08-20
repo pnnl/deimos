@@ -265,10 +265,16 @@ def agglomerative_clustering(
     the pair of clusters that minimally increases a given linkage distance.
     See :class:`sklearn.cluster.AgglomerativeClustering`.
 
+    When ``sample_idx`` is present, same-sample pairs are treated as
+    unlinkable: their precomputed distance is set above
+    ``distance_threshold`` so complete linkage cannot merge two features
+    from the same sample, including through parent clusters.
+
     Parameters
     ----------
     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
-        Input feature coordinates and intensities per sample.
+        Input feature coordinates and intensities per sample. An optional
+        ``sample_idx`` column identifies the source sample.
     dims : str or list
         Dimensions considered in clustering.
     tol : float or list
