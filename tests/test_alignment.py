@@ -206,3 +206,97 @@ def test_agglomerative_clustering_same_sample_idx_not_merged():
     assert result is not None
     assert "cluster" in result.columns
     assert result["cluster"].nunique() == 2
+
+
+def test_agglomerative_clustering_different_sample_idx_merged():
+    features = pd.DataFrame(
+        {
+            "mz": [200.0, 200.0],
+            "ccs": [150.0, 150.1],
+            "intensity": [10.0, 20.0],
+            "sample_idx": [0, 1],
+        }
+    )
+
+    result = deimos.alignment.agglomerative_clustering(
+        features,
+        dims=["mz", "ccs"],
+        tol=[20e-6, 2.0],
+        relative=[True, False],
+    )
+
+    assert result["cluster"].nunique() == 1
+
+
+def test_agglomerative_clustering_different_sample_idx_out_of_tol_not_merged():
+    features = pd.DataFrame(
+        {
+            "mz": [200.0, 200.0],
+            "ccs": [150.0, 160.0],
+            "intensity": [10.0, 20.0],
+            "sample_idx": [0, 1],
+        }
+    )
+
+    result = deimos.alignment.agglomerative_clustering(
+        features,
+        dims=["mz", "ccs"],
+        tol=[20e-6, 2.0],
+        relative=[True, False],
+    )
+
+    assert result["cluster"].nunique() == 2
+
+
+def test_agglomerative_clustering_pairs_across_samples_not_within():
+    features = pd.DataFrame(
+        {
+            "mz": [200.0, 200.0, 200.0, 200.0],
+            "ccs": [150.0, 150.1, 150.0, 150.1],
+            "intensity": [10.0, 20.0, 11.0, 21.0],
+            "sample_idx": [0, 0, 1, 1],
+        }
+    )
+
+    result = deimos.alignment.agglomerative_clustering(
+        features,
+        dims=["mz", "ccs"],
+        tol=[20e-6, 2.0],
+        relative=[True, False],
+    )
+
+    assert result["cluster"].nunique() == 2
+    for _, group in result.groupby("cluster"):
+        assert group["sample_idx"].nunique() == len(group)
+        assert group["ccs"].nunique() == 1
+
+
+def test_agglomerative_clustering_without_sample_idx_still_merges():
+    features = pd.DataFrame(
+        {
+            "mz": [200.0, 200.0],
+            "ccs": [150.0, 150.1],
+            "intensity": [10.0, 20.0],
+        }
+    )
+
+    result = deimos.alignment.agglomerative_clustering(
+        features,
+        dims=["mz", "ccs"],
+        tol=[20e-6, 2.0],
+        relative=[True, False],
+    )
+
+    assert result["cluster"].nunique() == 1
+
+
+def test_agglomerative_clustering_none():
+    assert (
+        deimos.alignment.agglomerative_clustering(
+            None,
+            dims=["mz"],
+            tol=[20e-6],
+            relative=[True],
+        )
+        is None
+    )
