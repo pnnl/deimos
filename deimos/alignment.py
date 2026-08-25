@@ -2,7 +2,6 @@ import numpy as np
 import scipy
 from scipy import sparse
 from scipy.spatial import KDTree
-from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.svm import SVR
 
@@ -266,10 +265,16 @@ def agglomerative_clustering(
     the pair of clusters that minimally increases a given linkage distance.
     See :class:`sklearn.cluster.AgglomerativeClustering`.
 
+    When ``sample_idx`` is present, same-sample pairs are treated as
+    unlinkable: their precomputed distance is set above
+    ``distance_threshold`` so complete linkage cannot merge two features
+    from the same sample, including through parent clusters.
+
     Parameters
     ----------
     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
-        Input feature coordinates and intensities per sample.
+        Input feature coordinates and intensities per sample. An optional
+        ``sample_idx`` column identifies the source sample.
     dims : str or list
         Dimensions considered in clustering.
     tol : float or list
@@ -299,13 +304,6 @@ def agglomerative_clustering(
     # Copy input
     features = features.copy()
 
-    # Connectivity
-    if "sample_idx" not in features.columns:
-        cmat = None
-    else:
-        vals = features["sample_idx"].values.reshape(-1, 1)
-        cmat = cdist(vals, vals, metric=lambda x, y: x != y).astype(bool)
-
     # Compute inter-feature distances
     distances = []
     for i, d in enumerate(dims):
@@ -333,14 +331,21 @@ def agglomerative_clustering(
     # Max distance
     distances = np.max(distances, axis=-1)
 
+    # Set same-sample distances above threshold
+    merge_threshold = 1.0
+    if "sample_idx" in features.columns:
+        sample_idx = np.asarray(features["sample_idx"])
+        same_sample = sample_idx[:, None] == sample_idx[None, :]
+        np.fill_diagonal(same_sample, False)
+        distances[same_sample] = merge_threshold + 1.0
+
     # Perform clustering
     try:
         clustering = AgglomerativeClustering(
             n_clusters=None,
             linkage="complete",
             metric="precomputed",
-            distance_threshold=1,
-            connectivity=cmat,
+            distance_threshold=merge_threshold,
         ).fit(distances)
         features["cluster"] = clustering.labels_
 
