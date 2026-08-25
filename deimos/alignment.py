@@ -331,11 +331,13 @@ def agglomerative_clustering(
     # Max distance
     distances = np.max(distances, axis=-1)
 
+    # Set same-sample distances above threshold
+    merge_threshold = 1.0
     if "sample_idx" in features.columns:
         sample_idx = np.asarray(features["sample_idx"])
         same_sample = sample_idx[:, None] == sample_idx[None, :]
         np.fill_diagonal(same_sample, False)
-        distances[same_sample] = 2.0
+        distances[same_sample] = merge_threshold + 1.0
 
     # Perform clustering
     try:
@@ -343,7 +345,7 @@ def agglomerative_clustering(
             n_clusters=None,
             linkage="complete",
             metric="precomputed",
-            distance_threshold=1,
+            distance_threshold=merge_threshold,
         ).fit(distances)
         features["cluster"] = clustering.labels_
 
