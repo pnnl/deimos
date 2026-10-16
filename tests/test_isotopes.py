@@ -88,7 +88,9 @@ def test_detect_return_all_patterns():
     )
     all_parents = set(isotopes_all["idx"].tolist())
     assert 487 in all_parents, "idx 487→490 pattern should be present"
-    assert 490 in all_parents, "idx 490→493 pattern should be present when return_all_patterns=True"
+    assert 490 in all_parents, (
+        "idx 490→493 pattern should be present when return_all_patterns=True"
+    )
 
     # The 490→493 entry should have idx_iso containing 493
     row_490 = isotopes_all[isotopes_all["idx"] == 490].iloc[0]
@@ -101,13 +103,13 @@ def test_detect_mz_only(ms1_peaks):
     # Use the retention time with the most features
     rt_value = ms1_peaks.groupby("retention_time").size().idxmax()
     single_spectrum = ms1_peaks[ms1_peaks["retention_time"] == rt_value].copy()
-    
+
     # Keep only mz and intensity columns (simulate a simple spectrum)
     single_spectrum = single_spectrum[["mz", "intensity"]].reset_index(drop=True)
-    
+
     # Verify we have enough data
     assert len(single_spectrum) > 50  # Should have plenty of features
-    
+
     # Run isotope detection with only mz dimension
     isotopes = deimos.isotopes.detect(
         single_spectrum,
@@ -118,17 +120,17 @@ def test_detect_mz_only(ms1_peaks):
         max_charge=1,
         max_error=50e-6,
     )
-    
+
     # Should find some isotope patterns
     assert len(isotopes) > 0
-    
+
     # Check that all patterns have valid m/z values
     assert all(isotopes["mz"] > 0)
-    
+
     # Check that n (number of isotopes) is reasonable
     assert all(isotopes["n"] >= 1)
     assert all(isotopes["n"] <= 5)
-    
+
     # Verify error values are within tolerance
     for errors in isotopes["error"]:
         assert all([e <= 50e-6 for e in errors])
@@ -168,7 +170,7 @@ def test_detect_unsorted_input():
 
 def test_detect_preserves_input_indices():
     """Test that output idx values match the original input DataFrame indices.
-    
+
     This is critical when features have non-sequential indices (e.g., after filtering
     or when passing a subset of data). The function internally sorts by m/z, but must
     return idx values that correspond to the original input indices, not the sorted order.
@@ -183,7 +185,7 @@ def test_detect_preserves_input_indices():
         },
         index=[100, 200, 300, 400],  # Non-sequential original indices
     )
-    
+
     isotopes = deimos.isotopes.detect(
         features,
         dims=["mz", "drift_time", "retention_time"],
@@ -193,28 +195,30 @@ def test_detect_preserves_input_indices():
         max_charge=1,
         max_error=50e-6,
     )
-    
+
     # Should find the isotopic pattern starting at idx 100
     assert len(isotopes) > 0
-    
+
     # The parent feature should have idx=100 (original index of first feature)
     parent_row = isotopes.iloc[0]
     assert parent_row["idx"] == 100, f"Expected parent idx=100, got {parent_row['idx']}"
-    
+
     # The isotope indices should be 200, 300, 400 (original indices of isotopes)
     expected_isotope_indices = [200, 300, 400]
     actual_isotope_indices = parent_row["idx_iso"]
-    
+
     # Check that we found at least some of the isotopes
     assert len(actual_isotope_indices) > 0
-    
+
     # Check that all returned isotope indices are from the original input indices
     for iso_idx in actual_isotope_indices:
         assert iso_idx in expected_isotope_indices, (
             f"Isotope idx {iso_idx} not in expected original indices {expected_isotope_indices}"
         )
-    
+
     # Verify that none of the indices are the sorted positions (0, 1, 2, 3)
     all_indices = [parent_row["idx"]] + parent_row["idx_iso"]
     for idx in all_indices:
-        assert idx >= 100, f"Index {idx} appears to be a sorted position, not original index"
+        assert idx >= 100, (
+            f"Index {idx} appears to be a sorted position, not original index"
+        )

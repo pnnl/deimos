@@ -486,13 +486,13 @@ def test_slice_batch_mode(ms1):
     low_bounds = [[211.0, 16.2, 4.00], [300.0, 20.0, 5.0], [400.0, 25.0, 6.0]]
     high_bounds = [[213.0, 18.2, 5.16], [302.0, 22.0, 6.0], [402.0, 27.0, 7.0]]
     by = ["mz", "drift_time", "retention_time"]
-    
+
     results = deimos.slice(ms1, by=by, low=low_bounds, high=high_bounds)
-    
+
     # Should return list of DataFrames
     assert isinstance(results, list)
     assert len(results) == 3
-    
+
     # Check first result (should have data)
     assert results[0] is not None
     assert all(results[0].columns == ms1.columns)
@@ -506,13 +506,15 @@ def test_slice_batch_mode_with_return_index(ms1):
     low_bounds = [[211.0, 16.2], [300.0, 20.0]]
     high_bounds = [[213.0, 18.2], [302.0, 22.0]]
     by = ["mz", "drift_time"]
-    
-    results = deimos.slice(ms1, by=by, low=low_bounds, high=high_bounds, return_index=True)
-    
+
+    results = deimos.slice(
+        ms1, by=by, low=low_bounds, high=high_bounds, return_index=True
+    )
+
     # Should return list of (DataFrame, index) tuples
     assert isinstance(results, list)
     assert len(results) == 2
-    
+
     for subset, idx in results:
         if subset is not None:
             assert isinstance(subset, pd.DataFrame)
@@ -526,23 +528,21 @@ def test_slice_batch_vs_single_consistency(ms1):
     low_bounds = [[211.0, 16.2], [300.0, 20.0]]
     high_bounds = [[213.0, 18.2], [302.0, 22.0]]
     by = ["mz", "drift_time"]
-    
+
     # Batch mode
     batch_results = deimos.slice(ms1, by=by, low=low_bounds, high=high_bounds)
-    
+
     # Individual slices
     single_results = [
         deimos.slice(ms1, by=by, low=low_bounds[0], high=high_bounds[0]),
-        deimos.slice(ms1, by=by, low=low_bounds[1], high=high_bounds[1])
+        deimos.slice(ms1, by=by, low=low_bounds[1], high=high_bounds[1]),
     ]
-    
+
     # Compare results
     for batch, single in zip(batch_results, single_results):
         if batch is None and single is None:
             continue
         assert batch is not None and single is not None
-        pd.testing.assert_frame_equal(batch.reset_index(drop=True), 
-                                     single.reset_index(drop=True))
-
-
-
+        pd.testing.assert_frame_equal(
+            batch.reset_index(drop=True), single.reset_index(drop=True)
+        )

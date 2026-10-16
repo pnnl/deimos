@@ -23,18 +23,18 @@ def detect(
     """
     Perform isotope detection according to expected patterning using optimized
     vectorized operations.
-    
+
     This function identifies isotopic patterns in mass spectrometry data by searching
     for features that differ by expected isotopic mass differences (typically ~1.003 Da
     for C13). The algorithm:
-    
+
     1. Pre-filters candidate pairs that are within tolerance in non-m/z dimensions
        (e.g., drift time, retention time) to reduce search space
     2. Computes m/z distances for candidate pairs only
     3. Vectorized search across all charge states and isotope multiples simultaneously
     4. Filters results by intensity decay (parent > isotope) and mass accuracy
     5. Groups isotopes by their parent feature
-    
+
     The function supports both multi-dimensional data (LC-IMS-MS) and single-dimension
     spectra. For single spectra, use dims=['mz'] and tol=[mz_tolerance].
 
@@ -78,9 +78,9 @@ def detect(
     :obj:`~pandas.DataFrame`
         Features grouped by isotopic pattern, sorted by intensity and number of isotopes.
         Each row represents one parent feature with columns:
-        
+
         - mz: Parent m/z
-        - intensity: Parent intensity  
+        - intensity: Parent intensity
         - charge: Charge state
         - idx: Parent feature index
         - multiple: List of isotope multiples found (e.g., [1, 2, 3] for M+1, M+2, M+3)
@@ -91,20 +91,20 @@ def detect(
         - error: List of relative errors
         - decay: List of intensity ratios (isotope/parent)
         - n: Number of isotopes detected
-    
+
     Examples
     --------
     Multi-dimensional data (LC-IMS-MS):
-    
+
     >>> isotopes = deimos.isotopes.detect(
     ...     ms1_peaks,
     ...     dims=["mz", "drift_time", "retention_time"],
     ...     tol=[0.1, 0.2, 0.3],
     ...     max_isotopes=5
     ... )
-    
+
     Single spectrum (m/z only):
-    
+
     >>> isotopes = deimos.isotopes.detect(
     ...     spectrum,
     ...     dims=["mz"],
@@ -128,91 +128,123 @@ def detect(
     # Preserve original indices before sorting
     # Store original index as a column so we can return it in results
     features = features.copy()
-    features['original_idx'] = features.index
-    
+    features["original_idx"] = features.index
+
     # Sort by m/z to ensure lower indices correspond to lower m/z values.
     # This is required for the lower-triangular candidate mask logic to correctly
     # assign parent (lower m/z) and child (higher m/z) features.
     features = features.sort_values("mz").reset_index(drop=True)
 
     n_features = len(features)
-    
+
     # Step 1: Build candidate mask for non-m/z dimensions
     # Only consider pairs within tolerance for drift time, retention time, etc.
     # This dramatically reduces the search space for the m/z comparison
     candidate_mask = np.ones((n_features, n_features), dtype=bool)
-    
+
     for i in else_idx:
         arr = features[dims[i]].values.reshape((-1, 1))
         dist = scipy.spatial.distance.cdist(arr, arr)
-        candidate_mask &= (dist <= tol[i])
-    
+        candidate_mask &= dist <= tol[i]
+
     # Apply lower triangular mask to avoid duplicate comparisons (i < j)
     # This ensures each pair is only evaluated once
     candidate_mask = np.tril(candidate_mask, k=-1)
-    
+
     # Get candidate pairs (row, col indices where mask is True)
     # With tril, row > col (row index > column index), meaning we're in lower triangle
     row_idx, col_idx = np.where(candidate_mask)
-    
+
     if len(row_idx) == 0:
         # No candidates found - return empty grouped DataFrame with correct structure
-        return pd.DataFrame(columns=[
-            "mz", "charge", "idx", "intensity", "multiple", "dx",
-            "mz_iso", "intensity_iso", "idx_iso", "error", "decay", "n"
-        ]).groupby(by=["mz", "charge", "idx", "intensity"], as_index=False).agg(OrderedSet)
-    
+        return (
+            pd.DataFrame(
+                columns=[
+                    "mz",
+                    "charge",
+                    "idx",
+                    "intensity",
+                    "multiple",
+                    "dx",
+                    "mz_iso",
+                    "intensity_iso",
+                    "idx_iso",
+                    "error",
+                    "decay",
+                    "n",
+                ]
+            )
+            .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
+            .agg(OrderedSet)
+        )
+
     # Step 2: Compute m/z distances for candidate pairs only
     # This avoids computing a full n x n distance matrix for all features
     mz_values = features["mz"].values
-    
+
     # Build m/z distance matrix for candidates
     # The distance matrix is computed, then element-wise multiplied by the candidate mask
     mz_arr = mz_values.reshape((-1, 1))
     mz_dist_full = scipy.spatial.distance.cdist(mz_arr, mz_arr)
-    
+
     # Apply candidate mask to get distances for valid pairs only
     mz_dist_masked = np.multiply(mz_dist_full, candidate_mask)
-    
+
     # Extract m/z differences for our candidate pairs
     # This represents |mz[row] - mz[col]|, always positive
     mz_diffs = mz_dist_masked[row_idx, col_idx]
-    
+
     # Feature assignments:
     # - Features at column index are assigned as parent (lower triangle: col < row)
     # - Features at row index are assigned as isotopic child
     parent_idx = col_idx
     child_idx = row_idx
-    
+
     # Step 3: Vectorized search for isotopic patterns
     # Pre-compute all expected mass differences for all charge/multiple combinations
     # This allows us to check all possibilities in a single vectorized operation
     charges = np.arange(1, max_charge + 1)
     multiples = np.arange(1, max_isotopes + 1)
     expected_deltas = np.outer(multiples, delta / charges).flatten()  # All combinations
-    
+
     # Create charge and multiple arrays matching expected_deltas
     # Order: [(m1,c1), (m1,c2), ..., (m1,cN), (m2,c1), ..., (mM,cN)]
     charge_mult_pairs = np.array([(m, c) for m in multiples for c in charges])
-    
+
     # Vectorized search: for each candidate pair, check all expected deltas
     # Shape: (n_candidates, n_delta_combinations)
     mz_diff_matrix = mz_diffs[:, np.newaxis]
     expected_delta_matrix = expected_deltas[np.newaxis, :]
-    
+
     # Find matches within m/z tolerance
     matches = np.abs(mz_diff_matrix - expected_delta_matrix) <= tol[mz_idx]
-    
+
     # Get indices of matches
     candidate_indices, delta_indices = np.where(matches)
-    
+
     if len(candidate_indices) == 0:
         # No isotope matches found - return empty grouped DataFrame with correct structure
-        return pd.DataFrame(columns=[
-            "mz", "charge", "idx", "intensity", "multiple", "dx",
-            "mz_iso", "intensity_iso", "idx_iso", "error", "decay", "n"
-        ]).groupby(by=["mz", "charge", "idx", "intensity"], as_index=False).agg(OrderedSet)
-    
+        return (
+            pd.DataFrame(
+                columns=[
+                    "mz",
+                    "charge",
+                    "idx",
+                    "intensity",
+                    "multiple",
+                    "dx",
+                    "mz_iso",
+                    "intensity_iso",
+                    "idx_iso",
+                    "error",
+                    "decay",
+                    "n",
+                ]
+            )
+            .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
+            .agg(OrderedSet)
+        )
+
     # Step 4: Build results DataFrame
     # Extract matched parent and child features
     matched_parents = parent_idx[candidate_indices]
@@ -220,24 +252,27 @@ def detect(
     matched_charges = charge_mult_pairs[delta_indices, 1]
     matched_multiples = charge_mult_pairs[delta_indices, 0]
     matched_deltas = expected_deltas[delta_indices]
-    
+
     # Create DataFrame directly from arrays (more efficient than concatenating)
-    isotopes = pd.DataFrame({
-        "mz": mz_values[matched_parents],
-        "intensity": features["intensity"].values[matched_parents],
-        "charge": matched_charges.astype(float),
-        "multiple": matched_multiples.astype(float),
-        "dx": matched_deltas,
-        "mz_iso": mz_values[matched_children],
-        "intensity_iso": features["intensity"].values[matched_children],
-        "idx": features["original_idx"].values[matched_parents],
-        "idx_iso": features["original_idx"].values[matched_children],
-    })
+    isotopes = pd.DataFrame(
+        {
+            "mz": mz_values[matched_parents],
+            "intensity": features["intensity"].values[matched_parents],
+            "charge": matched_charges.astype(float),
+            "multiple": matched_multiples.astype(float),
+            "dx": matched_deltas,
+            "mz_iso": mz_values[matched_children],
+            "intensity_iso": features["intensity"].values[matched_children],
+            "idx": features["original_idx"].values[matched_parents],
+            "idx_iso": features["original_idx"].values[matched_children],
+        }
+    )
 
     # Step 5: Compute quality metrics
     # Relative error between observed and expected mass difference
     isotopes["error"] = (
-        np.abs((isotopes["mz_iso"] - isotopes["mz"]) - isotopes["dx"]) / isotopes["mz_iso"]
+        np.abs((isotopes["mz_iso"] - isotopes["mz"]) - isotopes["dx"])
+        / isotopes["mz_iso"]
     )
     # Intensity ratio (should decay for true isotopes)
     isotopes["decay"] = isotopes["intensity_iso"] / isotopes["intensity"]
@@ -266,7 +301,7 @@ def detect(
 
     if grouped.empty:
         return grouped
-    
+
     # Sort by intensity (most intense first) and number of isotopes (most isotopes first)
     grouped = grouped.sort_values(by=["intensity", "n"], ascending=False).reset_index(
         drop=True
