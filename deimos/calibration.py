@@ -246,7 +246,7 @@ def tunemix_mz(
     features,
     mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
     mz_tol=200e-6,
-    method="apex"
+    method="apex",
 ):
     """
     Provided tune mix data with known calibration ions (i.e. known m/z),
@@ -348,7 +348,9 @@ class CCSCalibration:
         if (self.beta is None) or (self.tfix is None):
             raise RuntimeError("Must perform calibration to yield beta and tfix.")
         if self.power and (self.a is None):
-            raise RuntimeError("Must perform calibration to yield parameter a for power model.")
+            raise RuntimeError(
+                "Must perform calibration to yield parameter a for power model."
+            )
 
     def calibrate(
         self,
@@ -422,14 +424,14 @@ class CCSCalibration:
             if self.power:
                 # Check number of calibration points
                 n_points = len(self.ta)
-                
+
                 # Minimum 3 points required for power law calibration
                 if n_points < 3:
                     raise ValueError(
                         f"Power law calibration requires at least 3 calibration points, "
                         f"but only {n_points} provided."
                     )
-                
+
                 # Use 2-parameter power law (y = a * x^b) for 3 points
                 # Use 3-parameter power law (y = a + b * x^c) for 4+ points
                 if n_points < 4:
@@ -437,26 +439,26 @@ class CCSCalibration:
                     warnings.warn(
                         f"Only {n_points} calibration points available. "
                         "Using 2-parameter power law (y = a * x^b) instead of 3-parameter model.",
-                        UserWarning
+                        UserWarning,
                     )
-                    
+
                     def power_func_2param(x, a, b):
                         return a * np.power(x, b)
-                    
+
                     # Initial guesses for [a, b]
                     y_mean = np.mean(self.reduced_ccs)
                     x_mean = np.mean(self.ta)
-                    
+
                     p0_options = [
                         [y_mean / np.power(x_mean, 0.5), 0.5],
                         [y_mean / np.power(x_mean, 0.6), 0.6],
                         [y_mean / x_mean, 0.4],
                     ]
-                    
+
                     # Try fitting with different initial guesses
                     best_fit = None
-                    best_error = float('inf')
-                    
+                    best_error = float("inf")
+
                     for p0 in p0_options:
                         try:
                             popt, pcov = curve_fit(
@@ -464,101 +466,115 @@ class CCSCalibration:
                                 self.ta,
                                 self.reduced_ccs,
                                 p0=p0,
-                                maxfev=2000
+                                maxfev=2000,
                             )
-                            
+
                             # Calculate fit quality
-                            residuals = self.reduced_ccs - power_func_2param(self.ta, *popt)
+                            residuals = self.reduced_ccs - power_func_2param(
+                                self.ta, *popt
+                            )
                             rms_error = np.sqrt(np.mean(residuals**2))
-                            
+
                             if rms_error < best_error:
                                 best_fit = (popt, pcov)
                                 best_error = rms_error
-                                
+
                         except RuntimeError:
                             continue
-                    
+
                     if best_fit is None:
-                        raise RuntimeError("2-parameter power law calibration failed with all initial guesses")
-                    
+                        raise RuntimeError(
+                            "2-parameter power law calibration failed with all initial guesses"
+                        )
+
                     popt, pcov = best_fit
-                    
+
                     # Store parameters (a=0 for 2-parameter model)
                     a_param, b_param = popt
                     self.a = 0  # No additive offset in 2-parameter model
                     self.tfix = a_param
                     self.beta = b_param
-                    
+
                     # Calculate R-squared manually
                     residuals = self.reduced_ccs - power_func_2param(self.ta, *popt)
                     ss_res = np.sum(residuals**2)
-                    ss_tot = np.sum((self.reduced_ccs - np.mean(self.reduced_ccs))**2)
+                    ss_tot = np.sum((self.reduced_ccs - np.mean(self.reduced_ccs)) ** 2)
                     r_squared = 1 - (ss_res / ss_tot)
-                    
+
                     # Store fit stats
                     r = np.sqrt(r_squared) if r_squared > 0 else 0
                     p = None
                     se = np.sqrt(np.diag(pcov))
-                
+
                 else:
                     # Use 3-parameter power law for 4+ points
                     # Define the power function: y = a + b * x^c
                     def power_func(x, a, b, c):
                         return a + b * np.power(x, c)
-                    
+
                     # Better initial guess for parameters [a, b, c]
                     # Use a more robust approach for initial guesses
                     y_range = np.max(self.reduced_ccs) - np.min(self.reduced_ccs)
-                    
+
                     # Try multiple starting points for robustness
                     p0_options = [
                         [0, y_range / np.power(np.max(self.ta), 0.5), 0.5],
-                        [np.min(self.reduced_ccs) * 0.1, y_range / np.max(self.ta), 0.6],
-                        [0, np.mean(self.reduced_ccs) / np.power(np.mean(self.ta), 0.5), 0.4],
+                        [
+                            np.min(self.reduced_ccs) * 0.1,
+                            y_range / np.max(self.ta),
+                            0.6,
+                        ],
+                        [
+                            0,
+                            np.mean(self.reduced_ccs) / np.power(np.mean(self.ta), 0.5),
+                            0.4,
+                        ],
                     ]
-                    
+
                     # Try fitting with different initial guesses
                     best_fit = None
-                    best_error = float('inf')
-                    
+                    best_error = float("inf")
+
                     for p0 in p0_options:
                         try:
                             popt, pcov = curve_fit(
-                                power_func, 
-                                self.ta, 
-                                self.reduced_ccs, 
+                                power_func,
+                                self.ta,
+                                self.reduced_ccs,
                                 p0=p0,
-                                maxfev=2000  # Increase max function evaluations
+                                maxfev=2000,  # Increase max function evaluations
                             )
-                            
+
                             # Calculate fit quality
                             residuals = self.reduced_ccs - power_func(self.ta, *popt)
                             rms_error = np.sqrt(np.mean(residuals**2))
-                            
+
                             if rms_error < best_error:
                                 best_fit = (popt, pcov)
                                 best_error = rms_error
-                                
+
                         except RuntimeError:
                             continue
-                    
+
                     if best_fit is None:
-                        raise RuntimeError("Power law calibration failed with all initial guesses")
-                    
+                        raise RuntimeError(
+                            "Power law calibration failed with all initial guesses"
+                        )
+
                     popt, pcov = best_fit
-                    
+
                     # Store parameters
                     a, b, c = popt
                     self.a = a
                     self.tfix = b
                     self.beta = c
-                    
+
                     # Calculate R-squared manually
                     residuals = self.reduced_ccs - power_func(self.ta, *popt)
                     ss_res = np.sum(residuals**2)
-                    ss_tot = np.sum((self.reduced_ccs - np.mean(self.reduced_ccs))**2)
+                    ss_tot = np.sum((self.reduced_ccs - np.mean(self.reduced_ccs)) ** 2)
                     r_squared = 1 - (ss_res / ss_tot)
-                    
+
                     # Store fit stats
                     r = np.sqrt(r_squared) if r_squared > 0 else 0
                     p = None

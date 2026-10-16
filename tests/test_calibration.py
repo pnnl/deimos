@@ -166,7 +166,8 @@ def test_calibrate_ccs_standalone(pos, calc, beta, tfix, beta_exp, tfix_exp):
 class TestCCSCalibration:
     def test_init(self, ccs_cal):
         for attr, expected in zip(
-            ["buffer_mass", "beta", "tfix", "fit", "power"], [None, None, None, dict, False]
+            ["buffer_mass", "beta", "tfix", "fit", "power"],
+            [None, None, None, dict, False],
         ):
             assert hasattr(ccs_cal, attr)
 
@@ -237,21 +238,23 @@ class TestCCSCalibration:
     def test_calibrate_power(self, ccs_cal, twims_data):
         """Test power function calibration for TWIMS data"""
         ccs_cal.calibrate(power=True, **twims_data)
-        
+
         # Check that power mode is enabled
         assert ccs_cal.power is True
-        
+
         # Check that all required attributes exist
-        assert hasattr(ccs_cal, 'a')
+        assert hasattr(ccs_cal, "a")
         assert ccs_cal.a is not None
         assert ccs_cal.beta is not None
         assert ccs_cal.tfix is not None
-        
+
         # Test forward conversion (arrival time -> CCS)
         ccs = ccs_cal.arrival2ccs(twims_data["mz"], twims_data["ta"], q=twims_data["q"])
         error = np.abs(ccs - twims_data["ccs"]) / twims_data["ccs"]
-        assert (error <= 0.01).all()  # Allow slightly higher tolerance for power function
-        
+        assert (
+            error <= 0.01
+        ).all()  # Allow slightly higher tolerance for power function
+
         # Test reverse conversion (CCS -> arrival time)
         ta = ccs_cal.ccs2arrival(twims_data["mz"], twims_data["ccs"], q=twims_data["q"])
         error = np.abs(ta - twims_data["ta"]) / twims_data["ta"]
@@ -262,29 +265,25 @@ class TestCCSCalibration:
         # Test that a warning is raised
         with pytest.warns(UserWarning, match="Only 3 calibration points available"):
             ccs_cal.calibrate(power=True, **twims_data_3point)
-        
+
         # Verify power mode is enabled
         assert ccs_cal.power is True
-        
+
         # Verify 2-parameter model (a should be 0)
         assert ccs_cal.a == 0
         assert ccs_cal.beta is not None
         assert ccs_cal.tfix is not None
-        
+
         # Test forward conversion (arrival time -> CCS)
         ccs = ccs_cal.arrival2ccs(
-            twims_data_3point["mz"], 
-            twims_data_3point["ta"], 
-            q=twims_data_3point["q"]
+            twims_data_3point["mz"], twims_data_3point["ta"], q=twims_data_3point["q"]
         )
         error = np.abs(ccs - twims_data_3point["ccs"]) / twims_data_3point["ccs"]
         assert (error <= 0.05).all()
-        
+
         # Verify reverse conversion works (may have lower accuracy)
         ta = ccs_cal.ccs2arrival(
-            twims_data_3point["mz"], 
-            twims_data_3point["ccs"], 
-            q=twims_data_3point["q"]
+            twims_data_3point["mz"], twims_data_3point["ccs"], q=twims_data_3point["q"]
         )
         # Just verify it returns values in reasonable range
         assert np.all(ta > 0)
@@ -325,13 +324,13 @@ def test_calibrate_ccs_function(pos, calc, beta, tfix, beta_exp, tfix_exp):
 def test_calibrate_ccs_function_power(twims_data):
     """Test power function calibration via calibrate_ccs function"""
     ccs_cal = deimos.calibration.calibrate_ccs(power=True, **twims_data)
-    
+
     assert type(ccs_cal) is deimos.calibration.CCSCalibration
     assert ccs_cal.power is True
     assert ccs_cal.a is not None
     assert ccs_cal.beta is not None
     assert ccs_cal.tfix is not None
-    
+
     # Verify calibration accuracy
     ccs = ccs_cal.arrival2ccs(twims_data["mz"], twims_data["ta"], q=twims_data["q"])
     error = np.abs(ccs - twims_data["ccs"]) / twims_data["ccs"]
@@ -343,34 +342,30 @@ def test_calibrate_ccs_power_3point_fallback(twims_data_3point):
     # Test that a warning is raised
     with pytest.warns(UserWarning, match="Only 3 calibration points available"):
         ccs_cal = deimos.calibration.calibrate_ccs(power=True, **twims_data_3point)
-    
+
     # Verify power mode is enabled
     assert ccs_cal.power is True
-    
+
     # Verify 2-parameter model (a should be 0)
     assert ccs_cal.a == 0
     assert ccs_cal.beta is not None
     assert ccs_cal.tfix is not None
-    
+
     # Test forward conversion (arrival time -> CCS)
     ccs = ccs_cal.arrival2ccs(
-        twims_data_3point["mz"], 
-        twims_data_3point["ta"], 
-        q=twims_data_3point["q"]
+        twims_data_3point["mz"], twims_data_3point["ta"], q=twims_data_3point["q"]
     )
     error = np.abs(ccs - twims_data_3point["ccs"]) / twims_data_3point["ccs"]
     # Allow higher tolerance for 3-point fit with 2-parameter model
     assert (error <= 0.05).all()
-    
+
     # Verify fit statistics are available
     assert ccs_cal.fit["r"] is not None
     assert ccs_cal.fit["se"] is not None
-    
+
     # Verify reverse conversion works (may have lower accuracy)
     ta = ccs_cal.ccs2arrival(
-        twims_data_3point["mz"], 
-        twims_data_3point["ccs"], 
-        q=twims_data_3point["q"]
+        twims_data_3point["mz"], twims_data_3point["ccs"], q=twims_data_3point["q"]
     )
     # Just verify it returns values in reasonable range
     assert np.all(ta > 0)
@@ -387,4 +382,3 @@ def test_calibrate_ccs_power_insufficient_points_1(twims_data_1point):
     """Test that power calibration fails with only 1 point"""
     with pytest.raises(ValueError, match="at least 3 calibration points"):
         deimos.calibration.calibrate_ccs(power=True, **twims_data_1point)
-

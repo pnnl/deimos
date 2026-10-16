@@ -713,7 +713,7 @@ def save_mgf(
             pass
 
     # Append MS2 template information
-    template += "{}\n" "END IONS\n\n"
+    template += "{}\nEND IONS\n\n"
 
     # Open file object
     with open(path, "w") as f:
@@ -822,7 +822,7 @@ def save_msp(
             pass
 
     # Append MS2 template information
-    template += "Num Peaks: {}\n" "{}\n\n"
+    template += "Num Peaks: {}\n{}\n\n"
 
     # Open file object
     with open(path, "w") as f:

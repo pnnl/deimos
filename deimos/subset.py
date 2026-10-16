@@ -212,7 +212,7 @@ def slice(
 ):
     """
     Slice data by feature coordinate bounds. Efficiently handles both single and multiple slices.
-    
+
     For single slices, returns a DataFrame. For multiple slices (when low/high are 2D arrays),
     returns a list of DataFrames. Uses vectorized operations for efficiency when processing
     multiple slices.
@@ -247,11 +247,11 @@ def slice(
     Examples
     --------
     Single slice:
-    
+
     >>> subset = slice(ms1, by='mz', low=211.0, high=213.0)
-    
+
     Multiple slices (batch mode):
-    
+
     >>> low_bounds = [[211.0, 16.2], [300.0, 20.0], [400.0, 25.0]]
     >>> high_bounds = [[213.0, 18.2], [302.0, 22.0], [402.0, 27.0]]
     >>> results = slice(ms1, by=['mz', 'drift_time'], low=low_bounds, high=high_bounds)
@@ -267,10 +267,10 @@ def slice(
     # Convert to numpy arrays to check dimensions
     low_arr = np.asarray(low)
     high_arr = np.asarray(high)
-    
+
     # Detect batch mode: if low/high are 2D arrays
     is_batch = low_arr.ndim == 2 or high_arr.ndim == 2
-    
+
     if is_batch:
         # Batch mode: multiple slices
         return _slice_batch(features, by, low_arr, high_arr, return_index)
@@ -334,16 +334,16 @@ def _slice_batch(features, by, low_bounds, high_bounds, return_index):
         low_bounds = low_bounds.reshape(1, -1)
     if high_bounds.ndim == 1:
         high_bounds = high_bounds.reshape(1, -1)
-    
+
     n_slices = low_bounds.shape[0]
     n_dims = len(by)
-    
+
     if low_bounds.shape[1] != n_dims or high_bounds.shape[1] != n_dims:
         raise ValueError(
             f"Bound dimensions ({low_bounds.shape[1]}, {high_bounds.shape[1]}) "
             f"must match 'by' dimensions ({n_dims})"
         )
-    
+
     if low_bounds.shape[0] != high_bounds.shape[0]:
         raise ValueError(
             f"Number of low bounds ({low_bounds.shape[0]}) must match "
@@ -359,27 +359,28 @@ def _slice_batch(features, by, low_bounds, high_bounds, return_index):
     # Get column indices
     cols = features.columns
     cidx = np.array([cols.get_loc(x) for x in by])
-    
+
     # Extract relevant columns as contiguous numpy array
     data_subset = np.ascontiguousarray(features.iloc[:, cidx].values)
     n_rows = data_subset.shape[0]
-    
+
     # Pre-allocate result masks for all slices
     result_masks = np.zeros((n_slices, n_rows), dtype=np.bool_)
-    
+
     # Process each slice
     for slice_idx in range(n_slices):
         # Start with all rows passing
         mask = np.ones(n_rows, dtype=np.bool_)
-        
+
         # Apply bounds for each dimension
         for dim_idx in range(n_dims):
             # Vectorized comparison for this dimension
-            mask &= ((data_subset[:, dim_idx] >= low_bounds[slice_idx, dim_idx]) &
-                     (data_subset[:, dim_idx] <= high_bounds[slice_idx, dim_idx]))
-        
+            mask &= (data_subset[:, dim_idx] >= low_bounds[slice_idx, dim_idx]) & (
+                data_subset[:, dim_idx] <= high_bounds[slice_idx, dim_idx]
+            )
+
         result_masks[slice_idx] = mask
-    
+
     # Build output dataframes using the masks
     output = []
     for slice_idx in range(n_slices):
@@ -394,7 +395,7 @@ def _slice_batch(features, by, low_bounds, high_bounds, return_index):
                 output.append(features.loc[mask])
             else:
                 output.append(None)
-    
+
     return output
 
 
