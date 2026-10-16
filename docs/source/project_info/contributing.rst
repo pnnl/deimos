@@ -73,6 +73,26 @@ To create a pull request:
 
 If you want to create more pull requests, first run :code:`git checkout main` and then start at step 5 with a new branch name.
 
+----------------
+Pre-commit Hooks
+----------------
+
+DEIMoS uses `pre-commit <https://pre-commit.com>`_ to run `ruff <https://docs.astral.sh/ruff/>`_ (linting and formatting) and `pyright <https://github.com/microsoft/pyright>`_ (type checking) before each commit.
+These tools are included in the conda environment.
+With the ``deimos`` environment activated, install the hooks once per clone:
+
+.. code-block:: console
+
+  $ pre-commit install
+
+To check every file, as the continuous integration (CI) workflow does:
+
+.. code-block:: console
+
+  $ pre-commit run --all-files
+
+Pyright resolves imports from the active environment, so run the hooks with the ``deimos`` environment activated.
+
 ------------------------
 Documentation Guidelines
 ------------------------

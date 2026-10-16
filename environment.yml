@@ -11,10 +11,13 @@ dependencies:
   - numpy
   - pandas
   - pip
+  - pre-commit
   - pymzml
+  - pyright
   - pytest
   - pytables
   - python
+  - ruff
   - scikit-learn
   - scipy
   - snakemake<8
