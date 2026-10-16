@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deimos"
+dynamic = ["version"]
+description = "Data Extraction for Integrated Multidimensional Spectrometry"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Sean M. Colby", email = "sean.colby@pnnl.gov" }]
+requires-python = ">=3.11"
+dependencies = [
+    "dask[dataframe]",
+    "h5py",
+    "hdf5plugin",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "pymzml",
+    "ripser",
+    "scikit-learn",
+    "scipy",
+    "snakemake<8",
+    "statsmodels",
+    "tables",
+    "tabula-py",
+]
+
+[project.optional-dependencies]
+docs = [
+    "ipython",
+    "nbsphinx",
+    "sphinx>=3",
+    "sphinx-rtd-theme",
+    "sphinxcontrib-napoleon",
+]
+
+[project.scripts]
+deimos = "deimos.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/pnnl/deimos"
+Documentation = "https://deimos.readthedocs.io"
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.setuptools.dynamic]
+version = { attr = "deimos.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["deimos*", "workflows*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.smk", "*.yml"]
