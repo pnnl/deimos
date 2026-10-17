@@ -1,5 +1,6 @@
-import deimos
 import pytest
+
+import deimos
 
 
 def test_has_version():
@@ -62,7 +63,7 @@ def test_calibration_namespace(attr):
 @pytest.mark.parametrize(
     "attr", [("get_1D_profiles"), ("offset_correction_model"), ("MS2Deconvolution")]
 )
-def test_calibration_namespace(attr):
+def test_deconvolution_namespace(attr):
     assert hasattr(deimos.deconvolution, attr)
 
 

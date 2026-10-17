@@ -1,9 +1,9 @@
 import os
 
-import deimos
 import pandas as pd
 import pytest
 
+import deimos
 from tests import localfile
 
 

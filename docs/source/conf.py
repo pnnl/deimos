@@ -6,9 +6,9 @@
 
 # -- Path setup --------------------------------------------------------------
 
-from datetime import datetime
 import os
 import sys
+from datetime import UTC, datetime
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -17,17 +17,16 @@ import sys
 sys.path.insert(0, os.path.abspath("../../"))
 import deimos
 
-
 # -- Project information -----------------------------------------------------
 
 project = "deimos"
 version = deimos.__version__
-current_year = datetime.today().year
-copyright = "2019-{}, Pacific Northwest National Laboratory".format(current_year)
+current_year = datetime.now(tz=UTC).year
+copyright = f"2019-{current_year}, Pacific Northwest National Laboratory"
 author = "Sean M. Colby"
-rst_prolog = """
-.. |current_year| replace:: {}
-""".format(current_year)
+rst_prolog = f"""
+.. |current_year| replace:: {current_year}
+"""
 
 
 # -- General configuration ---------------------------------------------------

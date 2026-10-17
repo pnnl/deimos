@@ -37,7 +37,7 @@ def fill_between(x, y, xlabel="Drift Time (ms)", ylabel="Intensity", ax=None, dp
 
     # Initialize figure
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
+        _, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
 
     # Plot
     # ax.plot(x, y, color="black")
@@ -63,7 +63,7 @@ def stem(
     x, y, points=False, xlabel="m/z", ylabel="Intensity", width=0.1, ax=None, dpi=600
 ):
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
+        _, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
 
     # Plot
     _, stemlines, _ = ax.stem(x, y, markerfmt=" ", basefmt=" ", linefmt="k-")
@@ -106,7 +106,7 @@ def grid(
 
     # Initialize figure
     if ax is None:
-        fig, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
+        _, ax = plt.subplots(figsize=(4.85, 3), dpi=dpi, facecolor="white")
 
     # Split features and values
     points = features.loc[:, dims].values
@@ -148,7 +148,7 @@ def grid(
         cmax = 0.95 * gridded.max() // 10**oom
 
         cbar.ax.xaxis.set_ticks([1, cmax * 10**oom])
-        cbar.ax.xaxis.set_ticklabels(["0", r"%i$\times$10$^{%i}$" % (cmax, oom)])
+        cbar.ax.xaxis.set_ticklabels(["0", rf"{int(cmax)}$\times$10$^{{{int(oom)}}}$"])
 
     # Axis labels
     names = _rename(dims)

@@ -1,7 +1,7 @@
-import deimos
 import numpy as np
 import pytest
 
+import deimos
 from tests import localfile
 
 

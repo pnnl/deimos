@@ -1,7 +1,7 @@
 import pandas as pd
-import deimos
 import pytest
 
+import deimos
 from tests import localfile
 
 
@@ -31,7 +31,7 @@ def test_detect(ms1_peaks):
 
     assert abs(isotopes["mz"] - 387.024353) <= 1e-3
     assert isotopes["n"] == 4
-    assert all([x <= 50e-6 for x in isotopes["error"]])
+    assert all(x <= 50e-6 for x in isotopes["error"])
     assert isotopes["dx"] == [1.003355, 2.00671, 3.010065, 4.01342]
 
 
@@ -133,7 +133,7 @@ def test_detect_mz_only(ms1_peaks):
 
     # Verify error values are within tolerance
     for errors in isotopes["error"]:
-        assert all([e <= 50e-6 for e in errors])
+        assert all(e <= 50e-6 for e in errors)
 
 
 def test_detect_unsorted_input():
@@ -150,14 +150,14 @@ def test_detect_unsorted_input():
     # Same features but in reverse m/z order
     features_unsorted = features_sorted.iloc[::-1].reset_index(drop=True)
 
-    kwargs = dict(
-        dims=["mz", "drift_time"],
-        tol=[0.02, 1.0],
-        max_charge=3,
-        max_isotopes=1,
-        max_error=50e-6,
-        require_lower_intensity=False,
-    )
+    kwargs = {
+        "dims": ["mz", "drift_time"],
+        "tol": [0.02, 1.0],
+        "max_charge": 3,
+        "max_isotopes": 1,
+        "max_error": 50e-6,
+        "require_lower_intensity": False,
+    }
 
     result_sorted = deimos.isotopes.detect(features_sorted, **kwargs)
     result_unsorted = deimos.isotopes.detect(features_unsorted, **kwargs)

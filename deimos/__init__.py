@@ -9,7 +9,7 @@ from deimos import (
     plot,
     utils,
 )
-from deimos.io import get_accessions, load, save, build_factors, build_index
+from deimos.io import build_factors, build_index, get_accessions, load, save
 from deimos.subset import (
     collapse,
     locate,
@@ -19,5 +19,31 @@ from deimos.subset import (
     slice,
     threshold,
 )
+
+__all__ = [
+    "alignment",
+    "build_factors",
+    "build_index",
+    "calibration",
+    "collapse",
+    "deconvolution",
+    "filters",
+    "get_accessions",
+    "grid",
+    "io",
+    "isotopes",
+    "load",
+    "locate",
+    "locate_asym",
+    "multi_sample_partition",
+    "partition",
+    "peakpick",
+    "plot",
+    "save",
+    "slice",
+    "subset",
+    "threshold",
+    "utils",
+]
 
 __version__ = "1.6.3"
