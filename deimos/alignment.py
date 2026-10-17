@@ -62,60 +62,37 @@ def match(
     # Check dims
     deimos.utils.check_length([dims, tol, relative])
 
-    # Compute inter-feature distances
-    idx = []
-    for i, f in enumerate(dims):
-        # vectors
-        v1 = a[f].values.reshape(-1, 1)
-        v2 = b[f].values.reshape(-1, 1)
+    # Find feature pairs within tolerance
+    ii, jj = _pairs_within_tolerance(a, b, dims, tol, relative)
 
-        # Distances
-        d = scipy.spatial.distance.cdist(v1, v2)
+    if len(ii) < 1:
+        return None, None
 
-        if relative[i] is True:
-            # Divisor
-            basis = np.repeat(v1, v2.shape[0], axis=1)
-            fix = np.repeat(v2, v1.shape[0], axis=1).T
-            basis = np.where(basis == 0, fix, basis)
-
-            # Divide
-            d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
-
-        # Check tol
-        idx.append(d <= tol[i])
-
-    # Stack truth arrays
-    idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
-
-    # Compute normalized 3d distance
-    v1 = a[dims].values / tol
-    v2 = b[dims].values / tol
-    dist3d = scipy.spatial.distance.cdist(v1, v2, "cityblock")
-    dist3d = np.multiply(dist3d, idx)
+    # Compute normalized 3d distance per pair
+    v1 = a[dims].to_numpy(dtype=np.float64) / tol
+    v2 = b[dims].to_numpy(dtype=np.float64) / tol
+    dist3d = np.zeros(len(ii))
+    for k in range(len(dims)):
+        dist3d = dist3d + np.abs(v1[ii, k] - v2[jj, k])
 
     # Normalize to 0-1
     mx = dist3d.max()
     if mx > 0:
-        dist3d = dist3d / dist3d.max()
+        dist3d = dist3d / mx
 
-    # Intensities
-    intensity = np.repeat(a["intensity"].values.reshape(-1, 1), b.shape[0], axis=1)
-    intensity = np.multiply(intensity, idx)
-
-    # Max over dims
-    maxcols = np.max(intensity, axis=0, keepdims=True)
-
-    # Zero out nonmax over dims
-    intensity[intensity != maxcols] = 0
+    # Keep only the most intense feature in a for each feature in b
+    intensity = a["intensity"].to_numpy()[ii]
+    maxcols = _group_max(intensity, jj, len(b.index))
+    intensity = np.where(intensity == maxcols, intensity, 0)
 
     # Break ties by distance
     intensity = intensity - dist3d
 
-    # Max over clusters
-    maxrows = np.max(intensity, axis=1, keepdims=True)
-
-    # Where max and nonzero
-    ii, jj = np.where((intensity == maxrows) & (intensity > 0))
+    # Where max per feature in a and nonzero
+    maxrows = _group_max(intensity, ii, len(a.index))
+    keep = (intensity == maxrows) & (intensity > 0)
+    ii = ii[keep]
+    jj = jj[keep]
 
     # Reorder
     a = a.iloc[ii]
@@ -181,33 +158,8 @@ def tolerance(
     # Check dims
     deimos.utils.check_length([dims, tol, relative])
 
-    # Compute inter-feature distances
-    idx = []
-    for i, f in enumerate(dims):
-        # Vectors
-        v1 = a[f].values.reshape(-1, 1)
-        v2 = b[f].values.reshape(-1, 1)
-
-        # Distances
-        d = scipy.spatial.distance.cdist(v1, v2)
-
-        if relative[i] is True:
-            # Divisor
-            basis = np.repeat(v1, v2.shape[0], axis=1)
-            fix = np.repeat(v2, v1.shape[0], axis=1).T
-            basis = np.where(basis == 0, fix, basis)
-
-            # Divide
-            d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
-
-        # Check tol
-        idx.append(d <= tol[i])
-
-    # Stack truth arrays
-    idx = np.prod(np.dstack(idx), axis=-1, dtype=bool)
-
     # Per-dataset indices
-    ii, jj = np.where(idx > 0)
+    ii, jj = _pairs_within_tolerance(a, b, dims, tol, relative)
 
     # Reorder
     a = a.iloc[ii]
@@ -217,6 +169,184 @@ def tolerance(
         return None, None
 
     return a, b
+
+
+def _pairs_within_tolerance(a, b, dims, tol, relative, chunk_size=2**20):
+    """
+    Find all pairs of features in `a` and `b` within tolerance in every
+    dimension, without forming the dense `a` by `b` distance matrix.
+
+    Candidate pairs come from sorted windows in the dimension that yields the
+    fewest of them, and each candidate is then checked in every dimension.
+
+    Parameters
+    ----------
+    a : :obj:`~pandas.DataFrame`
+        First set of input feature coordinates and intensities.
+    b : :obj:`~pandas.DataFrame`
+        Second set of input feature coordinates and intensities.
+    dims : list
+        Dimensions considered in matching.
+    tol : list
+        Tolerance in each dimension to define a match.
+    relative : list
+        Whether to use relative or absolute tolerances per dimension.
+    chunk_size : int
+        Approximate number of candidate pairs checked at once.
+
+    Returns
+    -------
+    ii, jj : :obj:`~numpy.array`
+        Positional indices of matched features in `a` and `b`, ordered by
+        `ii`, then `jj`.
+
+    """
+
+    n = len(a.index)
+    m = len(b.index)
+
+    if n < 1 or m < 1:
+        return np.zeros(0, dtype=int), np.zeros(0, dtype=int)
+
+    # Window each feature in a in the most selective dimension
+    lo, hi, order = np.zeros(n, dtype=int), np.full(n, m), np.arange(m)
+    for i, f in enumerate(dims):
+        if not (np.isfinite(tol[i]) and tol[i] >= 0):
+            continue
+
+        window = _candidate_windows(
+            a[f].to_numpy(dtype=np.float64),
+            b[f].to_numpy(dtype=np.float64),
+            tol[i],
+            relative[i] is True,
+        )
+        if (window[1] - window[0]).sum() < (hi - lo).sum():
+            lo, hi, order = window
+
+    # Check candidates in chunks of features in a to bound memory
+    v1 = [a[f].to_numpy() for f in dims]
+    v2 = [b[f].to_numpy() for f in dims]
+    counts = hi - lo
+    total = np.cumsum(counts)
+    pairs = []
+    start = 0
+    while start < n:
+        done = total[start - 1] if start > 0 else 0
+        stop = int(np.searchsorted(total, done + chunk_size, side="right"))
+        stop = max(stop, start + 1)
+
+        # Expand windows to candidate pairs
+        c = counts[start:stop]
+        ii = np.repeat(np.arange(start, stop), c)
+        jj = order[lo[ii] + np.arange(len(ii)) - np.repeat(np.cumsum(c) - c, c)]
+
+        # Check tol in each dimension
+        idx = np.ones(len(ii), dtype=bool)
+        for i in range(len(dims)):
+            x1 = v1[i][ii]
+            x2 = v2[i][jj]
+            d = np.abs(x1.astype(np.float64) - x2.astype(np.float64))
+
+            if relative[i] is True:
+                # Divisor
+                basis = np.where(x1 == 0, x2, x1)
+
+                # Divide
+                d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
+
+            idx &= d <= tol[i]
+
+        # Encode each pair as one sortable integer
+        pairs.append(ii[idx] * m + jj[idx])
+        start = stop
+
+    # Order by feature in a, then feature in b
+    pairs = np.sort(np.concatenate(pairs))
+
+    return pairs // m, pairs % m
+
+
+def _candidate_windows(v1, v2, tol, relative):
+    """
+    Bound the values of `v2` within tolerance of each value of `v1`.
+
+    Windows are padded beyond floating point rounding, so they hold every
+    match and possibly a few near misses.
+
+    Parameters
+    ----------
+    v1 : :obj:`~numpy.array`
+        Values of the features to window.
+    v2 : :obj:`~numpy.array`
+        Values of the candidate features.
+    tol : float
+        Tolerance to define a match.
+    relative : bool
+        Whether `tol` is relative to `v1`.
+
+    Returns
+    -------
+    lo, hi : :obj:`~numpy.array`
+        Start and end of each window in the sorted order of `v2`.
+    order : :obj:`~numpy.array`
+        Indices that sort `v2`.
+
+    """
+
+    # Sort candidates
+    order = np.argsort(v2, kind="stable")
+    v2 = v2[order]
+
+    # Center non-finite values at zero, as their windows are emptied below
+    finite = np.isfinite(v1)
+    v1 = np.where(finite, v1, 0)
+
+    # Pad window widths
+    width = tol * np.abs(v1) if relative else np.full(len(v1), float(tol))
+    width = width * (1 + 1e-6) + 8 * np.finfo(np.float64).eps * (np.abs(v1) + width)
+
+    # Locate windows
+    lo = np.searchsorted(v2, v1 - width, side="left")
+    hi = np.searchsorted(v2, v1 + width, side="right")
+
+    # Non-finite values are never within tolerance
+    hi[~finite] = lo[~finite]
+
+    # Relative distances from zero or negative values are degenerate, so
+    # check those features against every candidate
+    if relative:
+        lo[finite & (v1 <= 0)] = 0
+        hi[finite & (v1 <= 0)] = len(v2)
+
+    return lo, hi, order
+
+
+def _group_max(values, groups, n_groups):
+    """
+    Maximum of `values` within each group, aligned with `values`.
+
+    Parameters
+    ----------
+    values : :obj:`~numpy.array`
+        Values to reduce.
+    groups : :obj:`~numpy.array`
+        Group label of each value, from 0 to `n_groups` - 1.
+    n_groups : int
+        Number of group labels.
+
+    Returns
+    -------
+    :obj:`~numpy.array`
+        Maximum of each value's group.
+
+    """
+
+    # Seed each group with one of its values, then take the maximum
+    maxima = np.empty(n_groups, dtype=values.dtype)
+    maxima[groups] = values
+    np.maximum.at(maxima, groups, values)
+
+    return maxima[groups]
 
 
 def fit_spline(a, b, align="retention_time", **kwargs):

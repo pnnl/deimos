@@ -99,6 +99,56 @@ def test_match_return_none(ms1_peaks):
     assert b_ is None
 
 
+def test_match_most_intense_then_closest():
+    # every pair is within tolerance
+    a = pd.DataFrame(
+        {"mz": [100.0, 100.001], "retention_time": [5.0, 5.0], "intensity": [1e3, 5e2]}
+    )
+    b = pd.DataFrame(
+        {"mz": [100.0005, 100.003], "retention_time": [5.0, 5.1], "intensity": 1.0}
+    )
+
+    a_, b_ = deimos.alignment.match(
+        a,
+        b,
+        dims=["mz", "retention_time"],
+        tol=[0.005, 0.3],
+        relative=[False, False],
+    )
+    assert a_ is not None
+    assert b_ is not None
+
+    # both features in b go to the more intense feature in a, which keeps the
+    # closer one (normalized distance 0.1 against 0.93)
+    assert a_.index.tolist() == [0]
+    assert b_.index.tolist() == [0]
+
+
+def test_match_empty_returns_none(ms1_peaks):
+    a_, b_ = deimos.alignment.match(
+        ms1_peaks.iloc[:0],
+        ms1_peaks,
+        dims=["mz", "drift_time", "retention_time"],
+        tol=[5e-6, 0.015, 0.3],
+        relative=[True, True, False],
+    )
+
+    assert a_ is None
+    assert b_ is None
+
+
+def test_match_missing_coordinate_leaves_other_matches():
+    a = pd.DataFrame({"mz": [100.0, 200.0], "intensity": [1e3, 1e3]})
+    b = pd.DataFrame({"mz": [100.0002, 200.0003, float("nan")], "intensity": 1.0})
+
+    a_, b_ = deimos.alignment.match(a, b, dims="mz", tol=5e-6, relative=True)
+    assert a_ is not None
+    assert b_ is not None
+
+    assert a_.index.tolist() == [0, 1]
+    assert b_.index.tolist() == [0, 1]
+
+
 def test_tolerance(ms1_peaks):
     a, b = deimos.alignment.tolerance(
         ms1_peaks,
@@ -157,6 +207,19 @@ def test_tolerance_return_none(ms1_peaks):
 
     assert a_ is None
     assert b_ is None
+
+
+def test_tolerance_relative_to_a():
+    a = pd.DataFrame({"mz": [100.0, 1000.0]})
+    b = pd.DataFrame({"mz": [100.0004, 100.0006, 1000.004, 1000.006, 99.9997]})
+
+    a_, b_ = deimos.alignment.tolerance(a, b, dims="mz", tol=5e-6, relative=True)
+    assert a_ is not None
+    assert b_ is not None
+
+    # 4 and 3 ppm from 100 match, 6 ppm does not; 4 ppm from 1000 matches
+    assert a_.index.tolist() == [0, 0, 1]
+    assert b_.index.tolist() == [0, 4, 2]
 
 
 def test_merge_features_pass_none():
