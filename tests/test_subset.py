@@ -679,3 +679,74 @@ def test_slice_batch_windows_keep_original_order(
         else:
             assert subset.index.tolist() == index
         assert features.index[idx].tolist() == (index or [])
+
+
+@pytest.fixture()
+def two_ions():
+    # Ions at m/z 100 and 101 across three retention times, plus one at 100.5
+    return pd.DataFrame(
+        {
+            "mz": [100.0, 100.0, 100.5, 101.0, 100.0, 101.0],
+            "retention_time": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0],
+            "intensity": [1.0, 2.0, 4.0, 8.0, 16.0, 32.0],
+        }
+    )
+
+
+@pytest.mark.parametrize("repeats", [1, 4], ids=["3-slices", "12-slices"])
+@pytest.mark.parametrize("ordered", [False, True], ids=["rt-order", "mz-sorted"])
+@pytest.mark.parametrize(
+    "how,intensity", [("sum", [3.0, 16.0, 8.0, 32.0]), ("max", [2.0, 16.0, 8.0, 32.0])]
+)
+def test_collapse_slices_gives_one_profile_per_slice(
+    two_ions, ordered, repeats, how, intensity
+):
+    features = two_ions.sort_values("mz", kind="stable") if ordered else two_ions
+    low = [99.9, 100.9, 200.0] * repeats
+    high = [100.1, 101.1, 201.0] * repeats
+
+    xics = deimos.collapse_slices(
+        features, by="mz", low=low, high=high, keep="retention_time", how=how
+    )
+
+    assert isinstance(xics, pd.DataFrame)
+    assert xics.columns.tolist() == ["slice_idx", "retention_time", "intensity"]
+    for k in range(repeats):
+        part = xics[xics["slice_idx"].isin([3 * k, 3 * k + 1, 3 * k + 2])]
+        assert (part["slice_idx"] - 3 * k).tolist() == [0, 0, 1, 1]
+        assert part["retention_time"].tolist() == [1.0, 3.0, 2.0, 3.0]
+        assert part["intensity"].tolist() == intensity
+
+
+def test_collapse_slices_bounds_in_two_dimensions(two_ions):
+    xics = deimos.collapse_slices(
+        two_ions,
+        by=["mz", "retention_time"],
+        low=[[99.9, 2.0], [100.4, 0.0]],
+        high=[[101.1, 3.0], [100.6, 1.0]],
+        keep="mz",
+    )
+
+    assert isinstance(xics, pd.DataFrame)
+    assert xics["slice_idx"].tolist() == [0, 0, 0]
+    assert xics["mz"].tolist() == [100.5, 101.0, 100.0]
+    assert xics["intensity"].tolist() == [4.0, 40.0, 16.0]
+
+
+def test_collapse_slices_rejects_mismatched_bounds(two_ions):
+    with pytest.raises(ValueError):
+        deimos.collapse_slices(
+            two_ions,
+            by=["mz", "retention_time"],
+            low=[[99.9, 0.0]],
+            high=[[100.1, 1.0], [101.1, 1.0]],
+            keep="retention_time",
+        )
+
+
+def test_collapse_slices_pass_none():
+    xics = deimos.collapse_slices(
+        None, by="mz", low=[99.9], high=[100.1], keep="retention_time"
+    )
+
+    assert xics is None

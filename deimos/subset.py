@@ -67,6 +67,81 @@ def collapse(features, keep=None, how="sum") -> pd.DataFrame:
     )
 
 
+def collapse_slices(features, by, low, high, keep, how="sum"):
+    """
+    Slice data by many sets of coordinate bounds and collapse each slice onto
+    the dimensions in `keep`, for example to extract many chromatograms at
+    once. Gives the same result as :func:`~deimos.subset.collapse` on each
+    slice of a batch :func:`~deimos.subset.slice`, without building a data
+    frame per slice.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : str or list
+        Dimension(s) by which to subset the data.
+    low : array-like
+        Lower bounds of shape (n_slices, n_dims), or (n_slices,) when slicing
+        by one dimension.
+    high : array-like
+        Upper bounds, shaped as `low`.
+    keep : str or list
+        Dimensions to keep during collapse operation.
+    how : function or str
+        Aggregation function for collapse operation.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Aggregated intensities by slice and kept dimensions. Column
+        `slice_idx` gives the row of `low` and `high` that defines each
+        slice. Slices without data contribute no rows.
+
+    Examples
+    --------
+    Chromatograms of three m/z windows:
+
+    >>> mz = np.array([211.0, 300.0, 400.0])
+    >>> xics = collapse_slices(
+    ...     ms1, by="mz", low=mz - 0.01, high=mz + 0.01, keep="retention_time"
+    ... )
+    >>> # xics[xics["slice_idx"] == 0] holds the first window's chromatogram
+
+    """
+
+    # Safely cast to list
+    by = deimos.utils.safelist(by)
+    keep = deimos.utils.safelist(keep)
+
+    # One row of bounds per slice
+    low = np.asarray(low)
+    high = np.asarray(high)
+    if low.ndim < 2:
+        low = low.reshape(-1, len(by))
+    if high.ndim < 2:
+        high = high.reshape(-1, len(by))
+    if low.shape != high.shape or low.shape[1] != len(by):
+        raise ValueError(
+            f"Bounds of shapes {low.shape} and {high.shape} must both be "
+            f"(n_slices, {len(by)})"
+        )
+
+    if features is None:
+        return None
+
+    # Rows of every slice, labeled by the slice they fall in
+    rows = _batch_rows(features, by, low, high)
+    positions = np.concatenate([np.zeros(0, dtype=int), *rows])
+    labels = np.repeat(np.arange(len(rows)), [len(x) for x in rows])
+    subset = features[keep + ["intensity"]].iloc[positions].assign(slice_idx=labels)
+
+    # Collapse each slice onto the kept dimensions
+    return subset.groupby(by=["slice_idx"] + keep, as_index=False, sort=False).agg(
+        {"intensity": how}
+    )
+
+
 @overload
 def locate(
     features, by=None, loc=None, tol=None, return_index: Literal[False] = False
