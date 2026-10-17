@@ -141,6 +141,16 @@ class TestMassCalibration:
 
             assert (error <= 0.005).all()
 
+    def test_apply_float32_input(self, mass_cal):
+        mass_cal.calibrate(beta=1.00001, tfix=-0.001)
+        mz = np.array([500.123], dtype=np.float32)
+
+        calibrated = mass_cal.apply(mz)
+
+        # float32(500.123) is 500.12298583984375 exactly
+        assert calibrated.dtype == np.float64
+        assert calibrated[0] == pytest.approx(500.1269870697021, abs=1e-9)
+
 
 @pytest.mark.parametrize(
     "calc,beta,tfix,beta_exp,tfix_exp",

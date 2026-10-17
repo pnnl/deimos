@@ -156,15 +156,15 @@ class MassCalibration:
         Returns
         -------
         :obj:`~numpy.array`
-            Calibrated mass-to-charge ratio.
+            Calibrated mass-to-charge ratio, as float64.
 
         """
 
         # Check for required attributes
         self._check()
 
-        # Cast to numpy array
-        mz = np.array(mz)
+        # Cast to a float64 array so float32 input is not rounded on output
+        mz = np.array(mz, dtype=float)
 
         # Linear model
         return self.beta * mz + self.tfix
