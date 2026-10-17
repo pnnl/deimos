@@ -108,4 +108,9 @@ def grid2df(edges, grid, dims=None, additional=None):
 
     del additional, idx
 
-    return pd.DataFrame(np.hstack(data), columns=cols, dtype=float)
+    # pandas 2 annotates columns with a protocol that list fails to match
+    return pd.DataFrame(
+        np.hstack(data),
+        columns=cols,  # pyright: ignore[reportArgumentType]
+        dtype=float,
+    )

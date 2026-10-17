@@ -1,6 +1,7 @@
 import os
 import warnings
 from collections import OrderedDict, defaultdict
+from typing import cast
 
 import dask.dataframe as dd
 import h5py
@@ -9,7 +10,8 @@ import h5py
 import hdf5plugin  # noqa: F401
 import numpy as np
 import pandas as pd
-import pymzml
+import pymzml.run
+from pymzml.spec import Spectrum
 
 import deimos
 
@@ -223,10 +225,11 @@ def get_accessions(path):
     # Open file
     data = pymzml.run.Reader(path)
 
-    # Iterate single spec instance
-    for spec in data:
-        spec._read_accessions()
-        break
+    # Read accessions from the first spectrum
+    spec = next((x for x in data if isinstance(x, Spectrum)), None)
+    if spec is None:
+        raise ValueError(f"No spectra found in {path}.")
+    spec._read_accessions()
 
     # Return accessions
     return spec.accessions
@@ -278,17 +281,25 @@ def load_mzml(path, accession=None, dtype=np.float32):
 
     # First pass: get nrows
     N = defaultdict(lambda: 0)
-    for i, spec in enumerate(data):
+    for spec in data:
+        # Skip chromatograms
+        if not isinstance(spec, Spectrum):
+            continue
+
         # Get ms level
         level = f"ms{spec.ms_level}"
 
         # Number of rows
-        N[level] += spec.mz.shape[0]
+        N[level] += len(spec.mz)
 
     # Second pass: parse
-    for i, spec in enumerate(data):
+    for spec in data:
+        # Skip chromatograms
+        if not isinstance(spec, Spectrum):
+            continue
+
         # Number of rows
-        n = spec.mz.shape[0]
+        n = len(spec.mz)
 
         # No measurements
         if n == 0:
@@ -408,7 +419,10 @@ def load_mza(path, accession=None):
     # Open mza file
     with h5py.File(path, "r") as mza:
         # Access metadata
-        metadata = pd.DataFrame({x: mza["Metadata"][x][()] for x in metadata_fields})
+        meta_group = cast("h5py.Group", mza["Metadata"])
+        metadata = pd.DataFrame(
+            {x: cast("h5py.Dataset", meta_group[x])[()] for x in metadata_fields}
+        )
 
         # Enumerate scans
         for i, row in metadata.iterrows():
@@ -416,10 +430,10 @@ def load_mza(path, accession=None):
             ms_level = int(row["MSLevel"])
 
             # m/z values
-            mzs = mza[f"Arrays_mz/{scan}"][:]
+            mzs = cast("h5py.Dataset", mza[f"Arrays_mz/{scan}"])[:]
 
             # Intensity values
-            ints = mza[f"Arrays_intensity/{scan}"][:]
+            ints = cast("h5py.Dataset", mza[f"Arrays_intensity/{scan}"])[:]
 
             # Initialize scan dataframe
             df = pd.DataFrame({"mz": mzs, "intensity": ints})
@@ -609,12 +623,12 @@ def _save_hdf(path, data, dtype=None, compression_level=5):
 
     with h5py.File(path, "w") as f:
         for level in data:
-            f.create_group(level)
+            group = f.create_group(level)
             for c in data[level].columns:
                 if c not in dtype:
                     dtype[c] = float
 
-                f[level].create_dataset(
+                group.create_dataset(
                     c,
                     data=data[level][c].values,
                     dtype=dtype[c],
@@ -643,7 +657,7 @@ def _load_hdf(path, level="ms1"):
     """
 
     with h5py.File(path, "r") as f:
-        g = f[level]
+        g = cast("h5py.Group", f[level])
         return pd.DataFrame({k: g[k] for k in list(g.keys())})
 
 

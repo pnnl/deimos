@@ -1,11 +1,14 @@
 import warnings
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tabula
+import pandas as pd
+from numpy.typing import ArrayLike
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
+from tabula.io import read_pdf
 
 import deimos
 
@@ -81,7 +84,7 @@ class MassCalibration:
         self.tfix = None
         self.reference_mz = None
         self.mz = None
-        self.fit = {"r": None, "p": None, "se": None}
+        self.fit: dict[str, Any] = {"r": None, "p": None, "se": None}
 
     def _check(self):
         """
@@ -296,13 +299,14 @@ def tunemix_mz(
         ss_mz = deimos.collapse(subset, keep="mz")
 
         # Intensity-weighted mass
+        mz_vals = ss_mz["mz"].to_numpy()
+        int_vals = ss_mz["intensity"].to_numpy()
         if method.lower() == "centroid":
-            mz_j = np.sum(ss_mz["mz"].values * ss_mz["intensity"].values) / np.sum(
-                ss_mz["intensity"].values
-            )
+            mz_j = np.sum(mz_vals * int_vals) / np.sum(int_vals)
+
         # Apex
-        elif method.lower() == "apex":
-            mz_j = ss_mz["mz"].values[np.argmax(ss_mz["intensity"].values)]
+        else:
+            mz_j = mz_vals[np.argmax(int_vals)]
 
         observed_mz.append(mz_j)
 
@@ -339,10 +343,10 @@ class CCSCalibration:
         # Initialize variables
         self.buffer_mass = None
         self.power = False
-        self.a = None
-        self.beta = None
-        self.tfix = None
-        self.fit = {"r": None, "p": None, "se": None}
+        self.a: Any = None
+        self.beta: Any = None
+        self.tfix: Any = None
+        self.fit: dict[str, Any] = {"r": None, "p": None, "se": None}
 
     def _check(self):
         """
@@ -607,7 +611,7 @@ class CCSCalibration:
             "Must supply arrays for calibration or calibration parameters."
         )
 
-    def apply(self, mz, ta, q=1):
+    def apply(self, mz, ta, q: ArrayLike = 1):
         """
         Calculates collision cross section (CCS) from arrival time, m/z, and
         nominal charge, according to calibration parameters.
@@ -630,7 +634,7 @@ class CCSCalibration:
 
         return self.arrival2ccs(mz, ta, q)
 
-    def arrival2ccs(self, mz, ta, q=1):
+    def arrival2ccs(self, mz, ta, q: ArrayLike = 1):
         """
         Calculates collision cross section (CCS) from arrival time, m/z, and
         nominal charge, according to calibration parameters.
@@ -670,7 +674,7 @@ class CCSCalibration:
         # Linear model
         return (self.beta * ta + self.tfix) / gamma
 
-    def ccs2arrival(self, mz, ccs, q=1):
+    def ccs2arrival(self, mz, ccs, q: ArrayLike = 1):
         """
         Calculates arrival time from collsion cross section (CCS), m/z, and
         nominal charge, according to calibration parameters.
@@ -884,14 +888,19 @@ def tunemix(
         dt_profile = deimos.collapse(subset, keep="drift_time")
         dt_i = dt_profile.sort_values(by="intensity", ascending=False)[
             "drift_time"
-        ].values[0]
+        ].to_numpy()[0]
         dt_profile = deimos.locate(
             dt_profile, by="drift_time", loc=dt_i, tol=dt_tol * dt_i
-        ).sort_values(by="drift_time")
+        )
+
+        if dt_profile is None:
+            raise ValueError(f"Drift time profile for m/z {mz_i:.4f} not found.")
+
+        dt_profile = dt_profile.sort_values(by="drift_time")
 
         # X and Y arrays
-        x = dt_profile["drift_time"].values
-        y = dt_profile["intensity"].values
+        x = dt_profile["drift_time"].to_numpy()
+        y = dt_profile["intensity"].to_numpy()
 
         # Interpolate spline
         spl = interp1d(x, y, kind="quadratic")
@@ -953,7 +962,7 @@ def parse_agilent_calibration_pdf(path, mode="pos", tol=15e-3):
 
     # Read PDF tables
     with warnings.catch_warnings(action="ignore"):
-        dfs = tabula.read_pdf(path, pages="all")
+        dfs = cast("list[pd.DataFrame]", read_pdf(path, pages="all"))
 
     # IM calibration
     im_cal = dfs[0].loc[2:].reset_index(drop=True)

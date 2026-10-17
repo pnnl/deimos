@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
@@ -269,8 +271,11 @@ class MS2Deconvolution:
             ]
 
         # Remove empty groups
-        decon_pairs = decon_pairs.groupby(by="index_ms1", as_index=False).filter(
-            lambda x: len(x) > 0
+        decon_pairs = cast(
+            pd.DataFrame,
+            decon_pairs.groupby(by="index_ms1", as_index=False).filter(
+                lambda x: len(x) > 0
+            ),
         )
 
         # Sort by index
@@ -408,8 +413,8 @@ class MS2Deconvolution:
 
         # Enumerate MS1 featres
         for name, grp in self.decon_pairs.groupby(by=["index_ms1"], as_index=False):
-            # MS1 feature index
-            idx_i = int(name[0])
+            # MS1 feature index; grouping by a list yields tuple names
+            idx_i = int(cast("tuple[Any, ...]", name)[0])
 
             # Extracted ion
             ms1_xi = ms1_xis[idx_i]

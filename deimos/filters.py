@@ -138,7 +138,13 @@ def sum(a, size):
     else:
         ksize = np.prod(size)
 
-    return ksize * ndi.uniform_filter(a, size, mode="constant", cval=0.0)
+    # scipy accepts a size per dimension, but its inferred type is int
+    return ksize * ndi.uniform_filter(
+        a,
+        size,  # pyright: ignore[reportArgumentType]
+        mode="constant",
+        cval=0.0,
+    )
 
 
 def mean(a, size):
@@ -673,7 +679,7 @@ def sparse_median_filter(idx, V, radius=None):
     X = sparse.csc_matrix((V[I], (I, J)), shape=cmat_shape, dtype=V.dtype)
 
     indptr = X.indptr
-    n_features = X.shape[1]
+    n_features = len(indptr) - 1
     median = np.empty(n_features, dtype=V.dtype)
 
     for f_ind, (start, end) in enumerate(pairwise(indptr)):
@@ -745,14 +751,14 @@ def smooth(
     features = features.copy()
 
     # Build index from features directly
-    if (factors is None) & (index is None):
+    if index is None and factors is None:
         index = {
             dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
             for dim in dims
         }
 
     # Build index from factors
-    if (factors is not None) & (index is None):
+    elif index is None:
         index = deimos.build_index(features, factors)
 
     # Index supplied directly

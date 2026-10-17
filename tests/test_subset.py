@@ -63,9 +63,12 @@ def test_locate(ms1, by, loc, tol, return_index):
         subset, idx = deimos.locate(
             ms1, by=by, loc=loc, tol=tol, return_index=return_index
         )
+        assert idx is not None
+        assert len(idx) == len(ms1.index)
     else:
         subset = deimos.locate(ms1, by=by, loc=loc, tol=tol, return_index=return_index)
 
+    assert subset is not None
     assert all(subset.columns == ms1.columns)
 
     for x, dx, dim in zip(
@@ -75,9 +78,6 @@ def test_locate(ms1, by, loc, tol, return_index):
     ):
         assert subset[dim].min() >= x - dx
         assert subset[dim].max() <= x + dx
-
-    if return_index is True:
-        assert len(idx) == len(ms1.index)
 
 
 @pytest.mark.parametrize(
@@ -120,6 +120,7 @@ def test_locate_return_none(ms1, by, loc, tol, return_index):
             ms1, by=by, loc=loc, tol=tol, return_index=return_index
         )
         assert subset is None
+        assert idx is not None
         assert len(idx) == len(ms1.index)
         assert all(idx) is False
     else:
@@ -152,9 +153,12 @@ def test_slice(ms1, by, low, high, return_index):
         subset, idx = deimos.slice(
             ms1, by=by, low=low, high=high, return_index=return_index
         )
+        assert idx is not None
+        assert len(idx) == len(ms1.index)
     else:
         subset = deimos.slice(ms1, by=by, low=low, high=high, return_index=return_index)
 
+    assert subset is not None
     assert all(subset.columns == ms1.columns)
 
     for ll, hh, dim in zip(
@@ -164,9 +168,6 @@ def test_slice(ms1, by, low, high, return_index):
     ):
         assert subset[dim].min() >= ll
         assert subset[dim].max() <= hh
-
-    if return_index is True:
-        assert len(idx) == len(ms1.index)
 
 
 @pytest.mark.parametrize(
@@ -211,6 +212,7 @@ def test_slice_return_none(ms1, by, low, high, return_index):
             ms1, by=by, low=low, high=high, return_index=return_index
         )
         assert subset is None
+        assert idx is not None
         assert len(idx) == len(ms1.index)
         assert all(idx) is False
     else:
@@ -237,11 +239,14 @@ def test_locate_asym(ms1, by, loc, low, high, relative, return_index):
         subset, idx = deimos.locate_asym(
             ms1, by=by, low=low, high=high, return_index=return_index
         )
+        assert idx is not None
+        assert len(idx) == len(ms1.index)
     else:
         subset = deimos.locate_asym(
             ms1, loc=loc, by=by, low=low, high=high, return_index=return_index
         )
 
+    assert subset is not None
     assert all(subset.columns == ms1.columns)
 
     for x, ll, hh, rel, dim in zip(
@@ -257,9 +262,6 @@ def test_locate_asym(ms1, by, loc, low, high, relative, return_index):
         else:
             assert subset[dim].min() >= x + ll
             assert subset[dim].max() <= x + hh
-
-    if return_index is True:
-        assert len(idx) == len(ms1.index)
 
 
 @pytest.mark.parametrize(
@@ -327,6 +329,7 @@ def test_locate_asym_return_none(ms1, by, loc, low, high, relative, return_index
             return_index=return_index,
         )
         assert subset is None
+        assert idx is not None
         assert len(idx) == len(ms1.index)
         assert all(idx) is False
     else:
@@ -387,6 +390,7 @@ class TestPartitions:
 
     def test_iter(self, ms1):
         partitions = deimos.partition(ms1, split_on="mz", size=2000, overlap=1)
+        i = -1
         for i, part in enumerate(partitions):
             assert type(part) is pd.DataFrame
             assert all(part.columns == ms1.columns)

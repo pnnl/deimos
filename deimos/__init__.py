@@ -4,9 +4,11 @@ from deimos import (
     deconvolution,
     filters,
     grid,
+    io,
     isotopes,
     peakpick,
     plot,
+    subset,
     utils,
 )
 from deimos.io import build_factors, build_index, get_accessions, load, save

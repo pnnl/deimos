@@ -152,14 +152,14 @@ def persistent_homology(
         raise ValueError("Specify either `index`, `factors`, or neither.")
 
     # Build index from features directly
-    if (factors is None) & (index is None):
+    if index is None and factors is None:
         index = {
             dim: pd.factorize(features[dim], sort=True)[0].astype(np.float32)
             for dim in dims
         }
 
     # Build index from factors
-    if (factors is not None) & (index is None):
+    elif index is None:
         index = deimos.build_index(features, factors)
 
     # Index built, shape appropriately

@@ -1,4 +1,5 @@
 import types
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,10 +31,10 @@ def fill_between(x, y, xlabel="Drift Time (ms)", ylabel="Intensity", ax=None, dp
     y = y[idx]
 
     df = pd.DataFrame({"x": x, "y": y})
-    df = df.groupby(by="x", as_index=False).sum()
+    df = cast(pd.DataFrame, df.groupby(by="x", as_index=False).sum())
 
-    x = df["x"].values
-    y = df["y"].values
+    x = df["x"].to_numpy()
+    y = df["y"].to_numpy()
 
     # Initialize figure
     if ax is None:
