@@ -35,6 +35,102 @@ def test_detect(ms1_peaks):
     assert isotopes["dx"] == [1.003355, 2.00671, 3.010065, 4.01342]
 
 
+def test_detect_finds_largest_spacing_at_tolerance_edge():
+    """Test that the candidate search reaches the largest expected spacing.
+
+    The child sits 0.099 above the M+4 position, inside the 0.1 m/z tolerance,
+    so it must be found even though it is the furthest pair the search allows.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [300.0, 300.0 + 4 * 1.003355 + 0.099],
+            "intensity": [1000.0, 100.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], max_isotopes=4, max_error=1e-3
+    )
+
+    assert len(isotopes) == 1
+    assert isotopes.iloc[0]["multiple"] == [4.0]
+
+
+def test_detect_candidates_respect_other_dimensions():
+    """Test that a pair at the right spacing but outside the retention time
+    tolerance is not reported."""
+    features = pd.DataFrame(
+        {
+            "mz": [300.0, 301.003355, 400.0, 401.003355],
+            "retention_time": [5.0, 5.2, 5.0, 5.4],
+            "intensity": [1000.0, 500.0, 1000.0, 500.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz", "retention_time"], tol=[0.1, 0.3]
+    )
+
+    assert isotopes["idx"].tolist() == [0]
+    assert isotopes.iloc[0]["idx_iso"] == [1]
+
+
+def test_detect_many_candidates_in_one_window():
+    """Test detection when the m/z window holds millions of candidate pairs.
+
+    3,000 features lie within 4.1 m/z of each other, so the search covers
+    about 4.5 million pairs. Each parent shares its retention time only with
+    its own M+1 isotope, so exactly those 1,500 pairs are reported.
+    """
+    import numpy as np
+
+    k = np.arange(1500)
+    features = pd.DataFrame(
+        {
+            "mz": np.concatenate([300.0 + 0.002 * k, 301.003355 + 0.002 * k]),
+            "retention_time": np.concatenate([10.0 * k, 10.0 * k]),
+            "intensity": np.concatenate([np.full(1500, 1000.0), np.full(1500, 500.0)]),
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz", "retention_time"], tol=[0.1, 0.3], max_isotopes=4
+    )
+
+    pairs = sorted(
+        (idx, iso[0])
+        for idx, iso in zip(isotopes["idx"], isotopes["idx_iso"], strict=True)
+    )
+    assert pairs == [(i, i + 1500) for i in range(1500)]
+
+
+def test_detect_memory_does_not_grow_with_all_pairs():
+    """Test that detect does not allocate per pair of features.
+
+    An n x n distance matrix for 20,000 features needs over 3 GB; the
+    candidate search should stay far below that.
+    """
+    import tracemalloc
+
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    features = pd.DataFrame(
+        {
+            "mz": rng.uniform(100, 1100, 20000),
+            "retention_time": rng.uniform(0, 30, 20000),
+            "intensity": rng.uniform(1e3, 1e5, 20000),
+        }
+    )
+
+    tracemalloc.start()
+    deimos.isotopes.detect(features, dims=["mz", "retention_time"], tol=[0.1, 0.3])
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+
+    assert peak < 200 * 2**20
+
+
 def test_detect_return_all_patterns():
     """Test that return_all_patterns=True preserves overlapping isotope series.
 
