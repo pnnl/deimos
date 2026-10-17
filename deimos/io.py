@@ -4,7 +4,9 @@ from collections import OrderedDict, defaultdict
 
 import dask.dataframe as dd
 import h5py
-import hdf5plugin
+
+# Register HDF5 compression filters with h5py on import
+import hdf5plugin  # noqa: F401
 import numpy as np
 import pandas as pd
 import pymzml
@@ -268,7 +270,7 @@ def load_mzml(path, accession={}, dtype=np.float32):
     N = defaultdict(lambda: 0)
     for i, spec in enumerate(data):
         # Get ms level
-        level = "ms{}".format(spec.ms_level)
+        level = f"ms{spec.ms_level}"
 
         # Number of rows
         N[level] += spec.mz.shape[0]
@@ -300,7 +302,7 @@ def load_mzml(path, accession={}, dtype=np.float32):
             }
 
         # Get ms level
-        level = "ms{}".format(spec.ms_level)
+        level = f"ms{spec.ms_level}"
 
         # Columns
         cols[level] = (
@@ -316,12 +318,12 @@ def load_mzml(path, accession={}, dtype=np.float32):
         inx = 0
 
         # Populate scan/frame info
-        for k, v in id_dict.items():
+        for v in id_dict.values():
             arr[:, inx] = v
             inx += 1
 
         # Populate accession fields
-        for k, v in accession.items():
+        for v in accession.values():
             arr[:, inx] = spec.get(v)
             inx += 1
 
@@ -335,7 +337,7 @@ def load_mzml(path, accession={}, dtype=np.float32):
 
         # Populate precursor information
         if has_precursor:
-            for k, v in precursor_info.items():
+            for v in precursor_info.values():
                 arr[:, inx] = v
                 inx += 1
 
@@ -349,8 +351,8 @@ def load_mzml(path, accession={}, dtype=np.float32):
         counter[level] += n
 
     # Construct data frames
-    for level in res.keys():
-        res[level] = pd.DataFrame(res[level], columns=cols[level])
+    for level, values in res.items():
+        res[level] = pd.DataFrame(values, columns=cols[level])
 
     return res
 
@@ -399,10 +401,10 @@ def load_mza(path, accession={}):
             ms_level = int(row["MSLevel"])
 
             # m/z values
-            mzs = mza["Arrays_mz/{}".format(scan)][:]
+            mzs = mza[f"Arrays_mz/{scan}"][:]
 
             # Intensity values
-            ints = mza["Arrays_intensity/{}".format(scan)][:]
+            ints = mza[f"Arrays_intensity/{scan}"][:]
 
             # Initialize scan dataframe
             df = pd.DataFrame({"mz": mzs, "intensity": ints})
@@ -413,7 +415,7 @@ def load_mza(path, accession={}):
                     df[field] = row[field]
 
             # Append to appropriate MS level
-            container["ms{}".format(ms_level)].append(df)
+            container[f"ms{ms_level}"].append(df)
 
     # Concatenate scan dataframes
     container = {k: pd.concat(v, ignore_index=True) for k, v in container.items()}
@@ -586,10 +588,10 @@ def _save_hdf(path, data, dtype={}, compression_level=5):
     """
 
     with h5py.File(path, "w") as f:
-        for level in data.keys():
+        for level in data:
             f.create_group(level)
             for c in data[level].columns:
-                if c not in dtype.keys():
+                if c not in dtype:
                     dtype[c] = float
 
                 f[level].create_dataset(
@@ -706,7 +708,7 @@ def save_mgf(
 
         # Key from sample metadata
         elif k in sample_metadata:
-            template += k + "={}\n".format(metadata[k])
+            template += k + f"={metadata[k]}\n"
 
         # Key was not specified
         else:
@@ -721,7 +723,7 @@ def save_mgf(
         for name, grp in features.groupby(by=groupby):
             # Format MS2 string
             ms2_str = "\n".join(
-                "{}\t{}".format(a, b)
+                f"{a}\t{b}"
                 for a, b in zip(grp[fragment_mz].values, grp[fragment_intensity].values)
             )
 
@@ -815,7 +817,7 @@ def save_msp(
 
         # Key from sample metadata
         elif k in sample_metadata:
-            template += k + ": {}\n".format(metadata[k])
+            template += k + f": {metadata[k]}\n"
 
         # Key was not specified
         else:
@@ -833,7 +835,7 @@ def save_msp(
 
             # Format MS2 string
             ms2_str = "\n".join(
-                "{}\t{}".format(a, b)
+                f"{a}\t{b}"
                 for a, b in zip(grp[fragment_mz].values, grp[fragment_intensity].values)
             )
 

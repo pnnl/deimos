@@ -1,7 +1,8 @@
 import os
 
-import deimos
 import sphinx_skeleton as ss
+
+import deimos
 
 if __name__ == "__main__":
     # generic package reference
@@ -69,12 +70,12 @@ if __name__ == "__main__":
     # custom write functions
     def api_reference_fxn(key):
         if package.__name__ not in key:
-            fullkey = "{}.{}".format(package.__name__, key)
+            fullkey = f"{package.__name__}.{key}"
         else:
             fullkey = key
 
         string = ss.generate_title(key)
-        string += ".. automodule:: {}\n".format(fullkey)
+        string += f".. automodule:: {fullkey}\n"
         string += "\t:members:\n"
         string += "\t:private-members:\n"
         string += "\t:undoc-members:\n"
@@ -93,10 +94,10 @@ if __name__ == "__main__":
     def citation_fxn(key):
         string = ss.generate_title(key)
         string += (
-            "If you would like to reference {} in an academic paper,"
+            f"If you would like to reference {package.__name__} in an academic paper,"
             "we ask you include the following:\n"
             "[citations here]\n"
-        ).format(package.__name__)
+        )
         return string
 
     # set write functions

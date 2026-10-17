@@ -1,8 +1,8 @@
-import deimos
 import numpy as np
 import pytest
 from pandas.core.series import Series
 
+import deimos
 from tests import localfile
 
 

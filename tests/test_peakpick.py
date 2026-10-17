@@ -1,8 +1,7 @@
-import numpy as np
-import deimos
 import pandas as pd
 import pytest
 
+import deimos
 from tests import localfile
 
 

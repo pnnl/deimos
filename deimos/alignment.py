@@ -350,7 +350,7 @@ def agglomerative_clustering(
         features["cluster"] = clustering.labels_
 
     # All data points are singleton clusters
-    except:
+    except ValueError:
         features["cluster"] = np.arange(len(features.index))
 
     return features

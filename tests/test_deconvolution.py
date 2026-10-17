@@ -1,9 +1,4 @@
-import deimos
-import numpy as np
-import pandas as pd
 import pytest
-
-from tests import localfile
 
 
 def test_get_1D_profiles():

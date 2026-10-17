@@ -178,7 +178,7 @@ class MassCalibration:
         if (self.reference_mz is None) or (self.mz is None):
             raise RuntimeError("Calibration must be performed from m/z values.")
 
-        fig, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
+        _, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
 
         mz_test = np.arange(self.reference_mz.min(), self.reference_mz.max(), 0.5)
         mz_cal = self.apply(mz_test)
@@ -285,7 +285,7 @@ def tunemix_mz(
         )
 
         if subset is None:
-            raise ValueError("Calibrant ion with m/z {:.4f} not found.".format(mz_i))
+            raise ValueError(f"Calibrant ion with m/z {mz_i:.4f} not found.")
 
         # Sum over other dimensions
         ss_mz = deimos.collapse(subset, keep="mz")
@@ -715,7 +715,7 @@ class CCSCalibration:
         if (self.ccs is None) or (self.ta is None) or (self.mz is None):
             raise RuntimeError("Calibration must be performed from measured values.")
 
-        fig, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
+        _, ax = plt.subplots(2, 1, dpi=300, facecolor="w")
 
         x_test = np.linspace(self.ta.min(), self.ta.max(), 100)
 
@@ -862,7 +862,7 @@ def tunemix(
         )
 
         if subset is None:
-            raise ValueError("Calibrant ion with m/z {:.4f} not found.".format(mz_i))
+            raise ValueError(f"Calibrant ion with m/z {mz_i:.4f} not found.")
 
         # Extract dt info
         dt_profile = deimos.collapse(subset, keep="drift_time")

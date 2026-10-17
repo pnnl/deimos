@@ -1,7 +1,8 @@
-import deimos
 import numpy as np
 import pytest
 from scipy import signal
+
+import deimos
 
 
 @pytest.fixture()

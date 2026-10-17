@@ -1,3 +1,5 @@
+from itertools import pairwise
+
 import numpy as np
 import pandas as pd
 import scipy.ndimage as ndi
@@ -355,9 +357,8 @@ def embed_unique_indices(a):
     # Sorts records array so all unique elements are together
     sorted_a = a[idx_sort]
 
-    # Returns the unique values, the index of the first occurrence,
-    # and the count for each element
-    vals, idx_start, count = np.unique(sorted_a, return_index=True, return_counts=True)
+    # Find the index of the first occurrence of each unique element
+    _, idx_start = np.unique(sorted_a, return_index=True)
 
     # Splits the indices into separate arrays
     splits = np.split(idx_sort, idx_start[1:])
@@ -657,10 +658,10 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
     X = sparse.csc_matrix((V[I], (I, J)), shape=cmat_shape, dtype=V.dtype)
 
     indptr = X.indptr
-    n_samples, n_features = X.shape
+    n_features = X.shape[1]
     median = np.empty(n_features, dtype=V.dtype)
 
-    for f_ind, (start, end) in enumerate(zip(indptr[:-1], indptr[1:])):
+    for f_ind, (start, end) in enumerate(pairwise(indptr)):
         # Prevent modifying X in place
         data = np.copy(X.data[start:end])
         median[f_ind] = _get_median(data, 0)

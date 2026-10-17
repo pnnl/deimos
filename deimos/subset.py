@@ -691,12 +691,8 @@ class MultiSamplePartitions:
 
     def __next__(self):
         if self.counter < len(self.bounds):
-            q = "({} >= {}) & ({} <= {})".format(
-                self.split_on,
-                self.bounds[self.counter][0],
-                self.split_on,
-                self.bounds[self.counter][1],
-            )
+            low, high = self.bounds[self.counter]
+            q = f"({self.split_on} >= {low}) & ({self.split_on} <= {high})"
 
             if self.dask:
                 subset = self.features.query(q).compute()

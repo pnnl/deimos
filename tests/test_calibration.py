@@ -1,6 +1,7 @@
-import deimos
 import numpy as np
 import pytest
+
+import deimos
 
 
 @pytest.fixture()
@@ -98,7 +99,7 @@ class TestMassCalibration:
                 assert type(tmp) is expected
 
                 for k in ["r", "p", "se"]:
-                    assert k in tmp.keys()
+                    assert k in tmp
                     assert tmp[k] is None
 
     @pytest.mark.parametrize("beta,tfix", [(1, 0)])
@@ -181,7 +182,7 @@ class TestCCSCalibration:
                 assert type(tmp) is expected
 
                 for k in ["r", "p", "se"]:
-                    assert k in tmp.keys()
+                    assert k in tmp
                     assert tmp[k] is None
 
     @pytest.mark.parametrize("beta,tfix", [(1, 0)])
