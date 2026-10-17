@@ -6,6 +6,17 @@ import scipy
 
 import deimos
 
+# Mass differences (Da) from each element's lightest isotope to the named heavy isotope,
+# from the relative atomic masses in NIST's Atomic Weights and Isotopic Compositions.
+# 15N and 18O are left out: their peaks sit within a few mDa of a 13C multiple and
+# rarely resolve from it
+SPACINGS = {
+    "13C": 1.003355,
+    "34S": 1.995796,
+    "37Cl": 1.997050,
+    "81Br": 1.997952,
+}
+
 
 def OrderedSet(x):
     return list({k: None for k in x})
@@ -49,10 +60,18 @@ def detect(
     tol : float or list, default=[0.1, 0.2, 0.3]
         Tolerance in each dimension to be considered a match. Length must match dims.
         For m/z, this is the absolute tolerance for the isotopic mass difference.
-    delta : float, default=1.003355
-        Expected spacing between isotopes in Da (e.g., C13 = 1.003355).
+    delta : float or dict, default=1.003355
+        Expected spacing between isotopes in Da (e.g., C13 = 1.003355). A dict of
+        named spacings, such as :data:`SPACINGS`, searches all of them: each pair
+        keeps the spacing with the smallest error, ``multiple`` is the nominal
+        mass offset (2 for one 34S), and an ``isotope`` column names the spacing.
+        Only multiples of one spacing are modeled, so a peak with mixed heavy
+        isotopes (37Cl plus two 13C at M+4) matches the nearest single-spacing
+        multiple. 34S, 37Cl, and 81Br lie within 2.2 mDa of each other, so their
+        names are only as reliable as the mass accuracy at that spacing.
     max_isotopes : int, default=4
-        Maximum number of isotopes to search for per parent feature.
+        Maximum number of isotopes to search for per parent feature. With a dict
+        of spacings, the largest nominal mass offset searched (M+max_isotopes).
     max_charge : int, default=1
         Maximum charge state to consider (isotopic spacing = delta / charge).
     max_error : float, default=50e-6
@@ -93,6 +112,7 @@ def detect(
         - error: List of relative errors
         - decay: List of intensity ratios (isotope/parent)
         - n: Number of isotopes detected
+        - isotope: List of matched spacing names, only when ``delta`` is a dict
 
     Examples
     --------
@@ -132,6 +152,14 @@ def detect(
     # Isolate mz dimension
     mz_idx = dims.index("mz")
     else_idx = [i for i, j in enumerate(dims) if i != mz_idx]
+
+    # Split named spacings into names and masses
+    names = None
+    if isinstance(delta, dict):
+        names = np.array(list(delta.keys()))
+        delta = np.array(list(delta.values()), dtype=float)
+        if (delta <= 0).any():
+            raise ValueError("Isotope spacings must be positive.")
 
     # Preserve original indices before sorting
     # Store original index as a column so we can return it in results
@@ -215,11 +243,21 @@ def detect(
     # This allows us to check all possibilities in a single vectorized operation
     charges = np.arange(1, max_charge + 1)
     multiples = np.arange(1, max_isotopes + 1)
-    expected_deltas = np.outer(multiples, delta / charges).flatten()  # All combinations
+    spacings = np.atleast_1d(delta)
+    expected_deltas = np.outer(multiples, np.divide.outer(spacings, charges)).flatten()
 
-    # Create charge and multiple arrays matching expected_deltas
-    # Order: [(m1,c1), (m1,c2), ..., (m1,cN), (m2,c1), ..., (mM,cN)]
-    charge_mult_pairs = np.array([(m, c) for m in multiples for c in charges])
+    # Create multiple, charge, and spacing arrays matching expected_deltas
+    # Order: [(m1,s1,c1), ..., (m1,s1,cN), (m1,s2,c1), ..., (mM,sS,cN)]
+    charge_mult_pairs = np.array(
+        [(m, c, k) for m in multiples for k in range(len(spacings)) for c in charges]
+    ).reshape(-1, 3)
+
+    # Number named spacings by nominal mass offset and search offsets up to max_isotopes
+    if names is not None:
+        nominal = np.rint(charge_mult_pairs[:, 0] * spacings[charge_mult_pairs[:, 2]])
+        charge_mult_pairs[:, 0] = nominal
+        expected_deltas = expected_deltas[nominal <= max_isotopes]
+        charge_mult_pairs = charge_mult_pairs[nominal <= max_isotopes]
 
     # Vectorized search: for each candidate pair, check all expected deltas
     # Shape: (n_candidates, n_delta_combinations)
@@ -280,6 +318,10 @@ def detect(
         }
     )
 
+    # Name the matched spacing
+    if names is not None:
+        isotopes["isotope"] = names[charge_mult_pairs[delta_indices, 2]]
+
     # Step 5: Compute quality metrics
     # Relative error between observed and expected mass difference
     isotopes["error"] = (
@@ -288,6 +330,14 @@ def detect(
     )
     # Intensity ratio (should decay for true isotopes)
     isotopes["decay"] = isotopes["intensity_iso"] / isotopes["intensity"]
+
+    # Keep the spacing with the smallest error when several match one pair
+    if names is not None:
+        isotopes = (
+            isotopes.sort_values("error", kind="stable")
+            .drop_duplicates(subset=["idx", "idx_iso", "charge"])
+            .sort_index()
+        )
 
     # Step 6: Apply filters
     # Conditionally filter by intensity decay pattern

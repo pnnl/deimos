@@ -137,6 +137,78 @@ def test_detect_mz_only(ms1_peaks):
         assert all(e <= 50e-6 for e in errors)
 
 
+def test_detect_named_spacings_find_chlorine_isotope():
+    """Test that named spacings find a 37Cl isotope that 13C alone misses.
+
+    At m/z 152 the 37Cl M+2 peak sits 9.6 mDa (64 ppm) from the 13C2 spacing,
+    beyond the default 50 ppm error, so only the named 37Cl spacing reports it.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [150.0, 151.0035, 151.9971],
+            "intensity": [1000.0, 100.0, 320.0],
+        }
+    )
+
+    carbon = {"dims": ["mz"], "tol": [0.1], "max_isotopes": 2}
+    named = {**carbon, "delta": deimos.isotopes.SPACINGS}
+
+    carbon_isotopes = deimos.isotopes.detect(features, **carbon)
+    named_isotopes = deimos.isotopes.detect(features, **named)
+
+    assert carbon_isotopes.iloc[0]["idx_iso"] == [1]
+    row = named_isotopes.iloc[0]
+    assert row["idx_iso"] == [1, 2]
+    assert row["isotope"] == ["13C", "37Cl"]
+    assert row["multiple"] == [1.0, 2.0]
+    assert row["dx"] == [1.003355, 1.99705]
+
+
+def test_detect_named_spacings_keep_closest_spacing():
+    """Test that a pair matching several spacings keeps the closest one.
+
+    A 2.0 m/z difference lies 2.05 mDa from 81Br, 2.95 mDa from 37Cl,
+    4.20 mDa from 34S, and 6.71 mDa from 13C2, so only 81Br is reported.
+    """
+    features = pd.DataFrame({"mz": [300.0, 302.0], "intensity": [1000.0, 900.0]})
+    kwargs = {"dims": ["mz"], "tol": [0.1], "delta": deimos.isotopes.SPACINGS}
+
+    isotopes = deimos.isotopes.detect(features, **kwargs)
+
+    row = isotopes.iloc[0]
+    assert row["isotope"] == ["81Br"]
+    assert row["multiple"] == [2.0]
+    assert row["error"] == pytest.approx([0.002048 / 302.0], abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("max_isotopes", "expected"),
+    [(2, 0), (4, 1)],
+    ids=["m+2-limit", "m+4-limit"],
+)
+def test_detect_named_spacings_search_nominal_offsets(max_isotopes, expected):
+    """Test that max_isotopes bounds the nominal mass offset of named spacings.
+
+    The child is the 37Cl2 peak, 3.99410 above its parent at M+4, so it is
+    found only when the search reaches M+4.
+    """
+    features = pd.DataFrame({"mz": [150.0, 153.9941], "intensity": [1000.0, 640.0]})
+    kwargs = {"dims": ["mz"], "tol": [0.1], "delta": deimos.isotopes.SPACINGS}
+
+    isotopes = deimos.isotopes.detect(features, max_isotopes=max_isotopes, **kwargs)
+
+    assert len(isotopes) == expected
+
+
+def test_detect_named_spacings_must_be_positive():
+    """Test that a named spacing of zero or less is rejected."""
+    features = pd.DataFrame({"mz": [150.0, 151.0], "intensity": [1000.0, 100.0]})
+    kwargs = {"dims": ["mz"], "tol": [0.1], "delta": {"56Fe": -1.995327}}
+
+    with pytest.raises(ValueError, match="positive"):
+        deimos.isotopes.detect(features, **kwargs)
+
+
 def test_detect_unsorted_input():
     """Test that detect() handles unsorted (descending m/z) input correctly."""
     # Sorted ascending reference
