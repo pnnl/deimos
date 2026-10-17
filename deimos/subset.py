@@ -1,5 +1,7 @@
 import multiprocessing as mp
+from collections.abc import Sequence
 from functools import partial
+from typing import Any, Literal, cast, overload
 
 import dask.dataframe as dd
 import numpy as np
@@ -8,7 +10,7 @@ import pandas as pd
 import deimos
 
 
-def threshold(features, by="intensity", threshold=0):
+def threshold(features, by="intensity", threshold: float = 0):
     """
     Thresholds input :obj:`~pandas.DataFrame` using `by` keyword, greater than
     value passed to `threshold`.
@@ -32,7 +34,7 @@ def threshold(features, by="intensity", threshold=0):
     return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(features, keep=None, how="sum"):
+def collapse(features, keep=None, how="sum") -> pd.DataFrame:
     """
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
@@ -59,16 +61,31 @@ def collapse(features, keep=None, how="sum"):
     if keep is None:
         keep = ["mz", "drift_time", "retention_time"]
 
-    return features.groupby(by=keep, as_index=False, sort=False).agg({"intensity": how})
+    return cast(
+        pd.DataFrame,
+        features.groupby(by=keep, as_index=False, sort=False).agg({"intensity": how}),
+    )
 
 
+@overload
+def locate(
+    features, by=None, loc=None, tol=None, return_index: Literal[False] = False
+) -> pd.DataFrame | None: ...
+@overload
+def locate(
+    features, by=None, loc=None, tol=None, *, return_index: Literal[True]
+) -> tuple[pd.DataFrame | None, np.ndarray | None]: ...
+@overload
+def locate(
+    features, by=None, loc=None, tol=None, return_index: bool = False
+) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None: ...
 def locate(
     features,
     by=None,
     loc=None,
     tol=None,
     return_index=False,
-):
+) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None:
     """
     Given a coordinate and tolerances, return a subset of the
     data.
@@ -153,6 +170,37 @@ def locate(
         return None
 
 
+@overload
+def locate_asym(
+    features,
+    by=None,
+    loc=None,
+    low=None,
+    high=None,
+    relative=None,
+    return_index: Literal[False] = False,
+) -> pd.DataFrame | None: ...
+@overload
+def locate_asym(
+    features,
+    by=None,
+    loc=None,
+    low=None,
+    high=None,
+    relative=None,
+    *,
+    return_index: Literal[True],
+) -> tuple[pd.DataFrame | None, np.ndarray | None]: ...
+@overload
+def locate_asym(
+    features,
+    by=None,
+    loc=None,
+    low=None,
+    high=None,
+    relative=None,
+    return_index: bool = False,
+) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None: ...
 def locate_asym(
     features,
     by=None,
@@ -236,6 +284,28 @@ def locate_asym(
     )
 
 
+# Scalar or 1D bounds produce a single slice; 2D array bounds produce a batch
+@overload
+def slice(
+    features,
+    by=None,
+    low: float | Sequence[float] | None = None,
+    high: float | Sequence[float] | None = None,
+    return_index: Literal[False] = False,
+) -> pd.DataFrame | None: ...
+@overload
+def slice(
+    features,
+    by=None,
+    low: float | Sequence[float] | None = None,
+    high: float | Sequence[float] | None = None,
+    *,
+    return_index: Literal[True],
+) -> tuple[pd.DataFrame | None, np.ndarray | None]: ...
+@overload
+def slice(
+    features, by=None, low=None, high=None, return_index: bool = False
+) -> Any: ...
 def slice(
     features,
     by=None,
@@ -572,14 +642,16 @@ class Partitions:
             with mp.Pool(processes=processes) as p:
                 result = list(p.imap(partial(func, **kwargs), self))
 
-        # Reconcile overlap
+        # Reconcile overlap; scalar bounds always produce a single slice
         result = [
-            slice(result[i], by=self.split_on, low=a, high=b)
+            cast(
+                "pd.DataFrame | None", slice(result[i], by=self.split_on, low=a, high=b)
+            )
             for i, (a, b) in enumerate(self.fbounds)
         ]
 
-        # Combine partitions
-        return pd.concat(result).reset_index(drop=True)
+        # Combine non-empty partitions
+        return pd.concat([x for x in result if x is not None]).reset_index(drop=True)
 
     def zipmap(self, func, b, processes=1, **kwargs):
         """
@@ -621,25 +693,27 @@ class Partitions:
             with mp.Pool(processes=processes) as p:
                 result = list(p.starmap(partial(func, **kwargs), zip(self, partitions)))
 
-        result = {"a": [x[0] for x in result], "b": [x[1] for x in result]}
+        parts_a = [x[0] for x in result]
+        parts_b = [x[1] for x in result]
 
-        # Reconcile overlap
+        # Reconcile overlap; scalar bounds always produce a single slice
         tmp = [
-            slice(result["a"][i], by=self.split_on, low=a, high=b_, return_index=True)
+            cast(
+                "tuple[pd.DataFrame | None, np.ndarray | None]",
+                slice(parts_a[i], by=self.split_on, low=a, high=b_, return_index=True),
+            )
             for i, (a, b_) in enumerate(self.fbounds)
         ]
 
-        result["a"] = [x[0] for x in tmp]
+        parts_a = [x[0] for x in tmp]
         idx = [x[1] for x in tmp]
-        result["b"] = [
-            p.iloc[i, :] if i is not None else None for p, i in zip(result["b"], idx)
-        ]
+        parts_b = [p.iloc[i, :] for p, i in zip(parts_b, idx) if i is not None]
 
-        # Combine partitions
-        result["a"] = pd.concat(result["a"])
-        result["b"] = pd.concat(result["b"])
-
-        return result["a"], result["b"]
+        # Combine non-empty partitions
+        return (
+            pd.concat([x for x in parts_a if x is not None]),
+            pd.concat(parts_b),
+        )
 
 
 class MultiSamplePartitions:

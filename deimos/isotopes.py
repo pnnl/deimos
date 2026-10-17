@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import scipy
@@ -19,7 +21,7 @@ def detect(
     max_error=50e-6,
     require_lower_intensity=True,
     return_all_patterns=False,
-):
+) -> pd.DataFrame:
     """
     Perform isotope detection according to expected patterning using optimized
     vectorized operations.
@@ -163,9 +165,11 @@ def detect(
 
     if len(row_idx) == 0:
         # No candidates found - return empty grouped DataFrame with correct structure
-        return (
+        # pandas 2 annotates columns with a protocol that list fails to match
+        return cast(
+            pd.DataFrame,
             pd.DataFrame(
-                columns=[
+                columns=[  # pyright: ignore[reportArgumentType]
                     "mz",
                     "charge",
                     "idx",
@@ -181,7 +185,7 @@ def detect(
                 ]
             )
             .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
-            .agg(OrderedSet)
+            .agg(OrderedSet),
         )
 
     # Step 2: Compute m/z distances for candidate pairs only
@@ -230,9 +234,11 @@ def detect(
 
     if len(candidate_indices) == 0:
         # No isotope matches found - return empty grouped DataFrame with correct structure
-        return (
+        # pandas 2 annotates columns with a protocol that list fails to match
+        return cast(
+            pd.DataFrame,
             pd.DataFrame(
-                columns=[
+                columns=[  # pyright: ignore[reportArgumentType]
                     "mz",
                     "charge",
                     "idx",
@@ -248,7 +254,7 @@ def detect(
                 ]
             )
             .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
-            .agg(OrderedSet)
+            .agg(OrderedSet),
         )
 
     # Step 4: Build results DataFrame
@@ -299,9 +305,12 @@ def detect(
 
     # Step 7: Group isotopes by parent feature
     # OrderedSet preserves insertion order for the list columns
-    grouped = isotopes.groupby(
-        by=["mz", "charge", "idx", "intensity"], as_index=False
-    ).agg(OrderedSet)
+    grouped = cast(
+        pd.DataFrame,
+        isotopes.groupby(by=["mz", "charge", "idx", "intensity"], as_index=False).agg(
+            OrderedSet
+        ),
+    )
     # Count number of isotopes per parent
     grouped["n"] = [len(x) for x in grouped["multiple"].values]
 

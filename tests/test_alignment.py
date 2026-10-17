@@ -31,6 +31,8 @@ def test_match(ms1_peaks):
         tol=[5e-6, 0.015, 0.3],
         relative=[True, True, False],
     )
+    assert a is not None
+    assert b is not None
 
     # identity match
     assert a.equals(b)
@@ -105,6 +107,8 @@ def test_tolerance(ms1_peaks):
         tol=[5e-6, 0.015, 0.3],
         relative=[True, True, False],
     )
+    assert a is not None
+    assert b is not None
 
     assert all(abs(a["mz"] - b["mz"]) / a["mz"] <= 5e-6)
     assert all(abs(a["drift_time"] - b["drift_time"]) / a["drift_time"] <= 0.015)
@@ -167,7 +171,10 @@ def test_merge_features_pass_none():
 
 
 def test_merge_features_empty():
-    empty_df = pd.DataFrame(columns=["mz", "intensity"])
+    # pandas 2 annotates columns with a protocol that list fails to match
+    empty_df = pd.DataFrame(
+        columns=["mz", "intensity"]  # pyright: ignore[reportArgumentType]
+    )
 
     result = deimos.alignment.merge_features(
         empty_df,
@@ -225,6 +232,7 @@ def test_agglomerative_clustering_different_sample_idx_merged():
         relative=[True, False],
     )
 
+    assert result is not None
     assert result["cluster"].nunique() == 1
 
 
@@ -245,6 +253,7 @@ def test_agglomerative_clustering_different_sample_idx_out_of_tol_not_merged():
         relative=[True, False],
     )
 
+    assert result is not None
     assert result["cluster"].nunique() == 2
 
 
@@ -265,6 +274,7 @@ def test_agglomerative_clustering_pairs_across_samples_not_within():
         relative=[True, False],
     )
 
+    assert result is not None
     assert result["cluster"].nunique() == 2
     for _, group in result.groupby("cluster"):
         assert group["sample_idx"].nunique() == len(group)
@@ -287,6 +297,7 @@ def test_agglomerative_clustering_without_sample_idx_still_merges():
         relative=[True, False],
     )
 
+    assert result is not None
     assert result["cluster"].nunique() == 1
 
 

@@ -1,8 +1,17 @@
+from typing import Any, overload
+
 import numpy as np
 import pandas as pd
 
 
-def safelist(x):
+# Series and arrays keep their type; any other input is wrapped in a list
+@overload
+def safelist(x: pd.Series) -> pd.Series: ...  # pyright: ignore[reportOverlappingOverload]
+@overload
+def safelist(x: np.ndarray) -> np.ndarray: ...  # pyright: ignore[reportOverlappingOverload]
+@overload
+def safelist(x: Any) -> list[Any]: ...
+def safelist(x: Any) -> list[Any] | pd.Series | np.ndarray:
     """
     Ensures passed object is of correct list-like format.
 
@@ -18,7 +27,7 @@ def safelist(x):
 
     """
 
-    if not isinstance(x, (list, pd.core.series.Series, np.ndarray)):
+    if not isinstance(x, (list, pd.Series, np.ndarray)):
         return [x].copy()
 
     return x.copy()

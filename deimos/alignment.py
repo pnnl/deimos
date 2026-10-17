@@ -374,8 +374,9 @@ def agglomerative_clustering(
 
     # Perform clustering
     try:
+        # sklearn accepts None with distance_threshold, but its inferred type is int
         clustering = AgglomerativeClustering(
-            n_clusters=None,
+            n_clusters=None,  # pyright: ignore[reportArgumentType]
             linkage="complete",
             metric="precomputed",
             distance_threshold=merge_threshold,
@@ -490,6 +491,10 @@ def merge_features(
             distances = sdm
         else:
             distances = distances.multiply(sdm)
+
+    # Require at least one dimension
+    if distances is None:
+        raise ValueError("At least one dimension must be specified.")
 
     # Extract indices of within-tolerance points
     distances = distances.tocoo()

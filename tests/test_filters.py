@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from scipy import signal
+from scipy.signal import windows
 
 import deimos
 
@@ -9,15 +9,15 @@ import deimos
 def g3d():
     return 10e4 * np.einsum(
         "i,j,k",
-        signal.windows.gaussian(70, 3),
-        signal.windows.gaussian(70, 3),
-        signal.windows.gaussian(70, 3),
+        windows.gaussian(70, 3),
+        windows.gaussian(70, 3),
+        windows.gaussian(70, 3),
     )
 
 
 @pytest.fixture()
 def g1d():
-    return 10e4 * signal.windows.gaussian(70, 3)
+    return 10e4 * windows.gaussian(70, 3)
 
 
 @pytest.mark.parametrize(

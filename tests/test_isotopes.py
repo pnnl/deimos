@@ -56,7 +56,8 @@ def test_detect_return_all_patterns():
             "drift_time": [285.84, 285.97, 285.93],
             "intensity": [1870, 831232, 892192],
         },
-        index=[487, 490, 493],
+        # pandas 2 annotates index with a protocol that list fails to match
+        index=[487, 490, 493],  # pyright: ignore[reportArgumentType]
     )
 
     # Default behaviour: child filter applied – only 487→490 survives because
@@ -183,7 +184,9 @@ def test_detect_preserves_input_indices():
             "retention_time": [12.3, 12.3, 12.3, 12.3],
             "intensity": [100000, 80000, 50000, 30000],
         },
-        index=[100, 200, 300, 400],  # Non-sequential original indices
+        # Non-sequential original indices; pandas 2 annotates index with a
+        # protocol that list fails to match
+        index=[100, 200, 300, 400],  # pyright: ignore[reportArgumentType]
     )
 
     isotopes = deimos.isotopes.detect(
