@@ -11,8 +11,8 @@ def OrderedSet(x):
 
 def detect(
     features,
-    dims=["mz", "drift_time", "retention_time"],
-    tol=[0.1, 0.2, 0.3],
+    dims=None,
+    tol=None,
     delta=1.003355,
     max_isotopes=4,
     max_charge=1,
@@ -113,6 +113,12 @@ def detect(
     ... )
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if tol is None:
+        tol = [0.1, 0.2, 0.3]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)

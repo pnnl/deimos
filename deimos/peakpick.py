@@ -6,8 +6,8 @@ import deimos
 
 def local_maxima(
     features,
-    dims=["mz", "drift_time", "retention_time"],
-    bins=[37, 9, 37],
+    dims=None,
+    bins=None,
     scale_by=None,
     ref_res=None,
     scale=None,
@@ -19,11 +19,13 @@ def local_maxima(
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    dims : str or list
+    dims : str or list, optional
         Dimensions to perform peak detection in (omitted dimensions
         will be collapsed and summed accross).
-    bins : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    bins : float or list, optional
         Number of bins representing approximate peak width in each dimension.
+        Default is ``[37, 9, 37]``.
     scale_by : str
         Dimension to scale bin widths by. Only applies when data is partitioned
         by `scale_by` (see :func:`deimos.utils.partition`).
@@ -38,6 +40,12 @@ def local_maxima(
         Coordinates of detected peaks and associated apex intensitites.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if bins is None:
+        bins = [37, 9, 37]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -96,7 +104,7 @@ def persistent_homology(
     features,
     index=None,
     factors=None,
-    dims=["mz", "drift_time", "retention_time"],
+    dims=None,
     radius=None,
 ):
     """
@@ -111,8 +119,9 @@ def persistent_homology(
         Index of features in original data array.
     factors : dict
         Unique sorted values per dimension.
-    dims : str or list
+    dims : str or list, optional
         Dimensions to perform peak detection in.
+        Default is ``["mz", "drift_time", "retention_time"]``.
     radius : float, list, or None
         If specified, radius of the sparse weighted mean filter in each dimension.
         Values less than one indicate no connectivity in that dimension.
@@ -124,6 +133,10 @@ def persistent_homology(
         persistence.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)

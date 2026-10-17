@@ -32,7 +32,7 @@ def threshold(features, by="intensity", threshold=0):
     return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(features, keep=["mz", "drift_time", "retention_time"], how="sum"):
+def collapse(features, keep=None, how="sum"):
     """
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
@@ -41,8 +41,9 @@ def collapse(features, keep=["mz", "drift_time", "retention_time"], how="sum"):
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    keep : str or list
+    keep : str or list, optional
         Dimensions to keep during collapse operation.
+        Default is ``["mz", "drift_time", "retention_time"]``.
     how : function or str
         Aggregation function for collapse operation.
 
@@ -54,14 +55,18 @@ def collapse(features, keep=["mz", "drift_time", "retention_time"], how="sum"):
 
     """
 
+    # Set mutable argument defaults
+    if keep is None:
+        keep = ["mz", "drift_time", "retention_time"]
+
     return features.groupby(by=keep, as_index=False, sort=False).agg({"intensity": how})
 
 
 def locate(
     features,
-    by=["mz", "drift_time", "retention_time"],
-    loc=[0, 0, 0],
-    tol=[0, 0, 0],
+    by=None,
+    loc=None,
+    tol=None,
     return_index=False,
 ):
     """
@@ -72,12 +77,15 @@ def locate(
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    by : str or list
+    by : str or list, optional
         Dimension(s) by which to subset the data.
-    loc : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    loc : float or list, optional
         Coordinate location.
-    tol : float or list
+        Default is ``[0, 0, 0]``.
+    tol : float or list, optional
         Tolerance in each dimension.
+        Default is ``[0, 0, 0]``.
     return_index : bool
         Return boolean index of subset if True.
 
@@ -90,6 +98,14 @@ def locate(
         i.e. `features[index] = subset`.
 
     """
+
+    # Set mutable argument defaults
+    if by is None:
+        by = ["mz", "drift_time", "retention_time"]
+    if loc is None:
+        loc = [0, 0, 0]
+    if tol is None:
+        tol = [0, 0, 0]
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -139,11 +155,11 @@ def locate(
 
 def locate_asym(
     features,
-    by=["mz", "drift_time", "retention_time"],
-    loc=[0, 0, 0],
-    low=[0, 0, 0],
-    high=[0, 0, 0],
-    relative=[False, False, False],
+    by=None,
+    loc=None,
+    low=None,
+    high=None,
+    relative=None,
     return_index=False,
 ):
     """
@@ -154,16 +170,21 @@ def locate_asym(
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    by : str or list
+    by : str or list, optional
         Dimension(s) by which to subset the data.
-    loc : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    loc : float or list, optional
         Coordinate location.
-    low : float or list
+        Default is ``[0, 0, 0]``.
+    low : float or list, optional
         Lower tolerance(s) in each dimension.
-    high : float or list
+        Default is ``[0, 0, 0]``.
+    high : float or list, optional
         Upper tolerance(s) in each dimension.
-    relative : bool or list
+        Default is ``[0, 0, 0]``.
+    relative : bool or list, optional
         Whether to use relative or absolute tolerance per dimension.
+        Default is ``[False, False, False]``.
     return_index : bool
         Return boolean index of subset if True.
 
@@ -176,6 +197,18 @@ def locate_asym(
         i.e. `features[index] = subset`.
 
     """
+
+    # Set mutable argument defaults
+    if by is None:
+        by = ["mz", "drift_time", "retention_time"]
+    if loc is None:
+        loc = [0, 0, 0]
+    if low is None:
+        low = [0, 0, 0]
+    if high is None:
+        high = [0, 0, 0]
+    if relative is None:
+        relative = [False, False, False]
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -205,9 +238,9 @@ def locate_asym(
 
 def slice(
     features,
-    by=["mz", "drift_time", "retention_time"],
-    low=[0, 0, 0],
-    high=[0, 0, 0],
+    by=None,
+    low=None,
+    high=None,
     return_index=False,
 ):
     """
@@ -221,16 +254,19 @@ def slice(
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    by : str or list
+    by : str or list, optional
         Dimension(s) by which to subset the data.
-    low : float, list, or array-like
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    low : float, list, or array-like, optional
         Lower bound(s) in each dimension. For single slice: 1D array matching dimensions in `by`.
         For multiple slices: 2D array of shape (n_slices, n_dims) where each row defines the
         lower bounds for one slice.
-    high : float, list, or array-like
+        Default is ``[0, 0, 0]``.
+    high : float, list, or array-like, optional
         Upper bound(s) in each dimension. For single slice: 1D array matching dimensions in `by`.
         For multiple slices: 2D array of shape (n_slices, n_dims) where each row defines the
         upper bounds for one slice.
+        Default is ``[0, 0, 0]``.
     return_index : bool
         Return boolean index of subset if True. For multiple slices, returns list of indices.
 
@@ -258,6 +294,14 @@ def slice(
     >>> # results[0] contains data for first slice, results[1] for second, etc.
 
     """
+
+    # Set mutable argument defaults
+    if by is None:
+        by = ["mz", "drift_time", "retention_time"]
+    if low is None:
+        low = [0, 0, 0]
+    if high is None:
+        high = [0, 0, 0]
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
