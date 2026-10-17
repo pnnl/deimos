@@ -188,6 +188,68 @@ def test_merge_features_empty():
     assert list(result.columns) == ["mz", "intensity"]
 
 
+def test_merge_features_return_clusters():
+    # A absorbs B and D; C is out of A's reach, so it stays and absorbs E
+    features = pd.DataFrame(
+        {
+            "retention_time": [3.8, 5.0, 6.0, 7.2, 8.0],
+            "intensity": [20.0, 100.0, 50.0, 30.0, 10.0],
+        }
+    )
+
+    merged = deimos.alignment.merge_features(
+        features, dims=["retention_time"], tol=[1.5], relative=[False]
+    )
+    clusters = deimos.alignment.merge_features(
+        features,
+        dims=["retention_time"],
+        tol=[1.5],
+        relative=[False],
+        return_clusters=True,
+    )
+
+    assert isinstance(merged, pd.DataFrame)
+    assert isinstance(clusters, pd.DataFrame)
+    assert clusters["retention_time"].tolist() == [5.0, 6.0, 7.2, 3.8, 8.0]
+    assert clusters["cluster"].tolist() == [0, 0, 2, 0, 2]
+    kept = clusters.loc[clusters["cluster"] == clusters.index]
+    pd.testing.assert_frame_equal(kept.drop(columns="cluster"), merged)
+
+
+def test_merge_features_return_clusters_joins_most_intense_kept_feature():
+    # D (2.7) is within tolerance of kept features T (1.8) and R (3.6), and T
+    # is more intense, even though R is kept in an earlier merge pass
+    features = pd.DataFrame(
+        {
+            "retention_time": [0.0, 0.9, 1.8, 3.6, 2.7],
+            "intensity": [100.0, 90.0, 80.0, 70.0, 10.0],
+        }
+    )
+
+    clusters = deimos.alignment.merge_features(
+        features,
+        dims=["retention_time"],
+        tol=[1.0],
+        relative=[False],
+        return_clusters=True,
+    )
+
+    assert isinstance(clusters, pd.DataFrame)
+    assert clusters["cluster"].tolist() == [0, 0, 2, 3, 2]
+
+
+def test_merge_features_return_clusters_empty():
+    empty_df = pd.DataFrame({"mz": [], "intensity": []})
+
+    result = deimos.alignment.merge_features(
+        empty_df, dims=["mz"], tol=[5e-6], relative=[True], return_clusters=True
+    )
+
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 0
+    assert list(result.columns) == ["mz", "intensity", "cluster"]
+
+
 def test_fit_spline():
     with pytest.raises(NotImplementedError):
         raise NotImplementedError

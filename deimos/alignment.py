@@ -395,9 +395,14 @@ def merge_features(
     dims=None,
     tol=None,
     relative=None,
+    return_clusters=False,
 ):
     """
     Merge features within provided tolerances.
+
+    Features are visited from most to least intense. A feature is kept unless
+    it lies within tolerance of a more intense kept feature, in which case it
+    merges into the most intense such feature.
 
     Parameters
     ----------
@@ -413,11 +418,15 @@ def merge_features(
     relative : bool or list, optional
         Whether to use relative or absolute tolerances per dimension.
         Default is ``[True, True, False]``.
+    return_clusters : bool
+        If True, return every feature with a ``cluster`` column holding the
+        index of the kept feature it merged into (its own index if kept).
 
     Returns
     -------
     features : :obj:`~pandas.DataFrame`
-        Features concatenated over samples with cluster labels.
+        Kept features, indexed by position in decreasing intensity order. With
+        `return_clusters`, all features in that order with their ``cluster``.
 
     """
 
@@ -433,6 +442,8 @@ def merge_features(
         return None
 
     if len(features.index) == 0:
+        if return_clusters:
+            return features.assign(cluster=np.empty(0, dtype=int))
         return features
 
     # Safely cast to list
@@ -499,6 +510,7 @@ def merge_features(
     # Extract indices of within-tolerance points
     distances = distances.tocoo()
     pairs = np.stack((distances.row, distances.col), axis=1)
+    parents, children = pairs[:, 0], pairs[:, 1]
 
     # Drop within-tolerance points
     to_drop = []
@@ -513,4 +525,14 @@ def merge_features(
         pairs = pairs[~np.isin(pairs[:, 1], to_drop), :]
         pairs = pairs[~np.isin(pairs[:, 0], to_drop), :]
 
-    return features.reset_index(drop=True).drop(index=np.array(to_drop))
+    if not return_clusters:
+        return features.reset_index(drop=True).drop(index=np.array(to_drop))
+
+    # Label each merged feature with the most intense kept feature in tolerance
+    n = len(features.index)
+    kept = ~np.isin(np.arange(n), to_drop)
+    cluster = np.where(kept, np.arange(n), n)
+    absorbed = kept[parents] & ~kept[children]
+    np.minimum.at(cluster, children[absorbed], parents[absorbed])
+
+    return features.reset_index(drop=True).assign(cluster=cluster)
