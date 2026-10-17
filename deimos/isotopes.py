@@ -2,7 +2,6 @@ from typing import cast
 
 import numpy as np
 import pandas as pd
-import scipy
 
 import deimos
 
@@ -30,8 +29,8 @@ def detect(
     for features that differ by expected isotopic mass differences (typically ~1.003 Da
     for C13). The algorithm:
 
-    1. Pre-filters candidate pairs that are within tolerance in non-m/z dimensions
-       (e.g., drift time, retention time) to reduce search space
+    1. Finds candidate pairs by binary search in m/z order, up to the largest expected
+       spacing, and keeps those within tolerance in the non-m/z dimensions
     2. Computes m/z distances for candidate pairs only
     3. Vectorized search across all charge states and isotope multiples simultaneously
     4. Filters results by intensity decay (parent > isotope) and mass accuracy
@@ -145,23 +144,38 @@ def detect(
 
     n_features = len(features)
 
-    # Step 1: Build candidate mask for non-m/z dimensions
-    # Only consider pairs within tolerance for drift time, retention time, etc.
-    # This dramatically reduces the search space for the m/z comparison
-    candidate_mask = np.ones((n_features, n_features), dtype=bool)
+    # Step 1: Find candidate pairs without building an n x n mask
+    # No expected spacing exceeds max_isotopes * |delta|, so each child's candidate
+    # parents sit in an m/z window before it
+    mz_sorted = features["mz"].values.astype(float)
 
-    for i in else_idx:
-        arr = features[dims[i]].values.reshape((-1, 1))
-        dist = scipy.spatial.distance.cdist(arr, arr)
-        candidate_mask &= dist <= tol[i]
+    # Widen the window by 1e-6 so float rounding at its edge cannot drop a pair that
+    # the exact tolerance test in step 3 accepts
+    max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + 1e-6
+    first = np.searchsorted(mz_sorted, mz_sorted - max_span, side="left")
+    counts = np.maximum(np.arange(n_features) - first, 0)
+    offsets = np.concatenate(([0], np.cumsum(counts)))
 
-    # Apply lower triangular mask to avoid duplicate comparisons (i < j)
-    # This ensures each pair is only evaluated once
-    candidate_mask = np.tril(candidate_mask, k=-1)
+    # Enumerate pairs child by child in blocks of about 4 million to bound memory,
+    # keeping those within tolerance for drift time, retention time, etc.
+    others = [(features[dims[i]].values.astype(float), tol[i]) for i in else_idx]
+    rows, cols = [], []
+    start = 0
+    while start < n_features:
+        stop = np.searchsorted(offsets, offsets[start] + 2**22, side="right") - 1
+        stop = max(stop, start + 1)
+        row = np.repeat(np.arange(start, stop), counts[start:stop])
+        col = first[row] + np.arange(len(row)) - (offsets[row] - offsets[start])
+        keep = np.ones(len(row), dtype=bool)
+        for values, dim_tol in others:
+            keep &= np.abs(values[row] - values[col]) <= dim_tol
+        rows.append(row[keep])
+        cols.append(col[keep])
+        start = stop
 
-    # Get candidate pairs (row, col indices where mask is True)
-    # With tril, row > col (row index > column index), meaning we're in lower triangle
-    row_idx, col_idx = np.where(candidate_mask)
+    # Rows ascend, and parents ascend within each row; this sets the output list order
+    row_idx = np.concatenate(rows) if rows else np.empty(0, dtype=int)
+    col_idx = np.concatenate(cols) if cols else np.empty(0, dtype=int)
 
     if len(row_idx) == 0:
         # No candidates found - return empty grouped DataFrame with correct structure
@@ -192,17 +206,9 @@ def detect(
     # This avoids computing a full n x n distance matrix for all features
     mz_values = features["mz"].values
 
-    # Build m/z distance matrix for candidates
-    # The distance matrix is computed, then element-wise multiplied by the candidate mask
-    mz_arr = mz_values.reshape((-1, 1))
-    mz_dist_full = scipy.spatial.distance.cdist(mz_arr, mz_arr)
-
-    # Apply candidate mask to get distances for valid pairs only
-    mz_dist_masked = np.multiply(mz_dist_full, candidate_mask)
-
     # Extract m/z differences for our candidate pairs
     # This represents |mz[row] - mz[col]|, always positive
-    mz_diffs = mz_dist_masked[row_idx, col_idx]
+    mz_diffs = np.abs(mz_sorted[row_idx] - mz_sorted[col_idx])
 
     # Feature assignments:
     # - Features at column index are assigned as parent (lower triangle: col < row)
