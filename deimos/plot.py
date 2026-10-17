@@ -89,7 +89,7 @@ def stem(
 
 def grid(
     features,
-    dims=["mz", "drift_time"],
+    dims=None,
     method="nearest",
     gridsize=1000j,
     cmap="cividis",
@@ -97,6 +97,10 @@ def grid(
     dpi=600,
     **kwargs,
 ):
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time"]
+
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
 
@@ -158,7 +162,15 @@ def grid(
     return ax
 
 
-def multipanel(features, method="linear", grid_kwargs={}, normalize_grid={}, dpi=600):
+def multipanel(
+    features, method="linear", grid_kwargs=None, normalize_grid=None, dpi=600
+):
+    # Set mutable argument defaults
+    if grid_kwargs is None:
+        grid_kwargs = {}
+    if normalize_grid is None:
+        normalize_grid = {}
+
     def _sync_y_with_x(self, event):
         self.set_xlim(event.get_ylim(), emit=False)
 

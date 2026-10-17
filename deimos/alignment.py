@@ -11,9 +11,9 @@ import deimos
 def match(
     a,
     b,
-    dims=["mz", "drift_time", "retention_time"],
-    tol=[5e-6, 0.015, 0.3],
-    relative=[True, True, False],
+    dims=None,
+    tol=None,
+    relative=None,
 ):
     """
     Identify features in `b` within tolerance of those in `a` . Matches are
@@ -25,12 +25,15 @@ def match(
         First set of input feature coordinates and intensities.
     b : :obj:`~pandas.DataFrame`
         Second set of input feature coordinates and intensities.
-    dims : str or list
+    dims : str or list, optional
         Dimensions considered in matching.
-    tol : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    tol : float or list, optional
         Tolerance in each dimension to define a match.
-    relative : bool or list
+        Default is ``[5e-6, 0.015, 0.3]``.
+    relative : bool or list, optional
         Whether to use relative or absolute tolerances per dimension.
+        Default is ``[True, True, False]``.
 
     Returns
     -------
@@ -39,6 +42,14 @@ def match(
         represent matched features.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if tol is None:
+        tol = [5e-6, 0.015, 0.3]
+    if relative is None:
+        relative = [True, True, False]
 
     if a is None or b is None:
         return None, None
@@ -119,9 +130,9 @@ def match(
 def tolerance(
     a,
     b,
-    dims=["mz", "drift_time", "retention_time"],
-    tol=[5e-6, 0.025, 0.3],
-    relative=[True, True, False],
+    dims=None,
+    tol=None,
+    relative=None,
 ):
     """
     Identify features in `b` within tolerance of those in `a`. Matches are
@@ -133,12 +144,15 @@ def tolerance(
         First set of input feature coordinates and intensities.
     b : :obj:`~pandas.DataFrame`
         Second set of input feature coordinates and intensities.
-    dims : str or list
+    dims : str or list, optional
         Dimensions considered in matching.
-    tol : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    tol : float or list, optional
         Tolerance in each dimension to define a match.
-    relative : bool or list
+        Default is ``[5e-6, 0.025, 0.3]``.
+    relative : bool or list, optional
         Whether to use relative or absolute tolerances per dimension.
+        Default is ``[True, True, False]``.
 
     Returns
     -------
@@ -147,6 +161,14 @@ def tolerance(
         represent matched features.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if tol is None:
+        tol = [5e-6, 0.025, 0.3]
+    if relative is None:
+        relative = [True, True, False]
 
     if a is None or b is None:
         return None, None
@@ -256,9 +278,9 @@ def fit_spline(a, b, align="retention_time", **kwargs):
 
 def agglomerative_clustering(
     features,
-    dims=["mz", "drift_time", "retention_time"],
-    tol=[20e-6, 0.03, 0.3],
-    relative=[True, True, False],
+    dims=None,
+    tol=None,
+    relative=None,
 ):
     """
     Cluster features within provided linkage tolerances. Recursively merges
@@ -275,13 +297,16 @@ def agglomerative_clustering(
     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
         Input feature coordinates and intensities per sample. An optional
         ``sample_idx`` column identifies the source sample.
-    dims : str or list
+    dims : str or list, optional
         Dimensions considered in clustering.
-    tol : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    tol : float or list, optional
         Tolerance in each dimension to define maximum cluster linkage
         distance.
-    relative : bool or list
+        Default is ``[20e-6, 0.03, 0.3]``.
+    relative : bool or list, optional
         Whether to use relative or absolute tolerances per dimension.
+        Default is ``[True, True, False]``.
 
     Returns
     -------
@@ -289,6 +314,14 @@ def agglomerative_clustering(
         Features concatenated over samples with cluster labels.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if tol is None:
+        tol = [20e-6, 0.03, 0.3]
+    if relative is None:
+        relative = [True, True, False]
 
     if features is None:
         return None
@@ -358,9 +391,9 @@ def agglomerative_clustering(
 
 def merge_features(
     features,
-    dims=["mz", "drift_time", "retention_time"],
-    tol=[20e-6, 0.03, 0.3],
-    relative=[True, True, False],
+    dims=None,
+    tol=None,
+    relative=None,
 ):
     """
     Merge features within provided tolerances.
@@ -369,13 +402,16 @@ def merge_features(
     ----------
     features : :obj:`~pandas.DataFrame` or :obj:`~dask.dataframe.DataFrame`
         Input feature coordinates and intensities per sample.
-    dims : str or list
+    dims : str or list, optional
         Dimensions considered in clustering.
-    tol : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    tol : float or list, optional
         Tolerance in each dimension to define maximum cluster tolerance.
         distance.
-    relative : bool or list
+        Default is ``[20e-6, 0.03, 0.3]``.
+    relative : bool or list, optional
         Whether to use relative or absolute tolerances per dimension.
+        Default is ``[True, True, False]``.
 
     Returns
     -------
@@ -383,6 +419,14 @@ def merge_features(
         Features concatenated over samples with cluster labels.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if tol is None:
+        tol = [20e-6, 0.03, 0.3]
+    if relative is None:
+        relative = [True, True, False]
 
     if features is None:
         return None

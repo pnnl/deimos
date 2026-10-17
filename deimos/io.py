@@ -20,7 +20,7 @@ def load(
     columns=None,
     chunksize=1e7,
     meta=None,
-    accession={},
+    accession=None,
     dtype=np.float32,
 ):
     """
@@ -41,10 +41,11 @@ def load(
     meta : dict
         Dictionary of meta data per path. HDF5 format only. Unused when loading
         single file.
-    accession : dict
+    accession : dict, optional
         Key-value pairs signaling which features to parse for in the mzML file.
         mzML and MZA format only. See :func:`~deimos.io.get_accessions` to obtain
         available values.
+        Default is ``{}``.
     dtype : data type
         Data type to encode values. mzML format only.
 
@@ -56,6 +57,10 @@ def load(
         Loading an mzML or MZA file returns a dictionary with keys per MS level.
 
     """
+
+    # Set mutable argument defaults
+    if accession is None:
+        accession = {}
 
     # Check number of inputs
     paths = deimos.utils.safelist(path)
@@ -227,7 +232,7 @@ def get_accessions(path):
     return spec.accessions
 
 
-def load_mzml(path, accession={}, dtype=np.float32):
+def load_mzml(path, accession=None, dtype=np.float32):
     """
     Loads in an mzML file, parsing for accession values, to yield a
     :obj:`~pandas.DataFrame`.
@@ -236,10 +241,11 @@ def load_mzml(path, accession={}, dtype=np.float32):
     ----------
     path : str
         Path to input mzML file.
-    accession : dict
+    accession : dict, optional
         Key-value pairs signaling which features to parse for in the mzML file.
         See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
         frame, m/z, and intensity are parsed by default.
+        Default is ``{}``.
     dtype : data type
         Data type to encode values.
 
@@ -250,6 +256,10 @@ def load_mzml(path, accession={}, dtype=np.float32):
         by keys per MS level.
 
     """
+
+    # Set mutable argument defaults
+    if accession is None:
+        accession = {}
 
     # Open file
     data = pymzml.run.Reader(path)
@@ -357,7 +367,7 @@ def load_mzml(path, accession={}, dtype=np.float32):
     return res
 
 
-def load_mza(path, accession={}):
+def load_mza(path, accession=None):
     """
     Loads in an MZA file, parsing for accession values, to yield a
     :obj:`~pandas.DataFrame`.
@@ -366,10 +376,11 @@ def load_mza(path, accession={}):
     ----------
     path : str
         Path to input mzML file.
-    accession : dict
+    accession : dict, optional
         Key-value pairs signaling which features to parse for in the mzML file.
         See :func:`~deimos.io.get_accessions` to obtain available values. Scan,
         frame, m/z, and intensity are parsed by default.
+        Default is ``{}``.
 
     Returns
     -------
@@ -378,6 +389,10 @@ def load_mza(path, accession={}):
         by keys per MS level.
 
     """
+
+    # Set mutable argument defaults
+    if accession is None:
+        accession = {}
 
     # Invert dict
     accession_inv = {v: k for k, v in accession.items()}
@@ -565,7 +580,7 @@ def load_hdf_multi(paths, key="ms1", columns=None, chunksize=1e7, meta=None):
     return dd.concat(df, axis=0)
 
 
-def _save_hdf(path, data, dtype={}, compression_level=5):
+def _save_hdf(path, data, dtype=None, compression_level=5):
     """
     Deprecated version. Saves dictionary of :obj:`~pandas.DataFrame` to HDF5 container.
 
@@ -577,15 +592,20 @@ def _save_hdf(path, data, dtype={}, compression_level=5):
         Dictionary of feature coordinates and intensities to be saved. Dictionary
         keys are saved as "groups" (e.g., MS level) and data frame columns are saved
         as "datasets" in the HDF5 container.
-    dtype : dict
+    dtype : dict, optional
         Specifies what data type to save each column, provided as column:dtype
         pairs. Defaults to 32-bit float if unspecified.
+        Default is ``{}``.
     compression_level : int
         A value from 0-9 signaling the number of compression operations to
         apply. Higher values result in greater compression at the expense of
         computational overhead.
 
     """
+
+    # Set mutable argument defaults
+    if dtype is None:
+        dtype = {}
 
     with h5py.File(path, "w") as f:
         for level in data:

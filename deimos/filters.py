@@ -437,7 +437,7 @@ def sparse_upper_star(idx, V):
     return nn, -(ph[:, 0] // 1 - ph[:, 1] // 1)
 
 
-def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
+def sparse_mean_filter(idx, V, radius=None):
     """
     Sparse implementation of a mean filter.
 
@@ -447,9 +447,10 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
         Edge indices for each dimension (MxN).
     V : :obj:`~numpy.array`
         Array of intensity data (Mx1).
-    radius : float or list
+    radius : float or list, optional
         Radius of the sparse filter in each dimension. Values less than
         zero indicate no connectivity in that dimension.
+        Default is ``[0, 1, 1]``.
 
     Returns
     -------
@@ -457,6 +458,10 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
         Filtered intensities (Mx1).
 
     """
+
+    # Set mutable argument defaults
+    if radius is None:
+        radius = [0, 1, 1]
 
     # Copy indices
     idx = idx.copy().astype(V.dtype)
@@ -500,7 +505,7 @@ def sparse_mean_filter(idx, V, radius=[0, 1, 1]):
     return V_sum / V_count
 
 
-def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
+def sparse_weighted_mean_filter(idx, V, w, radius=None, pindex=None):
     """
     Sparse implementation of a weighted mean filter.
 
@@ -512,9 +517,10 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
         Array of edge data (MxN).
     w : :obj:`~numpy.array`
         Array of intensity data (Mx1).
-    radius : float or list
+    radius : float or list, optional
         Radius of the sparse filter in each dimension. Values less than
         one indicate no connectivity in that dimension.
+        Default is ``[1, 1, 1]``.
     pindex : :obj:`~numpy.array`
         Index of points to evaluate the weighted mean.
 
@@ -524,6 +530,10 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
         Filtered edges (MxN).
 
     """
+
+    # Set mutable argument defaults
+    if radius is None:
+        radius = [1, 1, 1]
 
     # Reshape V if 1D
     if V.ndim == 1:
@@ -605,7 +615,7 @@ def sparse_weighted_mean_filter(idx, V, w, radius=[1, 1, 1], pindex=None):
     return V_out
 
 
-def sparse_median_filter(idx, V, radius=[0, 1, 1]):
+def sparse_median_filter(idx, V, radius=None):
     """
     Sparse implementation of a median filter.
 
@@ -615,9 +625,10 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
         Edge indices for each dimension (MxN).
     V : :obj:`~numpy.array`
         Array of intensity data (Mx1).
-    radius : float or list
+    radius : float or list, optional
         Radius of the sparse filter in each dimension. Values less than
         zero indicate no connectivity in that dimension.
+        Default is ``[0, 1, 1]``.
 
     Returns
     -------
@@ -625,6 +636,10 @@ def sparse_median_filter(idx, V, radius=[0, 1, 1]):
         Filtered intensities (Mx1).
 
     """
+
+    # Set mutable argument defaults
+    if radius is None:
+        radius = [0, 1, 1]
 
     # Copy indices
     idx = idx.copy().astype(V.dtype)
@@ -673,8 +688,8 @@ def smooth(
     features,
     index=None,
     factors=None,
-    dims=["mz", "drift_time", "retention_time"],
-    radius=[0, 1, 1],
+    dims=None,
+    radius=None,
     iterations=1,
     tol=0.0,
 ):
@@ -689,11 +704,13 @@ def smooth(
         Index of features in original data array.
     factors : dict
         Unique sorted values per dimension.
-    dims : str or list
+    dims : str or list, optional
         Dimensions to perform peak detection in.
-    radius : float or list
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    radius : float or list, optional
         Radius of the sparse filter in each dimension. Values less than
         zero indicate no connectivity in that dimension.
+        Default is ``[0, 1, 1]``.
     iterations : int
         Maximum number of smoothing iterations to perform.
     tol : float
@@ -706,6 +723,12 @@ def smooth(
         Smoothed feature coordinates and intensities.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+    if radius is None:
+        radius = [0, 1, 1]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)

@@ -28,7 +28,7 @@ def cosine(a, b):
     return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
 
 
-def get_1D_profiles(features, dims=["mz", "drift_time", "retention_time"]):
+def get_1D_profiles(features, dims=None):
     """
     Extract 1D profile for each of the indicated dimension(s).
 
@@ -36,8 +36,9 @@ def get_1D_profiles(features, dims=["mz", "drift_time", "retention_time"]):
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    dims : str or list
+    dims : str or list, optional
         Dimensions considered in generating 1D profile(s).
+        Default is ``["mz", "drift_time", "retention_time"]``.
 
     Returns
     -------
@@ -46,6 +47,10 @@ def get_1D_profiles(features, dims=["mz", "drift_time", "retention_time"]):
         splines for each 1D profile.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -74,9 +79,11 @@ def get_1D_profiles(features, dims=["mz", "drift_time", "retention_time"]):
     return profiles
 
 
-def offset_correction_model(
-    dt_ms2, mz_ms2, mz_ms1, ce=0, params=[1.02067031, -0.02062323, 0.00176694]
-):
+def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=0, params=None):
+    # Set mutable argument defaults
+    if params is None:
+        params = [1.02067031, -0.02062323, 0.00176694]
+
     # Cast params as array
     params = np.array(params).reshape(-1, 1)
 
@@ -133,9 +140,9 @@ class MS2Deconvolution:
 
     def construct_putative_pairs(
         self,
-        dims=["drift_time", "retention_time"],
-        low=[-0.12, -0.1],
-        high=[1.4, 0.1],
+        dims=None,
+        low=None,
+        high=None,
         ce=None,
         model=offset_correction_model,
         require_ms1_greater_than_ms2=True,
@@ -149,12 +156,15 @@ class MS2Deconvolution:
 
         Parameters
         ----------
-        dims : str or list
+        dims : str or list, optional
             Dimension(s) by which to match MS1:MS2.
-        low : float or list
+            Default is ``["drift_time", "retention_time"]``.
+        low : float or list, optional
             Lower bound(s) in each dimension.
-        high : float or list
+            Default is ``[-0.12, -0.1]``.
+        high : float or list, optional
             Upper bound(s) in each dimension.
+            Default is ``[1.4, 0.1]``.
         ce : float
             Collision energy of MS2 collection.
         model : function
@@ -173,6 +183,14 @@ class MS2Deconvolution:
             All MS1:MS2 pairings and associated agreement scores per requested dimension.
 
         """
+
+        # Set mutable argument defaults
+        if dims is None:
+            dims = ["drift_time", "retention_time"]
+        if low is None:
+            low = [-0.12, -0.1]
+        if high is None:
+            high = [1.4, 0.1]
 
         # Safely cast to list
         dims = deimos.utils.safelist(dims)
@@ -266,26 +284,40 @@ class MS2Deconvolution:
 
     def configure_profile_extraction(
         self,
-        dims=["mz", "drift_time", "retention_time"],
-        low=[-100e-6, -0.05, -0.3],
-        high=[400e-6, 0.05, 0.3],
-        relative=[True, True, False],
+        dims=None,
+        low=None,
+        high=None,
+        relative=None,
     ):
         """
         Configure parameters to generate extracted ion subsets of the data.
 
         Parameters
         ----------
-        dims : str or list
+        dims : str or list, optional
             Dimension(s) by which to subset the data.
-        low : float or list
+            Default is ``["mz", "drift_time", "retention_time"]``.
+        low : float or list, optional
             Lower tolerance(s) in each dimension.
-        high : float or list
+            Default is ``[-100e-6, -0.05, -0.3]``.
+        high : float or list, optional
             Upper tolerance(s) in each dimension.
-        relative : bool or list
+            Default is ``[400e-6, 0.05, 0.3]``.
+        relative : bool or list, optional
             Whether to use relative or absolute tolerance per dimension.
+            Default is ``[True, True, False]``.
 
         """
+
+        # Set mutable argument defaults
+        if dims is None:
+            dims = ["mz", "drift_time", "retention_time"]
+        if low is None:
+            low = [-100e-6, -0.05, -0.3]
+        if high is None:
+            high = [400e-6, 0.05, 0.3]
+        if relative is None:
+            relative = [True, True, False]
 
         def abstract_fxn(features, data, dims=None, low=None, high=None, relative=None):
             """
@@ -326,18 +358,20 @@ class MS2Deconvolution:
             x, y, dims=dims, low=low, high=high, relative=relative
         )
 
-    def apply(self, dims=["drift_time", "retention_time"], resolution=[0.01, 0.01]):
+    def apply(self, dims=None, resolution=None):
         """
         Perform deconvolution according to mathed features and their
         extracted profiles.
 
         Parameters
         ----------
-        dims : : str or list
+        dims : str or list, optional
             Dimensions(s) for which to calculate MS1:MS2 correspondence
             by 1D profile agreement (i.e. non-m/z).
-        resolution : float or list
+            Default is ``["drift_time", "retention_time"]``.
+        resolution : float or list, optional
             Resolution applied to per-dimension profile interpolations.
+            Default is ``[0.01, 0.01]``.
 
         Returns
         -------
@@ -345,6 +379,12 @@ class MS2Deconvolution:
             All MS1:MS2 pairings and associated agreement scores.
 
         """
+
+        # Set mutable argument defaults
+        if dims is None:
+            dims = ["drift_time", "retention_time"]
+        if resolution is None:
+            resolution = [0.01, 0.01]
         # Safely cast to list
         dims = deimos.utils.safelist(dims)
         resolution = deimos.utils.safelist(resolution)

@@ -4,7 +4,7 @@ import pandas as pd
 import deimos
 
 
-def data2grid(features, dims=["mz", "drift_time", "retention_time"]):
+def data2grid(features, dims=None):
     """
     Converts data frame representation to a dense, N-dimensional grid.
 
@@ -12,9 +12,10 @@ def data2grid(features, dims=["mz", "drift_time", "retention_time"]):
     ----------
     features : :obj:`~pandas.DataFrame`
         Input feature coordinates and intensities.
-    dims : str or list
+    dims : str or list, optional
         Dimension(s) to create the dense grid (omitted dimensions will
         be collapsed and summed accross).
+        Default is ``["mz", "drift_time", "retention_time"]``.
 
     Returns
     -------
@@ -24,6 +25,10 @@ def data2grid(features, dims=["mz", "drift_time", "retention_time"]):
         Resulting N-dimensional grid.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
 
     # Safely cast to list
     dims = deimos.utils.safelist(dims)
@@ -44,7 +49,7 @@ def data2grid(features, dims=["mz", "drift_time", "retention_time"]):
     return idx, grid
 
 
-def grid2df(edges, grid, dims=["mz", "drift_time", "retention_time"], additional=None):
+def grid2df(edges, grid, dims=None, additional=None):
     """
     Converts dense grid representation to a data frame.
 
@@ -54,8 +59,9 @@ def grid2df(edges, grid, dims=["mz", "drift_time", "retention_time"], additional
         Edges coordinates along each grid axis.
     grid : :obj:`~numpy.array`
         N-dimensional dense grid of intensities.
-    dims : str or list
+    dims : str or list, optional
         Label(s) for each grid dimension.
+        Default is ``["mz", "drift_time", "retention_time"]``.
     additional : dict or None
         Additional grids to process.
 
@@ -66,6 +72,10 @@ def grid2df(edges, grid, dims=["mz", "drift_time", "retention_time"], additional
         `additional`.
 
     """
+
+    # Set mutable argument defaults
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
 
     # Cast to list safely
     dims = deimos.utils.safelist(dims)

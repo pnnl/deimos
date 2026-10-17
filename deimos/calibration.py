@@ -244,7 +244,7 @@ def calibrate_mass(mz=None, reference_mz=None, beta=None, tfix=None):
 
 def tunemix_mz(
     features,
-    mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
+    mz=None,
     mz_tol=200e-6,
     method="apex",
 ):
@@ -254,8 +254,9 @@ def tunemix_mz(
 
     Parameters
     ----------
-    mz : :obj:`~numpy.array`
+    mz : :obj:`~numpy.array`, optional
         Calibration mass-to-charge ratios.
+        Default is ``[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786]``.
     mz_tol : float
         Tolerance in ppm to isolate tune ion.
     method : str
@@ -269,6 +270,10 @@ def tunemix_mz(
         object.
 
     """
+
+    # Set mutable argument defaults
+    if mz is None:
+        mz = [112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786]
 
     if method.lower() not in ["centroid", "apex"]:
         raise ValueError("Calibration method must be 'apex' or 'centroid'.")
@@ -807,9 +812,9 @@ def calibrate_ccs(
 
 def tunemix(
     features,
-    mz=[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786],
-    ccs=[108.23, 140.04, 180.77, 255.34, 284.76, 319.03],
-    q=[1, 1, 1, 1, 1, 1],
+    mz=None,
+    ccs=None,
+    q=None,
     buffer_mass=28.013,
     mz_tol=200e-6,
     dt_tol=0.04,
@@ -821,12 +826,15 @@ def tunemix(
 
     Parameters
     ----------
-    mz : :obj:`~numpy.array`
+    mz : :obj:`~numpy.array`, optional
         Calibration mass-to-charge ratios.
-    ccs : :obj:`~numpy.array`
+        Default is ``[112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786]``.
+    ccs : :obj:`~numpy.array`, optional
         Calibration collision cross sections.
-    q : :obj:`~numpy.array`
+        Default is ``[108.23, 140.04, 180.77, 255.34, 284.76, 319.03]``.
+    q : :obj:`~numpy.array`, optional
         Calibration nominal charges.
+        Default is ``[1, 1, 1, 1, 1, 1]``.
     buffer_mass : float
         Mass of the buffer gas.
     mz_tol : float
@@ -844,6 +852,14 @@ def tunemix(
         object.
 
     """
+
+    # Set mutable argument defaults
+    if mz is None:
+        mz = [112.985587, 301.998139, 601.978977, 1033.988109, 1333.968947, 1633.949786]
+    if ccs is None:
+        ccs = [108.23, 140.04, 180.77, 255.34, 284.76, 319.03]
+    if q is None:
+        q = [1, 1, 1, 1, 1, 1]
 
     # Cast to numpy array
     mz = np.array(mz)
