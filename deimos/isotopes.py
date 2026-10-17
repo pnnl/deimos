@@ -7,10 +7,6 @@ import scipy
 import deimos
 
 
-def OrderedSet(x):
-    return list({k: None for k in x})
-
-
 def detect(
     features,
     dims=None,
@@ -34,7 +30,8 @@ def detect(
        (e.g., drift time, retention time) to reduce search space
     2. Computes m/z distances for candidate pairs only
     3. Vectorized search across all charge states and isotope multiples simultaneously
-    4. Filters results by intensity decay (parent > isotope) and mass accuracy
+    4. Filters results by intensity decay (parent > isotope) and mass accuracy,
+       keeping the candidate closest in mass at each isotope position
     5. Groups isotopes by their parent feature
 
     The function supports both multi-dimensional data (LC-IMS-MS) and single-dimension
@@ -185,7 +182,7 @@ def detect(
                 ]
             )
             .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
-            .agg(OrderedSet),
+            .agg(list),
         )
 
     # Step 2: Compute m/z distances for candidate pairs only
@@ -254,7 +251,7 @@ def detect(
                 ]
             )
             .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
-            .agg(OrderedSet),
+            .agg(list),
         )
 
     # Step 4: Build results DataFrame
@@ -303,12 +300,19 @@ def detect(
     if not return_all_patterns:
         isotopes = isotopes.loc[~isotopes["idx"].isin(isotopes["idx_iso"]), :]
 
+    # Keep the candidate closest in mass at each isotope position
+    isotopes = (
+        isotopes.sort_values("error", kind="stable")
+        .drop_duplicates(subset=["idx", "charge", "multiple"])
+        .sort_index()
+    )
+
     # Step 7: Group isotopes by parent feature
-    # OrderedSet preserves insertion order for the list columns
+    # Keep one list entry per isotope so the list columns stay aligned
     grouped = cast(
         pd.DataFrame,
         isotopes.groupby(by=["mz", "charge", "idx", "intensity"], as_index=False).agg(
-            OrderedSet
+            list
         ),
     )
     # Count number of isotopes per parent
