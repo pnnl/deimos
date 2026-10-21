@@ -67,6 +67,81 @@ def collapse(features, keep=None, how="sum") -> pd.DataFrame:
     )
 
 
+def collapse_slices(features, by, low, high, keep, how="sum"):
+    """
+    Slice data by many sets of coordinate bounds and collapse each slice onto
+    the dimensions in `keep`, for example to extract many chromatograms at
+    once. Gives the same result as :func:`~deimos.subset.collapse` on each
+    slice of a batch :func:`~deimos.subset.slice`, without building a data
+    frame per slice.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : str or list
+        Dimension(s) by which to subset the data.
+    low : array-like
+        Lower bounds of shape (n_slices, n_dims), or (n_slices,) when slicing
+        by one dimension.
+    high : array-like
+        Upper bounds, shaped as `low`.
+    keep : str or list
+        Dimensions to keep during collapse operation.
+    how : function or str
+        Aggregation function for collapse operation.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame`
+        Aggregated intensities by slice and kept dimensions. Column
+        `slice_idx` gives the row of `low` and `high` that defines each
+        slice. Slices without data contribute no rows.
+
+    Examples
+    --------
+    Chromatograms of three m/z windows:
+
+    >>> mz = np.array([211.0, 300.0, 400.0])
+    >>> xics = collapse_slices(
+    ...     ms1, by="mz", low=mz - 0.01, high=mz + 0.01, keep="retention_time"
+    ... )
+    >>> # xics[xics["slice_idx"] == 0] holds the first window's chromatogram
+
+    """
+
+    # Safely cast to list
+    by = deimos.utils.safelist(by)
+    keep = deimos.utils.safelist(keep)
+
+    # One row of bounds per slice
+    low = np.asarray(low)
+    high = np.asarray(high)
+    if low.ndim < 2:
+        low = low.reshape(-1, len(by))
+    if high.ndim < 2:
+        high = high.reshape(-1, len(by))
+    if low.shape != high.shape or low.shape[1] != len(by):
+        raise ValueError(
+            f"Bounds of shapes {low.shape} and {high.shape} must both be "
+            f"(n_slices, {len(by)})"
+        )
+
+    if features is None:
+        return None
+
+    # Rows of every slice, labeled by the slice they fall in
+    rows = _batch_rows(features, by, low, high)
+    positions = np.concatenate([np.zeros(0, dtype=int), *rows])
+    labels = np.repeat(np.arange(len(rows)), [len(x) for x in rows])
+    subset = features[keep + ["intensity"]].iloc[positions].assign(slice_idx=labels)
+
+    # Collapse each slice onto the kept dimensions
+    return subset.groupby(by=["slice_idx"] + keep, as_index=False, sort=False).agg(
+        {"intensity": how}
+    )
+
+
 @overload
 def locate(
     features, by=None, loc=None, tol=None, return_index: Literal[False] = False
@@ -88,7 +163,8 @@ def locate(
 ) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None:
     """
     Given a coordinate and tolerances, return a subset of the
-    data.
+    data. If `features` is sorted by the first dimension in `by`, only
+    the rows within its tolerance are scanned.
 
     Parameters
     ----------
@@ -132,42 +208,10 @@ def locate(
     # Check dims
     deimos.utils.check_length([by, loc, tol])
 
-    if features is None:
-        if return_index is True:
-            return None, None
-        else:
-            return None
-
-    # Store index
-    rindex = features.index.values
-
-    # Extend columns
-    cols = features.columns
-    cidx = [cols.get_loc(x) for x in by]
-
-    # Subset by each dim
-    features = features.values
-    idx = np.full(features.shape[0], True, dtype=bool)
-    for i, x, dx in zip(cidx, loc, tol):
-        idx *= (features[:, i] <= x + dx) & (features[:, i] >= x - dx)
-
-    features = features[idx]
-    rindex = rindex[idx]
-
-    if return_index is True:
-        # Data found
-        if features.shape[0] > 0:
-            return pd.DataFrame(features, index=rindex, columns=cols), idx
-
-        # No data
-        return None, idx
-    else:
-        # Data found
-        if features.shape[0] > 0:
-            return pd.DataFrame(features, index=rindex, columns=cols)
-
-        # No data
-        return None
+    # Slice by the bounds the tolerances imply
+    low = [x - dx for x, dx in zip(loc, tol)]
+    high = [x + dx for x, dx in zip(loc, tol)]
+    return _slice_single(features, by, low, high, return_index)
 
 
 @overload
@@ -212,7 +256,8 @@ def locate_asym(
 ):
     """
     Given a coordinate and asymmetrical tolerances, return a subset of the
-    data.
+    data. If `features` is sorted by the first dimension in `by`, only
+    the rows within its tolerance are scanned.
 
     Parameters
     ----------
@@ -320,6 +365,11 @@ def slice(
     returns a list of DataFrames. Uses vectorized operations for efficiency when processing
     multiple slices.
 
+    If `features` is sorted by the first dimension in `by`, only the rows within
+    that dimension's bounds are scanned, so sort once before slicing many times.
+    Unsorted data is sorted internally when a batch has enough slices to
+    benefit.
+
     Parameters
     ----------
     features : :obj:`~pandas.DataFrame`
@@ -406,15 +456,19 @@ def _slice_single(features, by, low, high, return_index):
         else:
             return None
 
-    # Store index
-    rindex = features.index.values
-
     # Extend columns
     cols = features.columns
     cidx = [cols.get_loc(x) for x in by]
 
+    # Scan only the rows a sorted first dimension allows
+    start, stop = _sorted_rows(features, by, cidx, low, high)
+    window = features if stop is None else features.iloc[start:stop]
+
+    # Store index
+    rindex = window.index.values
+
     # Subset by each dim
-    features_vals = features.values
+    features_vals = window.values
     idx = np.full(features_vals.shape[0], True, dtype=bool)
     for i, lb, ub in zip(cidx, low, high):
         idx *= (features_vals[:, i] <= ub) & (features_vals[:, i] >= lb)
@@ -423,12 +477,16 @@ def _slice_single(features, by, low, high, return_index):
     rindex = rindex[idx]
 
     if return_index is True:
+        # Map the boolean index from scanned rows to all rows
+        index = np.full(len(features.index), False, dtype=bool)
+        index[start:stop] = idx
+
         # Data found
         if features_vals.shape[0] > 0:
-            return pd.DataFrame(features_vals, index=rindex, columns=cols), idx
+            return pd.DataFrame(features_vals, index=rindex, columns=cols), index
 
         # No data
-        return None, idx
+        return None, index
     else:
         # Data found
         if features_vals.shape[0] > 0:
@@ -440,8 +498,9 @@ def _slice_single(features, by, low, high, return_index):
 
 def _slice_batch(features, by, low_bounds, high_bounds, return_index):
     """
-    Internal function for batch slice operation using vectorized operations.
-    Efficiently processes multiple slices in a single pass through the data.
+    Internal function for batch slice operation. When the data is sorted by
+    the first dimension, or the batch is large enough to sort it once, each
+    slice scans only the rows within its first-dimension bounds.
     """
     # Ensure 2D arrays
     if low_bounds.ndim == 1:
@@ -470,47 +529,240 @@ def _slice_batch(features, by, low_bounds, high_bounds, return_index):
         else:
             return [None] * n_slices
 
+    # Build output dataframes from the matching rows of each slice
+    output = []
+    for rows in _batch_rows(features, by, low_bounds, high_bounds):
+        subset = features.iloc[rows] if len(rows) > 0 else None
+        if return_index:
+            index = np.full(len(features.index), False, dtype=np.bool_)
+            index[rows] = True
+            output.append((subset, index))
+        else:
+            output.append(subset)
+
+    return output
+
+
+def _batch_rows(features, by, low_bounds, high_bounds):
+    """
+    Find the rows within each slice of a batch.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : list
+        Dimensions by which to subset the data.
+    low_bounds : :obj:`~numpy.array`
+        Lower bounds of shape (n_slices, n_dims).
+    high_bounds : :obj:`~numpy.array`
+        Upper bounds of shape (n_slices, n_dims).
+
+    Returns
+    -------
+    list of :obj:`~numpy.array`
+        Positions of the rows within each slice, in their original order.
+
+    """
+
     # Get column indices
     cols = features.columns
     cidx = np.array([cols.get_loc(x) for x in by])
 
     # Extract relevant columns as contiguous numpy array
     data_subset = np.ascontiguousarray(features.iloc[:, cidx].values)
-    n_rows = data_subset.shape[0]
 
-    # Pre-allocate result masks for all slices
-    result_masks = np.zeros((n_slices, n_rows), dtype=np.bool_)
+    # Bound each slice to a run of rows ordered by the first dimension
+    starts, stops, order = _batch_windows(data_subset, low_bounds, high_bounds)
 
-    # Process each slice
-    for slice_idx in range(n_slices):
-        # Start with all rows passing
-        mask = np.ones(n_rows, dtype=np.bool_)
+    output = []
+    for slice_idx in range(len(low_bounds)):
+        start, stop = starts[slice_idx], stops[slice_idx]
+
+        # Candidate rows: a contiguous run, or sorted positions taken from the order
+        positions = None if order is None else np.sort(order[start:stop])
+        if positions is None:
+            candidates = data_subset[start:stop]
+        else:
+            candidates = data_subset[positions]
 
         # Apply bounds for each dimension
-        for dim_idx in range(n_dims):
-            # Vectorized comparison for this dimension
-            mask &= (data_subset[:, dim_idx] >= low_bounds[slice_idx, dim_idx]) & (
-                data_subset[:, dim_idx] <= high_bounds[slice_idx, dim_idx]
+        mask = np.ones(len(candidates), dtype=np.bool_)
+        for dim_idx in range(len(by)):
+            mask &= (candidates[:, dim_idx] >= low_bounds[slice_idx, dim_idx]) & (
+                candidates[:, dim_idx] <= high_bounds[slice_idx, dim_idx]
             )
 
-        result_masks[slice_idx] = mask
-
-    # Build output dataframes using the masks
-    output = []
-    for slice_idx in range(n_slices):
-        mask = result_masks[slice_idx]
-        if return_index:
-            if np.any(mask):
-                output.append((features.loc[mask], mask))
-            else:
-                output.append((None, mask))
+        # Matching rows in their original order
+        if positions is None:
+            output.append(start + np.flatnonzero(mask))
         else:
-            if np.any(mask):
-                output.append(features.loc[mask])
-            else:
-                output.append(None)
+            output.append(positions[mask])
 
     return output
+
+
+def _is_sorted(values):
+    """
+    Check whether values are floating point and in non-decreasing order,
+    which also rules out NaN. Compares in chunks of doubling size so unsorted
+    input returns early.
+
+    Parameters
+    ----------
+    values : :obj:`~numpy.array`
+        Values to check.
+
+    Returns
+    -------
+    bool
+        True if `values` is floating point and sorted.
+
+    """
+
+    if values.dtype.kind != "f":
+        return False
+
+    start, size = 0, 1024
+    while start < len(values) - 1:
+        part = values[start : start + size + 1]
+        if not np.all(part[1:] >= part[:-1]):
+            return False
+        start += size
+        size *= 2
+
+    return True
+
+
+def _sorted_window(values, low, high):
+    """
+    Locate the run of sorted values that can fall within inclusive bounds.
+
+    Bounds are cast to the dtype of `values` so the values are never copied,
+    then widened by one unit in the last place to absorb that rounding. The
+    run therefore holds every value within the bounds and possibly a few
+    beyond them, which callers filter exactly.
+
+    Parameters
+    ----------
+    values : :obj:`~numpy.array`
+        Floating-point values in non-decreasing order.
+    low : float or :obj:`~numpy.array`
+        Lower bound(s).
+    high : float or :obj:`~numpy.array`
+        Upper bound(s).
+
+    Returns
+    -------
+    start, stop : int or :obj:`~numpy.array`
+        First position and one past the last position of each run.
+
+    """
+
+    # Bounds beyond the dtype's range become inf, which still bounds correctly
+    with np.errstate(over="ignore"):
+        low = np.nextafter(np.asarray(low, dtype=values.dtype), -np.inf)
+        high = np.nextafter(np.asarray(high, dtype=values.dtype), np.inf)
+
+    return (
+        np.searchsorted(values, low, side="left"),
+        np.searchsorted(values, high, side="right"),
+    )
+
+
+def _sorted_rows(features, by, cidx, low, high):
+    """
+    Bound the rows of a single slice using the first dimension, when its
+    column is floating point and sorted.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : list
+        Dimensions by which to subset the data.
+    cidx : list
+        Column positions of the slice dimensions.
+    low : list
+        Lower bound in each dimension.
+    high : list
+        Upper bound in each dimension.
+
+    Returns
+    -------
+    start, stop : int or None
+        Row positions bounding the slice, or None for both when every row
+        must be scanned.
+
+    """
+
+    # Window only on a sorted floating-point column of a pandas data frame
+    if (
+        not isinstance(features, pd.DataFrame)
+        or len(cidx) == 0
+        or not isinstance(cidx[0], (int, np.integer))
+    ):
+        return None, None
+
+    values = features[by[0]].to_numpy()
+    if not _is_sorted(values):
+        return None, None
+
+    # Only plain NumPy columns convert to the same values in part and in whole
+    if not all(isinstance(x, np.dtype) for x in features.dtypes):
+        return None, None
+
+    start, stop = _sorted_window(values, low[0], high[0])
+    return int(start), int(stop)
+
+
+def _batch_windows(data, low_bounds, high_bounds):
+    """
+    Bound each slice of a batch to a run of rows ordered by the first
+    dimension, sorting the rows once when that pays for itself.
+
+    Parameters
+    ----------
+    data : :obj:`~numpy.array`
+        Coordinates of every row, one column per dimension.
+    low_bounds : :obj:`~numpy.array`
+        Lower bounds of shape (n_slices, n_dims).
+    high_bounds : :obj:`~numpy.array`
+        Upper bounds of shape (n_slices, n_dims).
+
+    Returns
+    -------
+    starts, stops : :obj:`~numpy.array`
+        First position and one past the last position of each run in the
+        row order.
+    order : :obj:`~numpy.array` or None
+        Row positions in sorted order, or None when the rows are already
+        sorted or every row must be scanned.
+
+    """
+
+    n_rows, n_dims = data.shape
+    n_slices = len(low_bounds)
+    scan_all = np.zeros(n_slices, dtype=int), np.full(n_slices, n_rows), None
+
+    # Without dimensions every row is in every slice
+    if n_dims == 0:
+        return scan_all
+
+    # Already sorted
+    values = data[:, 0]
+    if _is_sorted(values):
+        starts, stops = _sorted_window(values, low_bounds[:, 0], high_bounds[:, 0])
+        return starts, stops, None
+
+    # Scan every row unless there are enough slices for one sort to cost less;
+    # on 2e4 to 2e6 rows a sort costs 7 to 70 scans, below 4 * log2(n_rows)
+    if values.dtype.kind != "f" or n_slices <= 4 * np.log2(max(n_rows, 2)):
+        return scan_all
+
+    order = np.argsort(values, kind="stable")
+    starts, stops = _sorted_window(values[order], low_bounds[:, 0], high_bounds[:, 0])
+    return starts, stops, order
 
 
 class Partitions:

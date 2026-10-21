@@ -550,3 +550,203 @@ def test_slice_batch_vs_single_consistency(ms1):
         pd.testing.assert_frame_equal(
             batch.reset_index(drop=True), single.reset_index(drop=True)
         )
+
+
+@pytest.fixture()
+def mz_sorted():
+    # Float32 m/z beside float64 columns, so bounds are compared in float64
+    return pd.DataFrame(
+        {
+            "mz": np.array([100.0, 100.5, 101.0, 101.5, 102.0], dtype=np.float32),
+            "retention_time": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "intensity": [10.0, 20.0, 30.0, 40.0, 50.0],
+        },
+        index=pd.Index([14, 3, 9, 0, 7]),
+    )
+
+
+@pytest.mark.parametrize(
+    "order,index,mask",
+    [
+        ([0, 1, 2, 3, 4], [3, 9, 0], [False, True, True, True, False]),
+        ([3, 0, 4, 2, 1], [0, 9, 3], [True, False, False, True, True]),
+    ],
+    ids=["sorted", "unsorted"],
+)
+def test_slice_includes_bounds_and_keeps_index(mz_sorted, order, index, mask):
+    features = mz_sorted.iloc[order]
+
+    result = deimos.slice(features, by="mz", low=100.5, high=101.5, return_index=True)
+
+    assert isinstance(result, tuple)
+    subset, idx = result
+    assert subset is not None and idx is not None
+    assert subset.index.tolist() == index
+    assert idx.tolist() == mask
+
+
+@pytest.mark.parametrize("high,length", [(100.0999984, 1), (100.0999985, 2)])
+def test_slice_sorted_float32_compares_exact_bounds(high, length):
+    # Float32 100.1 is 100.09999847..., between the two upper bounds
+    features = pd.DataFrame(
+        {
+            "mz": np.array([100.0, 100.1, 100.2], dtype=np.float32),
+            "intensity": [1.0, 2.0, 3.0],
+        }
+    )
+
+    subset = deimos.slice(features, by="mz", low=99.0, high=high)
+
+    assert isinstance(subset, pd.DataFrame)
+    assert len(subset.index) == length
+
+
+def test_locate_asym_relative_tolerance_on_sorted_mz():
+    features = pd.DataFrame(
+        {
+            "mz": [499.99, 499.996, 500.0, 500.004, 500.01],
+            "intensity": [1.0, 2.0, 3.0, 4.0, 5.0],
+        }
+    )
+
+    subset = deimos.locate_asym(
+        features, by="mz", loc=500.0, low=-10e-6, high=10e-6, relative=True
+    )
+
+    assert isinstance(subset, pd.DataFrame)
+    assert subset["mz"].tolist() == [499.996, 500.0, 500.004]
+
+
+@pytest.mark.parametrize(
+    "low,high", [(100.6, 100.9), (50.0, 60.0), (110.0, 120.0), (101.0, 100.0)]
+)
+def test_slice_sorted_empty_window(mz_sorted, low, high):
+    result = deimos.slice(mz_sorted, by="mz", low=low, high=high, return_index=True)
+
+    assert isinstance(result, tuple)
+    subset, idx = result
+    assert subset is None
+    assert idx is not None
+    assert idx.tolist() == [False] * 5
+
+
+@pytest.mark.filterwarnings("error")
+def test_slice_sorted_bounds_beyond_float32_range(mz_sorted):
+    subset = deimos.slice(mz_sorted, by="mz", low=1e300, high=1e301)
+
+    assert subset is None
+
+
+def test_slice_skips_window_when_mz_has_nan():
+    features = pd.DataFrame(
+        {
+            "mz": np.array([100.0, np.nan, 101.0], dtype=np.float32),
+            "intensity": [1.0, 2.0, 3.0],
+        }
+    )
+
+    subset = deimos.slice(features, by="mz", low=99.0, high=102.0)
+
+    assert isinstance(subset, pd.DataFrame)
+    assert subset.index.tolist() == [0, 2]
+
+
+@pytest.mark.parametrize("repeats", [1, 4], ids=["3-slices", "12-slices"])
+@pytest.mark.parametrize(
+    "order,expected",
+    [
+        ([0, 1, 2, 3, 4], [[3, 9], [3, 9, 0], None]),
+        ([3, 0, 4, 2, 1], [[9, 3], [0, 9, 3], None]),
+    ],
+    ids=["sorted", "unsorted"],
+)
+def test_slice_batch_windows_keep_original_order(
+    mz_sorted, order, expected, repeats: int
+):
+    # Twelve slices are enough to sort unsorted input once instead of scanning
+    features = mz_sorted.iloc[order]
+    low = [[100.5, 0.0], [100.0, 1.5], [102.5, 0.0]] * repeats
+    high = [[101.0, 10.0], [102.0, 4.5], [103.0, 10.0]] * repeats
+
+    results = deimos.slice(
+        features, by=["mz", "retention_time"], low=low, high=high, return_index=True
+    )
+
+    assert isinstance(results, list)
+    for (subset, idx), index in zip(results, expected * repeats):
+        if index is None:
+            assert subset is None
+        else:
+            assert subset.index.tolist() == index
+        assert features.index[idx].tolist() == (index or [])
+
+
+@pytest.fixture()
+def two_ions():
+    # Ions at m/z 100 and 101 across three retention times, plus one at 100.5
+    return pd.DataFrame(
+        {
+            "mz": [100.0, 100.0, 100.5, 101.0, 100.0, 101.0],
+            "retention_time": [1.0, 1.0, 2.0, 2.0, 3.0, 3.0],
+            "intensity": [1.0, 2.0, 4.0, 8.0, 16.0, 32.0],
+        }
+    )
+
+
+@pytest.mark.parametrize("repeats", [1, 4], ids=["3-slices", "12-slices"])
+@pytest.mark.parametrize("ordered", [False, True], ids=["rt-order", "mz-sorted"])
+@pytest.mark.parametrize(
+    "how,intensity", [("sum", [3.0, 16.0, 8.0, 32.0]), ("max", [2.0, 16.0, 8.0, 32.0])]
+)
+def test_collapse_slices_gives_one_profile_per_slice(
+    two_ions, ordered, repeats, how, intensity
+):
+    features = two_ions.sort_values("mz", kind="stable") if ordered else two_ions
+    low = [99.9, 100.9, 200.0] * repeats
+    high = [100.1, 101.1, 201.0] * repeats
+
+    xics = deimos.collapse_slices(
+        features, by="mz", low=low, high=high, keep="retention_time", how=how
+    )
+
+    assert isinstance(xics, pd.DataFrame)
+    assert xics.columns.tolist() == ["slice_idx", "retention_time", "intensity"]
+    for k in range(repeats):
+        part = xics[xics["slice_idx"].isin([3 * k, 3 * k + 1, 3 * k + 2])]
+        assert (part["slice_idx"] - 3 * k).tolist() == [0, 0, 1, 1]
+        assert part["retention_time"].tolist() == [1.0, 3.0, 2.0, 3.0]
+        assert part["intensity"].tolist() == intensity
+
+
+def test_collapse_slices_bounds_in_two_dimensions(two_ions):
+    xics = deimos.collapse_slices(
+        two_ions,
+        by=["mz", "retention_time"],
+        low=[[99.9, 2.0], [100.4, 0.0]],
+        high=[[101.1, 3.0], [100.6, 1.0]],
+        keep="mz",
+    )
+
+    assert isinstance(xics, pd.DataFrame)
+    assert xics["slice_idx"].tolist() == [0, 0, 0]
+    assert xics["mz"].tolist() == [100.5, 101.0, 100.0]
+    assert xics["intensity"].tolist() == [4.0, 40.0, 16.0]
+
+
+def test_collapse_slices_rejects_mismatched_bounds(two_ions):
+    with pytest.raises(ValueError):
+        deimos.collapse_slices(
+            two_ions,
+            by=["mz", "retention_time"],
+            low=[[99.9, 0.0]],
+            high=[[100.1, 1.0], [101.1, 1.0]],
+            keep="retention_time",
+        )
+
+
+def test_collapse_slices_pass_none():
+    xics = deimos.collapse_slices(
+        None, by="mz", low=[99.9], high=[100.1], keep="retention_time"
+    )
+
+    assert xics is None
