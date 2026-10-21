@@ -223,6 +223,19 @@ def test_tolerance_relative_to_a():
     assert b_.index.tolist() == [0, 4, 2]
 
 
+def test_tolerance_relative_in_input_precision():
+    # 17 / 1699 exceeds 0.01, but both round to the same float16, the precision
+    # in which relative distances are compared
+    a = pd.DataFrame({"mz": np.array([1699], dtype=np.float16)})
+    b = pd.DataFrame({"mz": np.array([1682, 1716, 1720], dtype=np.float16)})
+
+    a_, b_ = deimos.alignment.tolerance(a, b, dims="mz", tol=0.01, relative=True)
+    assert a_ is not None
+    assert b_ is not None
+
+    assert b_.index.tolist() == [0, 1]
+
+
 @pytest.mark.parametrize("relative", [False, True])
 @pytest.mark.parametrize(
     "tol,n_pairs",

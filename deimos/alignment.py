@@ -215,10 +215,7 @@ def _pairs_within_tolerance(a, b, dims, tol, relative, chunk_size=2**20):
             continue
 
         window = _candidate_windows(
-            a[f].to_numpy(dtype=np.float64),
-            b[f].to_numpy(dtype=np.float64),
-            tol[i],
-            relative[i] is True,
+            a[f].to_numpy(), b[f].to_numpy(), tol[i], relative[i] is True
         )
         if (window[1] - window[0]).sum() < (high - low).sum():
             low, high, order = window
@@ -283,8 +280,11 @@ def _candidate_windows(v1, v2, tol, relative):
     """
     Bound the values of `v2` within tolerance of each value of `v1`.
 
-    Windows are padded beyond floating point rounding, so they hold every
-    match and possibly a few near misses.
+    Windows are widened just enough to cover floating point rounding, both of
+    the window bounds and of relative distances, which the exact check in
+    :func:`_pairs_within_tolerance` stores in the dtype of the inputs. Each
+    window therefore holds every pair that check accepts, and the check
+    rejects any candidate in the widened margin.
 
     Parameters
     ----------
@@ -306,7 +306,15 @@ def _candidate_windows(v1, v2, tol, relative):
 
     """
 
+    # Precision of stored relative distances
+    dtype = np.result_type(v1, v2)
+    if not np.issubdtype(dtype, np.floating):
+        dtype = np.float64
+    finfo = np.finfo(dtype)
+
     # Sort candidates
+    v1 = v1.astype(np.float64)
+    v2 = v2.astype(np.float64)
     order = np.argsort(v2, kind="stable")
     v2 = v2[order]
 
@@ -314,9 +322,15 @@ def _candidate_windows(v1, v2, tol, relative):
     finite = np.isfinite(v1)
     v1 = np.where(finite, v1, 0)
 
-    # Pad window widths
-    width = tol * np.abs(v1) if relative else np.full(len(v1), float(tol))
-    width = width * (1 + 1e-6) + 8 * np.finfo(np.float64).eps * (np.abs(v1) + width)
+    # Widen relative windows by the rounding of stored distances, then all
+    # windows by the rounding of their bounds
+    if relative:
+        width = np.abs(v1) * (
+            tol * (1 + 2 * finfo.eps) + 2 * float(finfo.smallest_subnormal)
+        )
+    else:
+        width = np.full(len(v1), float(tol))
+    width = width + 8 * np.finfo(np.float64).eps * (np.abs(v1) + width)
 
     # Locate windows
     low = np.searchsorted(v2, v1 - width, side="left")
