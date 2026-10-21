@@ -1,7 +1,7 @@
 import argparse
+from importlib.resources import files
 from multiprocessing import cpu_count
 
-from pkg_resources import resource_filename
 from snakemake import snakemake
 
 from deimos import __version__
@@ -87,7 +87,7 @@ def main():
 
     # Call snakemake
     snakemake(
-        resource_filename("workflows", "default.smk"),
+        str(files("workflows") / "default.smk"),
         configfiles=[args.config],
         config=config,
         cluster_config=args.cluster,
