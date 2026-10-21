@@ -30,6 +30,29 @@ def cosine(a, b):
     return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
 
 
+def pearson(a, b):
+    """
+    Pearson correlation distance (1 - correlation) between two arrays.
+
+    Each array is centered on its mean before comparison, so a constant offset,
+    such as a baseline under a profile, does not change the distance. The
+    distance is undefined (NaN) when either array is constant.
+
+    Parameters
+    ----------
+    a, b : :obj:`~numpy.array`
+        N-dimensional arrays.
+
+    Returns
+    -------
+    float
+        Pearson correlation distance.
+
+    """
+
+    return cosine(a - a.mean(), b - b.mean())
+
+
 def get_1D_profiles(features, dims=None):
     """
     Extract 1D profile for each of the indicated dimension(s).
@@ -363,7 +386,7 @@ class MS2Deconvolution:
             x, y, dims=dims, low=low, high=high, relative=relative
         )
 
-    def apply(self, dims=None, resolution=None):
+    def apply(self, dims=None, resolution=None, similarity="cosine"):
         """
         Perform deconvolution according to mathed features and their
         extracted profiles.
@@ -377,6 +400,10 @@ class MS2Deconvolution:
         resolution : float or list, optional
             Resolution applied to per-dimension profile interpolations.
             Default is ``[0.01, 0.01]``.
+        similarity : str
+            Profile agreement score, either "cosine" (default) or "pearson".
+            Pearson centers each profile first, so a flat background or a
+            baseline under a co-eluting ion does not inflate the score.
 
         Returns
         -------
@@ -400,6 +427,14 @@ class MS2Deconvolution:
         # Ensure m/z not in dims
         if "mz" in dims:
             raise ValueError("MS1:MS2 similarity does not consider m/z.")
+
+        # Select profile distance
+        distances = {"cosine": cosine, "pearson": pearson}
+        if similarity not in distances:
+            raise ValueError(
+                f"Unknown similarity {similarity!r}; use 'cosine' or 'pearson'."
+            )
+        distance = distances[similarity]
 
         # Recast as dictionaries indexed by dimension
         self.profile_resolution = {k: v for k, v in zip(dims, resolution)}
@@ -472,7 +507,9 @@ class MS2Deconvolution:
 
                 # Compute similarity
                 for dim in dims:
-                    scores[dim].append(1 - cosine(ms1_profiles[dim], ms2_profiles[dim]))
+                    scores[dim].append(
+                        1 - distance(ms1_profiles[dim], ms2_profiles[dim])
+                    )
 
         # Append score columns
         for dim in dims:
