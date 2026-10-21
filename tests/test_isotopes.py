@@ -225,3 +225,60 @@ def test_detect_preserves_input_indices():
         assert idx >= 100, (
             f"Index {idx} appears to be a sorted position, not original index"
         )
+
+
+def test_detect_list_columns_keep_repeated_values():
+    """Test that equal values in different isotopes are all kept.
+
+    The M+1 and M+2 isotopes share an intensity, so the intensity and decay
+    lists repeat a value. Each list must still hold one entry per isotope.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [300.0, 301.003355, 302.00671],
+            "intensity": [1000.0, 500.0, 500.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], max_isotopes=2, max_charge=1
+    )
+
+    row = isotopes.iloc[0]
+    assert len(isotopes) == 1
+    assert row["n"] == 2
+    assert row["idx_iso"] == [1, 2]
+    assert row["multiple"] == [1.0, 2.0]
+    assert row["intensity_iso"] == [500.0, 500.0]
+    assert row["decay"] == [0.5, 0.5]
+
+
+def test_detect_keeps_closest_candidate_per_isotope():
+    """Test that each isotope position reports the candidate closest in mass.
+
+    Two features fall within tolerance of the parent's M+1 position. The one
+    at 301.0035 is 0.145 mDa from the expected spacing and the one at
+    301.0025 is 0.855 mDa away, so only the first is reported as M+1, and
+    every list column stays aligned with ``multiple``.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [300.0, 301.0025, 301.0035, 302.00671],
+            "intensity": [1000.0, 450.0, 400.0, 100.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], max_isotopes=2, max_charge=1
+    )
+
+    row = isotopes.iloc[0]
+    assert len(isotopes) == 1
+    assert row["n"] == 2
+    assert row["multiple"] == [1.0, 2.0]
+    assert row["dx"] == [1.003355, 2.00671]
+    assert row["idx_iso"] == [2, 3]
+    assert row["mz_iso"] == [301.0035, 302.00671]
+    assert row["intensity_iso"] == [400.0, 100.0]
+    assert row["decay"] == [0.4, 0.1]
+    assert row["error"] == pytest.approx([0.000145 / 301.0035, 0.0], abs=1e-12)
