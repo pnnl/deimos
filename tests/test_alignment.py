@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -220,6 +221,22 @@ def test_tolerance_relative_to_a():
     # 4 and 3 ppm from 100 match, 6 ppm does not; 4 ppm from 1000 matches
     assert a_.index.tolist() == [0, 0, 1]
     assert b_.index.tolist() == [0, 4, 2]
+
+
+@pytest.mark.parametrize("relative", [False, True])
+@pytest.mark.parametrize(
+    "tol,n_pairs",
+    [(-0.5, 0), (np.nan, 0), (np.inf, 6)],
+    ids=["negative", "nan", "infinite"],
+)
+def test_tolerance_non_finite_or_negative_tol(tol, n_pairs, relative):
+    a = pd.DataFrame({"mz": [100.0, 200.0]})
+    b = pd.DataFrame({"mz": [100.0, 150.0, 200.0]})
+
+    a_, _ = deimos.alignment.tolerance(a, b, dims="mz", tol=tol, relative=relative)
+
+    # Negative and NaN tolerances match nothing; an infinite one matches all
+    assert (0 if a_ is None else len(a_.index)) == n_pairs
 
 
 def test_merge_features_pass_none():
