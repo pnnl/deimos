@@ -69,18 +69,16 @@ def match(
         return None, None
 
     # Compute normalized 3d distance per pair
-    v1 = a[dims].to_numpy(dtype=np.float64) / tol
-    v2 = b[dims].to_numpy(dtype=np.float64) / tol
-    dist3d = np.zeros(len(ii))
-    for k in range(len(dims)):
-        dist3d = dist3d + np.abs(v1[ii, k] - v2[jj, k])
+    v1 = a[dims].to_numpy() / tol
+    v2 = b[dims].to_numpy() / tol
+    dist3d = np.abs(v1[ii] - v2[jj]).sum(axis=1)
 
     # Normalize to 0-1
     mx = dist3d.max()
     if mx > 0:
-        dist3d = dist3d / mx
+        dist3d = dist3d / dist3d.max()
 
-    # Keep only the most intense feature in a for each feature in b
+    # Keep only the most intense feature in `a` for each feature in `b`
     intensity = a["intensity"].to_numpy()[ii]
     maxcols = _group_max(intensity, jj, len(b.index))
     intensity = np.where(intensity == maxcols, intensity, 0)
@@ -88,7 +86,7 @@ def match(
     # Break ties by distance
     intensity = intensity - dist3d
 
-    # Where max per feature in a and nonzero
+    # Where max per feature in `a` and nonzero
     maxrows = _group_max(intensity, ii, len(a.index))
     keep = (intensity == maxrows) & (intensity > 0)
     ii = ii[keep]
@@ -208,9 +206,11 @@ def _pairs_within_tolerance(a, b, dims, tol, relative, chunk_size=2**20):
     if n < 1 or m < 1:
         return np.zeros(0, dtype=int), np.zeros(0, dtype=int)
 
-    # Window each feature in a in the most selective dimension
-    lo, hi, order = np.zeros(n, dtype=int), np.full(n, m), np.arange(m)
+    # Window each feature in `a` in the most selective dimension
+    low, high, order = np.zeros(n, dtype=int), np.full(n, m), np.arange(m)
     for i, f in enumerate(dims):
+        # Window only by finite, non-negative tolerances; the exact check
+        # below still applies the others
         if not (np.isfinite(tol[i]) and tol[i] >= 0):
             continue
 
@@ -220,47 +220,60 @@ def _pairs_within_tolerance(a, b, dims, tol, relative, chunk_size=2**20):
             tol[i],
             relative[i] is True,
         )
-        if (window[1] - window[0]).sum() < (hi - lo).sum():
-            lo, hi, order = window
+        if (window[1] - window[0]).sum() < (high - low).sum():
+            low, high, order = window
 
-    # Check candidates in chunks of features in a to bound memory
+    # Gather values per dimension
     v1 = [a[f].to_numpy() for f in dims]
     v2 = [b[f].to_numpy() for f in dims]
-    counts = hi - lo
+
+    # Count candidates per feature in `a`, and their running total
+    counts = high - low
     total = np.cumsum(counts)
+
+    # Check candidates in chunks of whole features in `a`, each holding about
+    # `chunk_size` pairs, to bound memory
     pairs = []
     start = 0
     while start < n:
+        # End the chunk at the last feature that keeps it within `chunk_size`,
+        # taking at least one feature
         done = total[start - 1] if start > 0 else 0
         stop = int(np.searchsorted(total, done + chunk_size, side="right"))
         stop = max(stop, start + 1)
 
-        # Expand windows to candidate pairs
+        # Expand windows to candidate pairs, pairing each feature in `a` with
+        # sorted positions `low` through `high` - 1 of `b`
         c = counts[start:stop]
         ii = np.repeat(np.arange(start, stop), c)
-        jj = order[lo[ii] + np.arange(len(ii)) - np.repeat(np.cumsum(c) - c, c)]
+        offset = np.arange(len(ii)) - np.repeat(np.cumsum(c) - c, c)
+        jj = order[low[ii] + offset]
 
         # Check tol in each dimension
         idx = np.ones(len(ii), dtype=bool)
         for i in range(len(dims)):
+            # Vectors
             x1 = v1[i][ii]
             x2 = v2[i][jj]
+
+            # Distances in float64
             d = np.abs(x1.astype(np.float64) - x2.astype(np.float64))
 
             if relative[i] is True:
                 # Divisor
                 basis = np.where(x1 == 0, x2, x1)
 
-                # Divide
+                # Divide, storing the result in the dtype of the inputs
                 d = np.divide(d, basis, out=np.zeros_like(basis), where=basis != 0)
 
+            # Check tol
             idx &= d <= tol[i]
 
         # Encode each pair as one sortable integer
         pairs.append(ii[idx] * m + jj[idx])
         start = stop
 
-    # Order by feature in a, then feature in b
+    # Order by feature in `a`, then feature in `b`
     pairs = np.sort(np.concatenate(pairs))
 
     return pairs // m, pairs % m
@@ -286,7 +299,7 @@ def _candidate_windows(v1, v2, tol, relative):
 
     Returns
     -------
-    lo, hi : :obj:`~numpy.array`
+    low, high : :obj:`~numpy.array`
         Start and end of each window in the sorted order of `v2`.
     order : :obj:`~numpy.array`
         Indices that sort `v2`.
@@ -306,19 +319,19 @@ def _candidate_windows(v1, v2, tol, relative):
     width = width * (1 + 1e-6) + 8 * np.finfo(np.float64).eps * (np.abs(v1) + width)
 
     # Locate windows
-    lo = np.searchsorted(v2, v1 - width, side="left")
-    hi = np.searchsorted(v2, v1 + width, side="right")
+    low = np.searchsorted(v2, v1 - width, side="left")
+    high = np.searchsorted(v2, v1 + width, side="right")
 
     # Non-finite values are never within tolerance
-    hi[~finite] = lo[~finite]
+    high[~finite] = low[~finite]
 
     # Relative distances from zero or negative values are degenerate, so
     # check those features against every candidate
     if relative:
-        lo[finite & (v1 <= 0)] = 0
-        hi[finite & (v1 <= 0)] = len(v2)
+        low[finite & (v1 <= 0)] = 0
+        high[finite & (v1 <= 0)] = len(v2)
 
-    return lo, hi, order
+    return low, high, order
 
 
 def _group_max(values, groups, n_groups):
