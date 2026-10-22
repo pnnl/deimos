@@ -101,7 +101,7 @@ def test_match_return_none(ms1_peaks):
 
 
 def test_match_most_intense_then_closest():
-    # every pair is within tolerance
+    # Every pair is within tolerance
     a = pd.DataFrame(
         {"mz": [100.0, 100.001], "retention_time": [5.0, 5.0], "intensity": [1e3, 5e2]}
     )
@@ -119,8 +119,8 @@ def test_match_most_intense_then_closest():
     assert a_ is not None
     assert b_ is not None
 
-    # both features in b go to the more intense feature in a, which keeps the
-    # closer one (normalized distance 0.1 against 0.93)
+    # Both features in `b` go to the more intense feature in `a`, which keeps
+    # the closer one (normalized distance 0.1 against 0.93)
     assert a_.index.tolist() == [0]
     assert b_.index.tolist() == [0]
 
