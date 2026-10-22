@@ -280,11 +280,8 @@ def _candidate_windows(v1, v2, tol, relative):
     """
     Bound the values of `v2` within tolerance of each value of `v1`.
 
-    Windows are widened just enough to cover floating point rounding, both of
-    the window bounds and of relative distances, which the exact check in
-    :func:`_pairs_within_tolerance` stores in the dtype of the inputs. Each
-    window therefore holds every pair that check accepts, and that check
-    alone decides which candidates match.
+    Windows include a margin for floating point rounding, so they hold every
+    pair that :func:`_pairs_within_tolerance` accepts.
 
     Parameters
     ----------
