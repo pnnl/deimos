@@ -280,8 +280,8 @@ def _candidate_windows(v1, v2, tol, relative):
     """
     Bound the values of `v2` within tolerance of each value of `v1`.
 
-    Windows include a margin for floating point rounding, so they hold every
-    pair that :func:`_pairs_within_tolerance` accepts.
+    Windows are widened slightly to allow for floating point rounding, so no
+    match is missed.
 
     Parameters
     ----------
