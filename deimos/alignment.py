@@ -306,17 +306,26 @@ def _candidate_windows(v1, v2, tol, relative):
 
     """
 
-    # Precision of stored relative distances
+    # Get the precision of stored relative distances, as Python floats so the
+    # padding is computed in float64
     dtype = np.result_type(v1, v2)
     if not np.issubdtype(dtype, np.floating):
         dtype = np.float64
     finfo = np.finfo(dtype)
+    eps = float(finfo.eps)
+    tiny = float(finfo.smallest_subnormal)
+    largest = float(finfo.max)
 
     # Sort candidates
     v1 = v1.astype(np.float64)
     v2 = v2.astype(np.float64)
     order = np.argsort(v2, kind="stable")
     v2 = v2[order]
+
+    # Span every candidate when a relative tolerance exceeds the range of the
+    # dtype, as the exact check then stores it as infinity
+    if relative and tol > largest:
+        return np.zeros(len(v1), dtype=int), np.full(len(v1), len(v2)), order
 
     # Center non-finite values at zero, as their windows are emptied below
     finite = np.isfinite(v1)
@@ -325,9 +334,7 @@ def _candidate_windows(v1, v2, tol, relative):
     # Widen relative windows by the rounding of stored distances, then all
     # windows by the rounding of their bounds
     if relative:
-        width = np.abs(v1) * (
-            tol * (1 + 2 * finfo.eps) + 2 * float(finfo.smallest_subnormal)
-        )
+        width = np.abs(v1) * (tol * (1 + 2 * eps) + 2 * tiny)
     else:
         width = np.full(len(v1), float(tol))
     width = width + 8 * np.finfo(np.float64).eps * (np.abs(v1) + width)

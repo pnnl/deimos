@@ -236,6 +236,20 @@ def test_tolerance_relative_in_input_precision():
     assert b_.index.tolist() == [0, 1]
 
 
+@pytest.mark.filterwarnings("ignore:overflow encountered:RuntimeWarning")
+def test_tolerance_relative_beyond_input_range():
+    # A tolerance above the float16 maximum is compared as infinity, so every
+    # relative distance passes, including those that overflow
+    a = pd.DataFrame({"mz": np.array([0.001], dtype=np.float16)})
+    b = pd.DataFrame({"mz": np.array([0.001, 1000, 60000], dtype=np.float16)})
+
+    a_, b_ = deimos.alignment.tolerance(a, b, dims="mz", tol=1e5, relative=True)
+    assert a_ is not None
+    assert b_ is not None
+
+    assert b_.index.tolist() == [0, 1, 2]
+
+
 @pytest.mark.parametrize("relative", [False, True])
 @pytest.mark.parametrize(
     "tol,n_pairs",
