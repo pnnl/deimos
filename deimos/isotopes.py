@@ -145,27 +145,41 @@ def detect(
     n_features = len(features)
 
     # Step 1: Find candidate pairs without building an n x n mask
-    # No expected spacing exceeds max_isotopes * |delta|, so each child's candidate
-    # parents sit in an m/z window before it
+    # No expected spacing exceeds `max_isotopes * abs(delta)`, so each child's
+    # candidate parents sit in an m/z window before it
+
+    # Get m/z in float64, so differences of float32 or float16 values are exact
     mz_sorted = features["mz"].values.astype(float)
 
     # Widen the window by 1e-6 so float rounding at its edge cannot drop a pair that
     # the exact tolerance test in step 3 accepts
     max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + 1e-6
-    first = np.searchsorted(mz_sorted, mz_sorted - max_span, side="left")
-    counts = np.maximum(np.arange(n_features) - first, 0)
+
+    # Locate each child's first candidate parent, then count candidates and their
+    # running total; a negative tolerance can leave a child with none
+    low = np.searchsorted(mz_sorted, mz_sorted - max_span, side="left")
+    counts = np.maximum(np.arange(n_features) - low, 0)
     offsets = np.concatenate(([0], np.cumsum(counts)))
 
-    # Enumerate pairs child by child in blocks of about 4 million to bound memory,
-    # keeping those within tolerance for drift time, retention time, etc.
+    # Get the other dimensions in float64, with their tolerances
     others = [(features[dims[i]].values.astype(float), tol[i]) for i in else_idx]
+
+    # Check candidates in blocks of whole children, about 4 million pairs each,
+    # to bound memory
     rows, cols = [], []
     start = 0
     while start < n_features:
+        # End the block at the last child that keeps it within 4 million pairs,
+        # taking at least one child
         stop = np.searchsorted(offsets, offsets[start] + 2**22, side="right") - 1
         stop = max(stop, start + 1)
+
+        # Expand windows to candidate pairs, pairing each child with every parent
+        # in its window
         row = np.repeat(np.arange(start, stop), counts[start:stop])
-        col = first[row] + np.arange(len(row)) - (offsets[row] - offsets[start])
+        col = low[row] + np.arange(len(row)) - (offsets[row] - offsets[start])
+
+        # Keep pairs within tolerance for drift time, retention time, etc.
         keep = np.ones(len(row), dtype=bool)
         for values, dim_tol in others:
             keep &= np.abs(values[row] - values[col]) <= dim_tol
