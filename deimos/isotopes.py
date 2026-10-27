@@ -151,8 +151,8 @@ def detect(
     # Get m/z in float64, so differences of float32 or float16 values are exact
     mz_sorted = features["mz"].values.astype(float)
 
-    # Widen the window by 1e-6 so float rounding at its edge cannot drop a pair that
-    # the exact tolerance test in step 3 accepts
+    # Widen the window by 1e-6 so rounding never drops a match; differences
+    # between m/z values can only round below twice the window width
     max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + 1e-6
 
     # Locate each child's first candidate parent, then count candidates and their

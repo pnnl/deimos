@@ -56,6 +56,27 @@ def test_detect_finds_largest_spacing_at_tolerance_edge():
     assert isotopes.iloc[0]["multiple"] == [4.0]
 
 
+def test_detect_finds_low_mz_child_at_window_edge():
+    """Test that a child exactly at the window edge is found at low m/z.
+
+    Below twice the window width, differences between m/z values round, and
+    without its padding the window would end just short of this child.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [1.03, 1.03 + 4 * 1.003355 + 0.1],
+            "intensity": [1000.0, 100.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], max_isotopes=4, max_error=0.1
+    )
+
+    assert len(isotopes) == 1
+    assert isotopes.iloc[0]["multiple"] == [4.0]
+
+
 def test_detect_candidates_respect_other_dimensions():
     """Test that a pair at the right spacing but outside the retention time
     tolerance is not reported."""
