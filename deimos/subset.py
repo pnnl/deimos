@@ -638,10 +638,10 @@ def _sorted_window(values, low, high):
     """
     Locate the run of sorted values that can fall within inclusive bounds.
 
-    Bounds are cast to the dtype of `values` so the values are never copied,
-    then widened by one unit in the last place to absorb that rounding. The
-    run therefore holds every value within the bounds and possibly a few
-    beyond them, which callers filter exactly.
+    Bounds are cast to the dtype of `values`, so the values are never copied,
+    and widened by one unit in the last place, so no value within them is
+    missed. The run can include values just outside the bounds, which callers
+    filter out.
 
     Parameters
     ----------
