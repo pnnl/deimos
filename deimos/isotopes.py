@@ -8,6 +8,9 @@ import deimos
 # Candidate pairs that detect checks at once, about 4 million, to bound memory
 _BLOCK_PAIRS = 2**22
 
+# Margin added to the m/z candidate window in detect, so rounding drops no match
+_WINDOW_PADDING = 1e-6
+
 
 def OrderedSet(x):
     return list({k: None for k in x})
@@ -154,9 +157,9 @@ def detect(
     # Get m/z in float64, so differences of float32 or float16 values are exact
     mz_sorted = features["mz"].values.astype(float)
 
-    # Widen the window by 1e-6 so rounding never drops a match; differences
-    # between m/z values can only round below twice the window width
-    max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + 1e-6
+    # Widen the window so rounding drops no match; differences between m/z values
+    # can only round below twice the window width
+    max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + _WINDOW_PADDING
 
     # Locate each child's first candidate parent, then count candidates and their
     # running total; a negative tolerance can leave a child with none
