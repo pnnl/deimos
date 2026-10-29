@@ -142,29 +142,43 @@ def collapse_slices(features, by, low, high, keep, how="sum"):
     )
 
 
+# Scalar or 1D locations produce a single subset; 2D locations produce a batch
 @overload
 def locate(
-    features, by=None, loc=None, tol=None, return_index: Literal[False] = False
+    features,
+    by=None,
+    loc: float | Sequence[float] | None = None,
+    tol=None,
+    return_index: Literal[False] = False,
 ) -> pd.DataFrame | None: ...
 @overload
 def locate(
-    features, by=None, loc=None, tol=None, *, return_index: Literal[True]
+    features,
+    by=None,
+    loc: float | Sequence[float] | None = None,
+    tol=None,
+    *,
+    return_index: Literal[True],
 ) -> tuple[pd.DataFrame | None, np.ndarray | None]: ...
 @overload
 def locate(
     features, by=None, loc=None, tol=None, return_index: bool = False
-) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None: ...
+) -> Any: ...
 def locate(
     features,
     by=None,
     loc=None,
     tol=None,
     return_index=False,
-) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None:
+):
     """
     Given a coordinate and tolerances, return a subset of the
     data. If `features` is sorted by the first dimension in `by`, only
     the rows within its tolerance are scanned.
+
+    Many coordinates can be located at once as the rows of a 2D `loc`,
+    which returns a list of subsets, as a batch :func:`~deimos.subset.slice`
+    does.
 
     Parameters
     ----------
@@ -173,22 +187,25 @@ def locate(
     by : str or list, optional
         Dimension(s) by which to subset the data.
         Default is ``["mz", "drift_time", "retention_time"]``.
-    loc : float or list, optional
-        Coordinate location.
+    loc : float, list, or array-like, optional
+        Coordinate location. For many locations: 2D array of shape
+        (n_locations, n_dims), one location per row.
         Default is ``[0, 0, 0]``.
     tol : float or list, optional
-        Tolerance in each dimension.
+        Tolerance in each dimension, the same for every location.
         Default is ``[0, 0, 0]``.
     return_index : bool
         Return boolean index of subset if True.
 
     Returns
     -------
-    :obj:`~pandas.DataFrame`
-        Subset of feature coordinates and intensities.
+    :obj:`~pandas.DataFrame` or list of :obj:`~pandas.DataFrame`
+        Subset of feature coordinates and intensities, or one subset per
+        location.
     :obj:`~numpy.array`
         If `return_index` is True, boolean index of subset elements,
-        i.e. `features[index] = subset`.
+        i.e. `features[index] = subset`. For many locations, a list of
+        (subset, index) pairs is returned.
 
     """
 
@@ -200,6 +217,11 @@ def locate(
     if tol is None:
         tol = [0, 0, 0]
 
+    # Iterate the columns of a 2D `loc`, which has one location per row
+    is_batch = np.ndim(loc) == 2
+    if is_batch:
+        loc = np.asarray(loc).T
+
     # Safely cast to list
     by = deimos.utils.safelist(by)
     loc = deimos.utils.safelist(loc)
@@ -208,17 +230,23 @@ def locate(
     # Check dims
     deimos.utils.check_length([by, loc, tol])
 
-    # Slice by the bounds the tolerances imply
+    # Slice by the bounds the tolerances imply, one row of bounds per location
     low = [x - dx for x, dx in zip(loc, tol)]
     high = [x + dx for x, dx in zip(loc, tol)]
-    return _slice_single(features, by, low, high, return_index)
+    if is_batch:
+        low, high = np.column_stack(low), np.column_stack(high)
+
+    return deimos.subset.slice(
+        features, by=by, low=low, high=high, return_index=return_index
+    )
 
 
+# Scalar or 1D locations produce a single subset; 2D locations produce a batch
 @overload
 def locate_asym(
     features,
     by=None,
-    loc=None,
+    loc: float | Sequence[float] | None = None,
     low=None,
     high=None,
     relative=None,
@@ -228,7 +256,7 @@ def locate_asym(
 def locate_asym(
     features,
     by=None,
-    loc=None,
+    loc: float | Sequence[float] | None = None,
     low=None,
     high=None,
     relative=None,
@@ -244,7 +272,7 @@ def locate_asym(
     high=None,
     relative=None,
     return_index: bool = False,
-) -> pd.DataFrame | tuple[pd.DataFrame | None, np.ndarray | None] | None: ...
+) -> Any: ...
 def locate_asym(
     features,
     by=None,
@@ -259,6 +287,10 @@ def locate_asym(
     data. If `features` is sorted by the first dimension in `by`, only
     the rows within its tolerance are scanned.
 
+    Many coordinates can be located at once as the rows of a 2D `loc`,
+    which returns a list of subsets, as a batch :func:`~deimos.subset.slice`
+    does.
+
     Parameters
     ----------
     features : :obj:`~pandas.DataFrame`
@@ -266,14 +298,15 @@ def locate_asym(
     by : str or list, optional
         Dimension(s) by which to subset the data.
         Default is ``["mz", "drift_time", "retention_time"]``.
-    loc : float or list, optional
-        Coordinate location.
+    loc : float, list, or array-like, optional
+        Coordinate location. For many locations: 2D array of shape
+        (n_locations, n_dims), one location per row.
         Default is ``[0, 0, 0]``.
     low : float or list, optional
-        Lower tolerance(s) in each dimension.
+        Lower tolerance(s) in each dimension, the same for every location.
         Default is ``[0, 0, 0]``.
     high : float or list, optional
-        Upper tolerance(s) in each dimension.
+        Upper tolerance(s) in each dimension, the same for every location.
         Default is ``[0, 0, 0]``.
     relative : bool or list, optional
         Whether to use relative or absolute tolerance per dimension.
@@ -283,11 +316,13 @@ def locate_asym(
 
     Returns
     -------
-    :obj:`~pandas.DataFrame`
-        Subset of feature coordinates and intensities.
+    :obj:`~pandas.DataFrame` or list of :obj:`~pandas.DataFrame`
+        Subset of feature coordinates and intensities, or one subset per
+        location.
     :obj:`~numpy.array`
         If `return_index` is True, boolean index of subset elements,
-        i.e. `features[index] = subset`.
+        i.e. `features[index] = subset`. For many locations, a list of
+        (subset, index) pairs is returned.
 
     """
 
@@ -302,6 +337,11 @@ def locate_asym(
         high = [0, 0, 0]
     if relative is None:
         relative = [False, False, False]
+
+    # Iterate the columns of a 2D `loc`, which has one location per row
+    is_batch = np.ndim(loc) == 2
+    if is_batch:
+        loc = np.asarray(loc).T
 
     # Safely cast to list
     by = deimos.utils.safelist(by)
@@ -323,6 +363,10 @@ def locate_asym(
         else:
             lb.append(x + lower)
             ub.append(x + upper)
+
+    # One row of bounds per location
+    if is_batch:
+        lb, ub = np.column_stack(lb), np.column_stack(ub)
 
     return deimos.subset.slice(
         features, by=by, low=lb, high=ub, return_index=return_index

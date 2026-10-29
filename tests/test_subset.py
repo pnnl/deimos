@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -691,6 +693,66 @@ def two_ions():
             "intensity": [1.0, 2.0, 4.0, 8.0, 16.0, 32.0],
         }
     )
+
+
+@pytest.mark.parametrize(
+    "locate",
+    [
+        partial(deimos.locate, tol=[0.1, 0.6]),
+        partial(
+            deimos.locate_asym,
+            low=[-0.1, -0.6],
+            high=[0.1, 0.6],
+            relative=[False, False],
+        ),
+    ],
+    ids=["locate", "locate_asym"],
+)
+@pytest.mark.parametrize(
+    "loc,expected",
+    [
+        ([[100.0, 1.0], [100.5, 2.0]], [[0, 1], [2]]),
+        ([[100.0, 1.0], [101.0, 2.5], [200.0, 1.0]], [[0, 1], [3, 5], None]),
+    ],
+    ids=["as-many-as-dims", "more-than-dims"],
+)
+def test_locate_batch_gives_one_subset_per_location(two_ions, locate, loc, expected):
+    # Tolerances apply per dimension, also with as many locations as dimensions
+    subsets = locate(two_ions, by=["mz", "retention_time"], loc=loc)
+
+    assert isinstance(subsets, list)
+    assert [None if x is None else x.index.tolist() for x in subsets] == expected
+
+
+def test_locate_batch_returns_index_per_location(two_ions):
+    results = deimos.locate(
+        two_ions, by="mz", loc=[[100.0], [101.0]], tol=0.1, return_index=True
+    )
+
+    assert isinstance(results, list)
+    assert [idx.tolist() for _, idx in results] == [
+        [True, True, False, False, True, False],
+        [False, False, False, True, False, True],
+    ]
+
+
+def test_locate_batch_computes_bounds_as_single_calls_do():
+    """Test that a batch computes bounds in the dtype of its locations.
+
+    Float32 100 minus 0.3 rounds down to float32 99.7, so a single call with a
+    float32 location includes that value, and a batch must as well.
+    """
+    features = pd.DataFrame(
+        {"mz": np.array([99.7, 100.0], dtype=np.float32), "intensity": [1.0, 2.0]}
+    )
+    loc = np.array([[100.0]], dtype=np.float32)
+
+    single = deimos.locate(features, by="mz", loc=loc[0, 0], tol=0.3)
+    batch = deimos.locate(features, by="mz", loc=loc, tol=0.3)
+
+    assert isinstance(single, pd.DataFrame)
+    assert single.index.tolist() == [0, 1]
+    assert batch[0].index.tolist() == [0, 1]
 
 
 @pytest.mark.parametrize("repeats", [1, 4], ids=["3-slices", "12-slices"])
