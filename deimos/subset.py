@@ -469,24 +469,24 @@ def _slice_single(features, by, low, high, return_index):
 
     # Subset by each dim
     features_vals = window.values
-    idx = np.full(features_vals.shape[0], True, dtype=bool)
+    in_bounds = np.full(features_vals.shape[0], True, dtype=bool)
     for i, lb, ub in zip(cidx, low, high):
-        idx *= (features_vals[:, i] <= ub) & (features_vals[:, i] >= lb)
+        in_bounds *= (features_vals[:, i] <= ub) & (features_vals[:, i] >= lb)
 
-    features_vals = features_vals[idx]
-    rindex = rindex[idx]
+    features_vals = features_vals[in_bounds]
+    rindex = rindex[in_bounds]
 
     if return_index is True:
         # Map the boolean index from scanned rows to all rows
-        index = np.full(len(features.index), False, dtype=bool)
-        index[start:stop] = idx
+        idx = np.full(len(features.index), False, dtype=bool)
+        idx[start:stop] = in_bounds
 
         # Data found
         if features_vals.shape[0] > 0:
-            return pd.DataFrame(features_vals, index=rindex, columns=cols), index
+            return pd.DataFrame(features_vals, index=rindex, columns=cols), idx
 
         # No data
-        return None, index
+        return None, idx
     else:
         # Data found
         if features_vals.shape[0] > 0:
@@ -534,9 +534,9 @@ def _slice_batch(features, by, low_bounds, high_bounds, return_index):
     for rows in _batch_rows(features, by, low_bounds, high_bounds):
         subset = features.iloc[rows] if len(rows) > 0 else None
         if return_index:
-            index = np.full(len(features.index), False, dtype=np.bool_)
-            index[rows] = True
-            output.append((subset, index))
+            mask = np.full(len(features.index), False, dtype=np.bool_)
+            mask[rows] = True
+            output.append((subset, mask))
         else:
             output.append(subset)
 
