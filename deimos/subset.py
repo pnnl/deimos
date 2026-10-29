@@ -34,15 +34,28 @@ def threshold(features, by="intensity", threshold: float = 0):
     return features.loc[features[by] > threshold, :].reset_index(drop=True)
 
 
-def collapse(features, keep=None, how="sum") -> pd.DataFrame:
+# A data frame collapses to a data frame; a list collapses to a list
+@overload
+def collapse(features: pd.DataFrame, keep=None, how="sum") -> pd.DataFrame: ...
+@overload
+def collapse(
+    features: Sequence[pd.DataFrame | None], keep=None, how="sum"
+) -> list[pd.DataFrame | None]: ...
+@overload
+def collapse(features, keep=None, how="sum") -> Any: ...
+def collapse(features, keep=None, how="sum"):
     """
     Collpases input data such that only specified dimensions remain, according
     to the supplied aggregation function.
 
+    A list of data frames, such as a batch :func:`~deimos.subset.slice`
+    returns, gives a list with each data frame collapsed.
+
     Parameters
     ----------
-    features : :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities.
+    features : :obj:`~pandas.DataFrame` or list
+        Input feature coordinates and intensities, or a list of them with
+        None for empty entries.
     keep : str or list, optional
         Dimensions to keep during collapse operation.
         Default is ``["mz", "drift_time", "retention_time"]``.
@@ -51,9 +64,9 @@ def collapse(features, keep=None, how="sum") -> pd.DataFrame:
 
     Returns
     -------
-    :obj:`~pandas.DataFrame`
+    :obj:`~pandas.DataFrame` or list
         Collapsed feature coordinates and aggregated
-        intensities.
+        intensities, or a list of them with None for each None entry.
 
     """
 
@@ -61,31 +74,25 @@ def collapse(features, keep=None, how="sum") -> pd.DataFrame:
     if keep is None:
         keep = ["mz", "drift_time", "retention_time"]
 
+    # Collapse each data frame of a list
+    if isinstance(features, (list, tuple)):
+        return _collapse_batch(features, keep, how)
+
     return cast(
         pd.DataFrame,
         features.groupby(by=keep, as_index=False, sort=False).agg({"intensity": how}),
     )
 
 
-def collapse_slices(features, by, low, high, keep, how="sum"):
+def _collapse_batch(features, keep, how) -> list[pd.DataFrame | None]:
     """
-    Slice data by many sets of coordinate bounds and collapse each slice onto
-    the dimensions in `keep`, for example to extract many chromatograms at
-    once. Gives the same result as :func:`~deimos.subset.collapse` on each
-    slice of a batch :func:`~deimos.subset.slice`, without building a data
-    frame per slice.
+    Collapse each data frame of a list, in one groupby when their columns
+    can be joined without changing dtype.
 
     Parameters
     ----------
-    features : :obj:`~pandas.DataFrame`
-        Input feature coordinates and intensities.
-    by : str or list
-        Dimension(s) by which to subset the data.
-    low : array-like
-        Lower bounds of shape (n_slices, n_dims), or (n_slices,) when slicing
-        by one dimension.
-    high : array-like
-        Upper bounds, shaped as `low`.
+    features : list
+        Data frames to collapse, with None for empty entries.
     keep : str or list
         Dimensions to keep during collapse operation.
     how : function or str
@@ -93,53 +100,74 @@ def collapse_slices(features, by, low, high, keep, how="sum"):
 
     Returns
     -------
-    :obj:`~pandas.DataFrame`
-        Aggregated intensities by slice and kept dimensions. Column
-        `slice_idx` gives the row of `low` and `high` that defines each
-        slice. Slices without data contribute no rows.
-
-    Examples
-    --------
-    Chromatograms of three m/z windows:
-
-    >>> mz = np.array([211.0, 300.0, 400.0])
-    >>> xics = collapse_slices(
-    ...     ms1, by="mz", low=mz - 0.01, high=mz + 0.01, keep="retention_time"
-    ... )
-    >>> # xics[xics["slice_idx"] == 0] holds the first window's chromatogram
+    list
+        Each data frame collapsed, with None for each None entry.
 
     """
 
-    # Safely cast to list
-    by = deimos.utils.safelist(by)
-    keep = deimos.utils.safelist(keep)
+    present = [i for i, x in enumerate(features) if x is not None]
+    frames = [features[i] for i in present]
+    dims = deimos.utils.safelist(keep)
 
-    # One row of bounds per slice
-    low = np.asarray(low)
-    high = np.asarray(high)
-    if low.ndim < 2:
-        low = low.reshape(-1, len(by))
-    if high.ndim < 2:
-        high = high.reshape(-1, len(by))
-    if low.shape != high.shape or low.shape[1] != len(by):
-        raise ValueError(
-            f"Bounds of shapes {low.shape} and {high.shape} must both be "
-            f"(n_slices, {len(by)})"
-        )
+    # Collapse each data frame in turn unless they can be joined
+    joined = _join_frames(frames, dims + ["intensity"]) if dims else None
+    if joined is None:
+        return [
+            None if x is None else collapse(x, keep=keep, how=how) for x in features
+        ]
 
-    if features is None:
+    # Collapse every data frame in one groupby, grouping rows by data frame first
+    labels = np.repeat(np.arange(len(frames)), [len(x.index) for x in frames])
+    collapsed = (
+        joined.groupby([labels, *dims], sort=False)
+        .agg({"intensity": how})
+        .reset_index(level=list(range(1, len(dims) + 1)))
+    )
+
+    # Split the result at each data frame, whose groups are contiguous
+    labels = collapsed.index.to_numpy()
+    collapsed = collapsed.reset_index(drop=True)
+    starts = np.searchsorted(labels, np.arange(len(frames)), side="left")
+    stops = np.searchsorted(labels, np.arange(len(frames)), side="right")
+
+    output: list[pd.DataFrame | None] = [None] * len(features)
+    for i, start, stop in zip(present, starts, stops):
+        output[i] = collapsed.iloc[start:stop].reset_index(drop=True)
+
+    return output
+
+
+def _join_frames(frames, cols):
+    """
+    Concatenate columns of pandas data frames, with their index, when each
+    column and the index have one NumPy dtype in all of them.
+
+    Parameters
+    ----------
+    frames : list of :obj:`~pandas.DataFrame`
+        Data frames to join.
+    cols : list
+        Columns to concatenate.
+
+    Returns
+    -------
+    :obj:`~pandas.DataFrame` or None
+        Rows of every data frame in order, or None when the data frames
+        cannot be joined without changing dtype.
+
+    """
+
+    if not all(isinstance(x, pd.DataFrame) for x in frames):
         return None
 
-    # Rows of every slice, labeled by the slice they fall in
-    rows = _batch_rows(features, by, low, high)
-    positions = np.concatenate([np.zeros(0, dtype=int), *rows])
-    labels = np.repeat(np.arange(len(rows)), [len(x) for x in rows])
-    subset = features[keep + ["intensity"]].iloc[positions].assign(slice_idx=labels)
+    # Join each column, and the index, only if it has one NumPy dtype throughout
+    parts = [[x[col] for x in frames] for col in cols] + [[x.index for x in frames]]
+    dtypes = [{x.dtype for x in part} for part in parts]
+    if any(len(d) != 1 or not isinstance(d.pop(), np.dtype) for d in dtypes):
+        return None
 
-    # Collapse each slice onto the kept dimensions
-    return subset.groupby(by=["slice_idx"] + keep, as_index=False, sort=False).agg(
-        {"intensity": how}
-    )
+    values = [np.concatenate([x.to_numpy() for x in part]) for part in parts]
+    return pd.DataFrame(dict(zip(cols, values[:-1])), index=values[-1])
 
 
 # Scalar or 1D locations produce a single subset; 2D locations produce a batch

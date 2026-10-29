@@ -14,7 +14,6 @@ from deimos import (
 from deimos.io import build_factors, build_index, get_accessions, load, save
 from deimos.subset import (
     collapse,
-    collapse_slices,
     locate,
     locate_asym,
     multi_sample_partition,
@@ -29,7 +28,6 @@ __all__ = [
     "build_index",
     "calibration",
     "collapse",
-    "collapse_slices",
     "deconvolution",
     "filters",
     "get_accessions",

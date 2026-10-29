@@ -755,60 +755,70 @@ def test_locate_batch_computes_bounds_as_single_calls_do():
     assert batch[0].index.tolist() == [0, 1]
 
 
-@pytest.mark.parametrize("repeats", [1, 4], ids=["3-slices", "12-slices"])
-@pytest.mark.parametrize("ordered", [False, True], ids=["rt-order", "mz-sorted"])
 @pytest.mark.parametrize(
-    "how,intensity", [("sum", [3.0, 16.0, 8.0, 32.0]), ("max", [2.0, 16.0, 8.0, 32.0])]
+    "how,intensity",
+    [("sum", [[3.0, 16.0], [8.0, 32.0]]), ("max", [[2.0, 16.0], [8.0, 32.0]])],
 )
-def test_collapse_slices_gives_one_profile_per_slice(
-    two_ions, ordered, repeats, how, intensity
-):
-    features = two_ions.sort_values("mz", kind="stable") if ordered else two_ions
-    low = [99.9, 100.9, 200.0] * repeats
-    high = [100.1, 101.1, 201.0] * repeats
-
-    xics = deimos.collapse_slices(
-        features, by="mz", low=low, high=high, keep="retention_time", how=how
-    )
-
-    assert isinstance(xics, pd.DataFrame)
-    assert xics.columns.tolist() == ["slice_idx", "retention_time", "intensity"]
-    for k in range(repeats):
-        part = xics[xics["slice_idx"].isin([3 * k, 3 * k + 1, 3 * k + 2])]
-        assert (part["slice_idx"] - 3 * k).tolist() == [0, 0, 1, 1]
-        assert part["retention_time"].tolist() == [1.0, 3.0, 2.0, 3.0]
-        assert part["intensity"].tolist() == intensity
-
-
-def test_collapse_slices_bounds_in_two_dimensions(two_ions):
-    xics = deimos.collapse_slices(
+def test_collapse_list_gives_one_profile_per_slice(two_ions, how, intensity):
+    slices = deimos.slice(
         two_ions,
-        by=["mz", "retention_time"],
-        low=[[99.9, 2.0], [100.4, 0.0]],
-        high=[[101.1, 3.0], [100.6, 1.0]],
-        keep="mz",
+        by="mz",
+        low=[[99.9], [100.9], [200.0]],
+        high=[[100.1], [101.1], [201.0]],
     )
 
-    assert isinstance(xics, pd.DataFrame)
-    assert xics["slice_idx"].tolist() == [0, 0, 0]
-    assert xics["mz"].tolist() == [100.5, 101.0, 100.0]
-    assert xics["intensity"].tolist() == [4.0, 40.0, 16.0]
+    xics = deimos.collapse(slices, keep="retention_time", how=how)
+
+    assert isinstance(xics, list)
+    assert xics[2] is None
+    assert [x.columns.tolist() for x in xics[:2]] == [
+        ["retention_time", "intensity"]
+    ] * 2
+    assert [x["retention_time"].tolist() for x in xics[:2]] == [[1.0, 3.0], [2.0, 3.0]]
+    assert [x["intensity"].tolist() for x in xics[:2]] == intensity
+    assert [x.index.tolist() for x in xics[:2]] == [[0, 1], [0, 1]]
 
 
-def test_collapse_slices_rejects_mismatched_bounds(two_ions):
-    with pytest.raises(ValueError):
-        deimos.collapse_slices(
-            two_ions,
-            by=["mz", "retention_time"],
-            low=[[99.9, 0.0]],
-            high=[[100.1, 1.0], [101.1, 1.0]],
-            keep="retention_time",
-        )
-
-
-def test_collapse_slices_pass_none():
-    xics = deimos.collapse_slices(
-        None, by="mz", low=[99.9], high=[100.1], keep="retention_time"
+def test_collapse_list_aggregates_by_original_row_labels(two_ions):
+    slices = deimos.slice(
+        two_ions, by="mz", low=[[99.9], [100.9]], high=[[100.1], [101.1]]
     )
 
-    assert xics is None
+    xics = deimos.collapse(slices, keep="retention_time", how="idxmax")
+
+    assert [x["intensity"].tolist() for x in xics] == [[1, 4], [3, 5]]
+
+
+def test_collapse_list_preserves_each_frame_dtype():
+    # Float32 and float64 intensities, which one groupby would cast to float64
+    a = pd.DataFrame(
+        {"rt": [1.0, 1.0], "intensity": np.array([1.0, 2.0], dtype=np.float32)}
+    )
+    b = pd.DataFrame({"rt": [2.0], "intensity": [4.0]})
+
+    xic_a, xic_b = deimos.collapse([a, b], keep="rt")
+
+    assert xic_a is not None and xic_b is not None
+    assert xic_a["intensity"].dtype == np.float32
+    assert xic_b["intensity"].dtype == np.float64
+    assert xic_a["intensity"].tolist() == [3.0]
+    assert xic_b["intensity"].tolist() == [4.0]
+
+
+def test_collapse_list_gives_empty_frame_without_groups():
+    # NaN retention times form no group, as when collapsing the frame alone
+    features = pd.DataFrame({"rt": [np.nan, np.nan], "intensity": [1.0, 2.0]})
+
+    xic, empty = deimos.collapse([features, None], keep="rt")
+
+    assert empty is None
+    assert xic is not None
+    assert xic.columns.tolist() == ["rt", "intensity"]
+    assert len(xic.index) == 0
+
+
+@pytest.mark.parametrize("features", [[], [None, None]], ids=["empty", "all-none"])
+def test_collapse_list_without_data(features):
+    xics = deimos.collapse(features, keep="retention_time")
+
+    assert xics == features
