@@ -324,25 +324,24 @@ class MS2Deconvolution:
         if relative is None:
             relative = [True, True, False]
 
-        def abstract_fxn(features, data, dims=None, low=None, high=None, relative=None):
+        def abstract_fxn(features, data, dims, low, high, relative):
             """
             Function abstraction to bake in asymmetrical tolerances at runtime.
 
             """
 
-            res = []
-            for i, row in features.iterrows():
-                subset = deimos.locate_asym(
-                    data,
-                    by=dims,
-                    loc=row[dims].values,
-                    low=low,
-                    high=high,
-                    relative=relative,
-                )
-                res.append(subset)
-
-            return res
+            # Locate every feature in one batch, with coordinates in the common
+            # dtype of all columns of `features`
+            cidx = [features.columns.get_loc(x) for x in dims]
+            loc: np.ndarray = features.to_numpy()[:, cidx]
+            return deimos.locate_asym(
+                data,
+                by=dims,
+                loc=loc,
+                low=low,
+                high=high,
+                relative=relative,
+            )
 
         # Safely cast to list
         dims = deimos.utils.safelist(dims)
