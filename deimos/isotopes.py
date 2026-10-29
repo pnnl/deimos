@@ -5,6 +5,9 @@ import pandas as pd
 
 import deimos
 
+# Candidate pairs that detect checks at once, about 4 million, to bound memory
+_BLOCK_PAIRS = 2**22
+
 
 def OrderedSet(x):
     return list({k: None for k in x})
@@ -164,14 +167,13 @@ def detect(
     # Get the other dimensions in float64, with their tolerances
     others = [(features[dims[i]].values.astype(float), tol[i]) for i in else_idx]
 
-    # Check candidates in blocks of whole children, about 4 million pairs each,
-    # to bound memory
+    # Check candidates in blocks of whole children to bound memory
     rows, cols = [], []
     start = 0
     while start < n_features:
-        # End the block at the last child that keeps it within 4 million pairs,
-        # taking at least one child
-        stop = np.searchsorted(offsets, offsets[start] + 2**22, side="right") - 1
+        # End the block at the last child within `_BLOCK_PAIRS` pairs, taking at
+        # least one child
+        stop = np.searchsorted(offsets, offsets[start] + _BLOCK_PAIRS, side="right") - 1
         stop = max(stop, start + 1)
 
         # Expand windows to candidate pairs, pairing each child with every parent
