@@ -1,3 +1,6 @@
+import tracemalloc
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -103,8 +106,6 @@ def test_detect_many_candidates_in_one_window():
     about 4.5 million pairs. Each parent shares its retention time only with
     its own M+1 isotope, so exactly those 1,500 pairs are reported.
     """
-    import numpy as np
-
     k = np.arange(1500)
     features = pd.DataFrame(
         {
@@ -131,10 +132,6 @@ def test_detect_memory_does_not_grow_with_all_pairs():
     An n x n distance matrix for 20,000 features needs over 3 GB; the
     candidate search should stay far below that.
     """
-    import tracemalloc
-
-    import numpy as np
-
     rng = np.random.default_rng(0)
     features = pd.DataFrame(
         {
