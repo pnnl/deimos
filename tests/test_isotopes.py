@@ -251,6 +251,122 @@ def test_detect_mz_only(ms1_peaks):
         assert all(e <= 50e-6 for e in errors)
 
 
+def test_detect_spacings_find_chlorine_isotope():
+    """Test that SPACINGS finds a 37Cl isotope that 13C alone misses.
+
+    At m/z 152 the 37Cl M+2 peak lies 9.6 mDa (63 ppm) from the 13C2 spacing,
+    beyond the default 50 ppm error, and 0.23 mDa from the second spacing.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [150.0, 151.0035, 151.9971],
+            "intensity": [1000.0, 100.0, 320.0],
+        }
+    )
+
+    carbon_isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], max_isotopes=2
+    )
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.1],
+        delta=deimos.isotopes.SPACINGS,
+        max_isotopes=2,
+    )
+
+    assert carbon_isotopes.iloc[0]["idx_iso"] == [1]
+    row = isotopes.iloc[0]
+    assert row["idx_iso"] == [1, 2]
+    assert row["dx"] == [1.003355, 1.996874]
+
+
+@pytest.mark.parametrize(
+    ("child_mz", "dx", "multiple", "error"),
+    [
+        (302.0, 1.996874, 1.0, 0.003126 / 302.0),
+        (302.006, 2.00671, 2.0, 0.00071 / 302.006),
+    ],
+    ids=["second-spacing-closer", "13c-closer"],
+)
+def test_detect_spacings_assign_closest_spacing(child_mz, dx, multiple, error):
+    """Test that a pair matching several spacings is assigned the closest one.
+
+    A 2.0 m/z difference lies 3.13 mDa from the 1.996874 spacing and 6.71 mDa
+    from 13C2 (2.00671); a 2.006 difference lies 9.13 and 0.71 mDa from them.
+    Each difference is within the default 50 ppm error of both spacings.
+    """
+    features = pd.DataFrame({"mz": [300.0, child_mz], "intensity": [1000.0, 900.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], delta=deimos.isotopes.SPACINGS
+    )
+
+    row = isotopes.iloc[0]
+    assert row["dx"] == [dx]
+    assert row["multiple"] == [multiple]
+    assert row["error"] == pytest.approx([error], abs=1e-12)
+
+
+@pytest.mark.parametrize(
+    ("max_isotopes", "expected"),
+    [(1, 0), (2, 1)],
+    ids=["first-multiple", "second-multiple"],
+)
+def test_detect_spacings_search_multiples_of_each_spacing(max_isotopes, expected):
+    """Test that max_isotopes bounds the multiple of each spacing searched.
+
+    The child is the 37Cl2 peak, 3.99410 above its parent, which is twice the
+    second spacing in SPACINGS, so it is found only when the search reaches the
+    second multiple.
+    """
+    features = pd.DataFrame({"mz": [150.0, 153.9941], "intensity": [1000.0, 640.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.1],
+        delta=deimos.isotopes.SPACINGS,
+        max_isotopes=max_isotopes,
+    )
+
+    assert len(isotopes) == expected
+
+
+def test_detect_float_spacing_matches_one_element_sequence():
+    """Test that a float spacing gives the same result as a sequence of it.
+
+    The children lie at one and two multiples of 1.996874, so the multiples
+    are 1 and 2.
+    """
+    features = pd.DataFrame(
+        {"mz": [150.0, 151.996874, 153.993748], "intensity": [1000.0, 320.0, 100.0]}
+    )
+
+    single = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], delta=1.996874, max_isotopes=2
+    )
+    sequence = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], delta=[1.996874], max_isotopes=2
+    )
+
+    assert single.iloc[0]["multiple"] == [1.0, 2.0]
+    pd.testing.assert_frame_equal(single, sequence)
+
+
+@pytest.mark.parametrize(
+    "delta",
+    [-1.003355, [1.003355, 0.0], []],
+    ids=["negative-float", "zero-in-sequence", "empty-sequence"],
+)
+def test_detect_rejects_spacings_that_are_not_positive(delta):
+    """Test that a spacing of zero or less, or no spacing, is rejected."""
+    features = pd.DataFrame({"mz": [150.0, 151.0], "intensity": [1000.0, 100.0]})
+
+    with pytest.raises(ValueError, match="positive"):
+        deimos.isotopes.detect(features, dims=["mz"], tol=[0.1], delta=delta)
+
+
 def test_detect_unsorted_input():
     """Test that detect() handles unsorted (descending m/z) input correctly."""
     # Sorted ascending reference
