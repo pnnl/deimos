@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import cast
 
 import numpy as np
@@ -11,12 +12,16 @@ _BLOCK_PAIRS = 2**22
 # Margin added to the m/z candidate window in detect, so rounding drops no match
 _WINDOW_PADDING = 1e-6
 
+# Spacings (Da) from NIST atomic masses: 13C, and the midpoint of 34S, 37Cl, and 81Br,
+# which lie within 2.2 mDa of each other
+SPACINGS = (1.003355, 1.996874)
+
 
 def detect(
     features,
     dims=None,
     tol=None,
-    delta=1.003355,
+    delta: float | Sequence[float] = 1.003355,
     max_isotopes=4,
     max_charge=1,
     max_error=50e-6,
@@ -51,10 +56,17 @@ def detect(
     tol : float or list, default=[0.1, 0.2, 0.3]
         Tolerance in each dimension to be considered a match. Length must match dims.
         For m/z, this is the absolute tolerance for the isotopic mass difference.
-    delta : float, default=1.003355
-        Expected spacing between isotopes in Da (e.g., C13 = 1.003355).
+    delta : float or sequence of float, default=1.003355
+        Expected spacing between isotopes in Da (e.g., C13 = 1.003355). Spacings
+        must be positive. With a sequence, such as :data:`SPACINGS`, multiples of
+        each spacing are searched, and a pair that matches several is assigned the
+        one with the smallest error, shown in ``dx``. Isotopes within a few mDa of a
+        spacing also match it and differ only in abundance: 15N, 29Si, and 33S match
+        13C, and 34S, 37Cl, 81Br, and 30Si match the second spacing in
+        :data:`SPACINGS`. A peak with mixed heavy isotopes (37Cl plus two 13C at
+        M+4) matches the nearest multiple of one spacing.
     max_isotopes : int, default=4
-        Maximum number of isotopes to search for per parent feature.
+        Largest multiple of each spacing to search for per parent feature.
     max_charge : int, default=1
         Maximum charge state to consider (isotopic spacing = delta / charge).
     max_error : float, default=50e-6
@@ -87,7 +99,8 @@ def detect(
         - intensity: Parent intensity
         - charge: Charge state
         - idx: Parent feature index
-        - multiple: List of isotope multiples found (e.g., [1, 2, 3] for M+1, M+2, M+3)
+        - multiple: List of multiples of the matched spacing (e.g., [1, 2, 3] for
+          13C M+1, M+2, M+3)
         - dx: List of expected mass differences
         - mz_iso: List of isotope m/z values
         - intensity_iso: List of isotope intensities
@@ -134,6 +147,11 @@ def detect(
     # Isolate mz dimension
     mz_idx = dims.index("mz")
     else_idx = [i for i, j in enumerate(dims) if i != mz_idx]
+
+    # Check that the isotope spacings are positive
+    spacings = np.asarray(delta, dtype=float).ravel()
+    if spacings.size == 0 or (spacings <= 0).any():
+        raise ValueError("Isotope spacings must be one or more positive values.")
 
     # Preserve original indices before sorting
     # Store original index as a column so we can return it in results
@@ -237,11 +255,13 @@ def detect(
     # This allows us to check all possibilities in a single vectorized operation
     charges = np.arange(1, max_charge + 1)
     multiples = np.arange(1, max_isotopes + 1)
-    expected_deltas = np.outer(multiples, delta / charges).flatten()  # All combinations
+    expected_deltas = np.outer(multiples, np.divide.outer(spacings, charges)).flatten()
 
-    # Create charge and multiple arrays matching expected_deltas
-    # Order: [(m1,c1), (m1,c2), ..., (m1,cN), (m2,c1), ..., (mM,cN)]
-    charge_mult_pairs = np.array([(m, c) for m in multiples for c in charges])
+    # Create multiple and charge arrays matching expected_deltas
+    # Order: [(m1,s1,c1), ..., (m1,s1,cN), (m1,s2,c1), ..., (mM,sS,cN)]
+    charge_mult_pairs = np.array(
+        [(m, c) for m in multiples for _ in spacings for c in charges]
+    )
 
     # Vectorized search: for each candidate pair, check all expected deltas
     # Shape: (n_candidates, n_delta_combinations)
@@ -310,6 +330,14 @@ def detect(
     )
     # Intensity ratio (should decay for true isotopes)
     isotopes["decay"] = isotopes["intensity_iso"] / isotopes["intensity"]
+
+    # Assign each pair the spacing with the smallest error when several match it
+    if len(spacings) > 1:
+        isotopes = (
+            isotopes.sort_values("error", kind="stable")
+            .drop_duplicates(subset=["idx", "idx_iso", "charge"])
+            .sort_index()
+        )
 
     # Step 6: Apply filters
     # Conditionally filter by intensity decay pattern
