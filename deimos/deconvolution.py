@@ -104,7 +104,11 @@ def get_1D_profiles(features, dims=None):
     return profiles
 
 
-def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=0, params=None):
+def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce, params=None):
+    # Check collision energy is positive, as the model uses its logarithm
+    if np.any(np.less_equal(ce, 0)):
+        raise ValueError("Collision energy must be positive.")
+
     # Set mutable argument defaults
     if params is None:
         params = [1.02067031, -0.02062323, 0.00176694]

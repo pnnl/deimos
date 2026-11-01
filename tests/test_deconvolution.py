@@ -101,6 +101,16 @@ def test_offset_correction_model(ce, params, expected):
     assert corrected == pytest.approx(expected)
 
 
+@pytest.mark.parametrize("ce", [0, -1.0])
+def test_offset_correction_model_requires_positive_collision_energy(ce):
+    dt_ms2 = np.array([10.0])
+    mz_ms2 = np.array([100.0])
+    mz_ms1 = np.array([400.0])
+
+    with pytest.raises(ValueError, match="positive"):
+        deimos.deconvolution.offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce=ce)
+
+
 @pytest.mark.parametrize(
     "b,expected",
     [
