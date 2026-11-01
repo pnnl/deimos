@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import cast
 
 import numpy as np
@@ -9,12 +9,56 @@ import deimos
 # Candidate pairs that detect checks at once, about 4 million, to bound memory
 _BLOCK_PAIRS = 2**22
 
-# Margin added to the m/z candidate window in detect, so rounding drops no match
+# Margin added to each m/z candidate window in detect, so rounding drops no match
 _WINDOW_PADDING = 1e-6
 
 # Spacings (Da) from NIST atomic masses: 13C, and the midpoint of 34S, 37Cl, and 81Br,
 # which lie within 2.2 mDa of each other
 SPACINGS = (1.003355, 1.996874)
+
+
+def _candidate_pairs(
+    mz: np.ndarray,
+    expected: np.number,
+    half_width: np.ndarray,
+    mz_tol: float,
+    others: list[tuple[np.ndarray, float]],
+) -> Iterator[tuple[np.ndarray, np.ndarray]]:
+    """
+    Yield blocks of child and parent positions near one expected m/z difference.
+
+    `mz` must ascend. Each child's window spans `half_width` around `expected` below
+    its m/z, and yielded pairs lie within `mz_tol` of `expected` and within tolerance
+    in each of `others`, a list of values and their tolerances.
+    """
+
+    # Locate each child's window, limited to parents before the child; a negative
+    # tolerance can leave a child with none
+    n_features = len(mz)
+    low = np.searchsorted(mz, mz - expected - half_width, side="left")
+    high = np.searchsorted(mz, mz - expected + half_width, side="right")
+    counts = np.maximum(np.minimum(high, np.arange(n_features)) - low, 0)
+    offsets = np.concatenate(([0], np.cumsum(counts)))
+
+    # Check candidates in blocks of whole children to bound memory
+    start = 0
+    while start < n_features:
+        # End the block at the last child within `_BLOCK_PAIRS` pairs, taking at
+        # least one child
+        stop = np.searchsorted(offsets, offsets[start] + _BLOCK_PAIRS, side="right") - 1
+        stop = max(stop, start + 1)
+
+        # Expand windows to candidate pairs, pairing each child with every parent
+        # in its window
+        row = np.repeat(np.arange(start, stop), counts[start:stop])
+        col = low[row] + np.arange(len(row)) - (offsets[row] - offsets[start])
+
+        # Retain pairs within tolerance for m/z, drift time, retention time, etc.
+        keep = np.abs(mz[row] - mz[col] - expected) <= mz_tol
+        for values, dim_tol in others:
+            keep &= np.abs(values[row] - values[col]) <= dim_tol
+        yield row[keep], col[keep]
+        start = stop
 
 
 def detect(
@@ -36,13 +80,12 @@ def detect(
     for features that differ by expected isotopic mass differences (typically ~1.003 Da
     for C13). The algorithm:
 
-    1. Finds candidate pairs by binary search in m/z order, up to the largest expected
-       spacing, and keeps those within tolerance in the non-m/z dimensions
-    2. Computes m/z distances for candidate pairs only
-    3. Vectorized search across all charge states and isotope multiples simultaneously
-    4. Filters results by intensity decay (parent > isotope) and mass accuracy,
+    1. Finds candidate pairs by binary search in m/z order around each expected mass
+       difference, across all charge states and isotope multiples, and retains those
+       within tolerance in every dimension
+    2. Filters pairs by mass accuracy and intensity decay (parent > isotope),
        keeping the candidate closest in mass at each isotope position
-    5. Groups isotopes by their parent feature
+    3. Groups isotopes by their parent feature
 
     The function supports both multi-dimensional data (LC-IMS-MS) and single-dimension
     spectra. For single spectra, use dims=['mz'] and tol=[mz_tolerance].
@@ -159,100 +202,14 @@ def detect(
     features["original_idx"] = features.index
 
     # Sort by m/z to ensure lower indices correspond to lower m/z values.
-    # This is required for the lower-triangular candidate mask logic to correctly
-    # assign parent (lower m/z) and child (higher m/z) features.
+    # This is required for the candidate search to correctly assign parent
+    # (lower m/z) and child (higher m/z) features.
     features = features.sort_values("mz").reset_index(drop=True)
 
     n_features = len(features)
 
-    # Step 1: Find candidate pairs without building an n x n mask
-    # No expected spacing exceeds `max_isotopes * abs(delta)`, so each child's
-    # candidate parents sit in an m/z window before it
-
-    # Get m/z in float64, so differences of float32 or float16 values are exact
-    mz_sorted = features["mz"].values.astype(float)
-
-    # Widen the window so rounding drops no match; differences between m/z values
-    # can only round below twice the window width
-    max_span = max_isotopes * np.max(np.abs(delta)) + tol[mz_idx] + _WINDOW_PADDING
-
-    # Locate each child's first candidate parent, then count candidates and their
-    # running total; a negative tolerance can leave a child with none
-    low = np.searchsorted(mz_sorted, mz_sorted - max_span, side="left")
-    counts = np.maximum(np.arange(n_features) - low, 0)
-    offsets = np.concatenate(([0], np.cumsum(counts)))
-
-    # Get the other dimensions in float64, with their tolerances
-    others = [(features[dims[i]].values.astype(float), tol[i]) for i in else_idx]
-
-    # Check candidates in blocks of whole children to bound memory
-    rows, cols = [], []
-    start = 0
-    while start < n_features:
-        # End the block at the last child within `_BLOCK_PAIRS` pairs, taking at
-        # least one child
-        stop = np.searchsorted(offsets, offsets[start] + _BLOCK_PAIRS, side="right") - 1
-        stop = max(stop, start + 1)
-
-        # Expand windows to candidate pairs, pairing each child with every parent
-        # in its window
-        row = np.repeat(np.arange(start, stop), counts[start:stop])
-        col = low[row] + np.arange(len(row)) - (offsets[row] - offsets[start])
-
-        # Keep pairs within tolerance for drift time, retention time, etc.
-        keep = np.ones(len(row), dtype=bool)
-        for values, dim_tol in others:
-            keep &= np.abs(values[row] - values[col]) <= dim_tol
-        rows.append(row[keep])
-        cols.append(col[keep])
-        start = stop
-
-    # Rows ascend, and parents ascend within each row; this sets the output list order
-    row_idx = np.concatenate(rows) if rows else np.empty(0, dtype=int)
-    col_idx = np.concatenate(cols) if cols else np.empty(0, dtype=int)
-
-    if len(row_idx) == 0:
-        # No candidates found - return empty grouped DataFrame with correct structure
-        # pandas 2 annotates columns with a protocol that list fails to match
-        return cast(
-            pd.DataFrame,
-            pd.DataFrame(
-                columns=[  # pyright: ignore[reportArgumentType]
-                    "mz",
-                    "charge",
-                    "idx",
-                    "intensity",
-                    "multiple",
-                    "dx",
-                    "mz_iso",
-                    "intensity_iso",
-                    "idx_iso",
-                    "error",
-                    "decay",
-                    "n",
-                ]
-            )
-            .groupby(by=["mz", "charge", "idx", "intensity"], as_index=False)
-            .agg(list),
-        )
-
-    # Step 2: Compute m/z distances for candidate pairs only
-    # This avoids computing a full n x n distance matrix for all features
-    mz_values = features["mz"].values
-
-    # Extract m/z differences for our candidate pairs
-    # This represents |mz[row] - mz[col]|, always positive
-    mz_diffs = np.abs(mz_sorted[row_idx] - mz_sorted[col_idx])
-
-    # Feature assignments:
-    # - Features at column index are assigned as parent (lower triangle: col < row)
-    # - Features at row index are assigned as isotopic child
-    parent_idx = col_idx
-    child_idx = row_idx
-
-    # Step 3: Vectorized search for isotopic patterns
-    # Pre-compute all expected mass differences for all charge/multiple combinations
-    # This allows us to check all possibilities in a single vectorized operation
+    # Step 1: Pre-compute all expected mass differences for all charge/multiple
+    # combinations, so only the m/z windows around them are searched
     charges = np.arange(1, max_charge + 1)
     multiples = np.arange(1, max_isotopes + 1)
     expected_deltas = np.outer(multiples, np.divide.outer(spacings, charges)).flatten()
@@ -263,19 +220,55 @@ def detect(
         [(m, c) for m in multiples for _ in spacings for c in charges]
     )
 
-    # Vectorized search: for each candidate pair, check all expected deltas
-    # Shape: (n_candidates, n_delta_combinations)
-    mz_diff_matrix = mz_diffs[:, np.newaxis]
-    expected_delta_matrix = expected_deltas[np.newaxis, :]
+    # Step 2: Size the m/z window around each expected difference
+    # Get m/z in float64, so differences of float32 values are exact
+    mz_values = features["mz"].values
+    mz_sorted = mz_values.astype(float)
 
-    # Find matches within m/z tolerance
-    matches = np.abs(mz_diff_matrix - expected_delta_matrix) <= tol[mz_idx]
+    # Widen the window by the padding so rounding drops no match
+    tol_width = np.full(n_features, tol[mz_idx] + _WINDOW_PADDING)
 
-    # Get indices of matches
-    candidate_indices, delta_indices = np.where(matches)
+    # Narrow the window to the largest difference that can pass max_error, padded for
+    # rounding in float32 m/z; a child at or below zero m/z has no such limit
+    error_width = (max_error + np.finfo(np.float32).eps) * mz_sorted
+    half_width = np.where(mz_sorted > 0, np.minimum(tol_width, error_width), tol_width)
 
-    if len(candidate_indices) == 0:
-        # No isotope matches found - return empty grouped DataFrame with correct structure
+    # Get the other dimensions in float64, with their tolerances
+    others = [(features[dims[i]].values.astype(float), tol[i]) for i in else_idx]
+
+    # Step 3: Search each window, applying the per-pair filters before building the
+    # results to bound memory
+    intensity_values = features["intensity"].values
+    rows, cols, deltas = [], [], []
+    for delta_idx, expected in enumerate(expected_deltas):
+        for row, col in _candidate_pairs(
+            mz_sorted, expected, half_width, tol[mz_idx], others
+        ):
+            # Remove high mass error matches, using the relative error between
+            # observed and expected mass difference
+            with np.errstate(divide="ignore", invalid="ignore"):
+                error = (
+                    np.abs((mz_values[row] - mz_values[col]) - expected)
+                    / mz_values[row]
+                )
+            keep = error < max_error
+
+            # Remove non-decreasing intensity (parent must be more intense than isotope)
+            if require_lower_intensity:
+                keep &= intensity_values[col] > intensity_values[row]
+
+            rows.append(row[keep])
+            cols.append(col[keep])
+            deltas.append(np.full(np.count_nonzero(keep), delta_idx))
+
+    # Return an empty frame when no pair lies within tolerance of an expected difference
+    if not any(len(row) > 0 for row in rows) and not any(
+        len(row) > 0
+        for expected in expected_deltas
+        for row, _ in _candidate_pairs(
+            mz_sorted, expected, tol_width, tol[mz_idx], others
+        )
+    ):
         # pandas 2 annotates columns with a protocol that list fails to match
         return cast(
             pd.DataFrame,
@@ -299,10 +292,23 @@ def detect(
             .agg(list),
         )
 
+    # Order matches by child, then parent, then expected difference; this determines
+    # the output list order
+    row_idx = np.concatenate(rows)
+    col_idx = np.concatenate(cols)
+    delta_indices = np.concatenate(deltas)
+    order = np.lexsort((delta_indices, col_idx, row_idx))
+    row_idx, col_idx, delta_indices = (
+        row_idx[order],
+        col_idx[order],
+        delta_indices[order],
+    )
+
     # Step 4: Build results DataFrame
-    # Extract matched parent and child features
-    matched_parents = parent_idx[candidate_indices]
-    matched_children = child_idx[candidate_indices]
+    # Features at column index are parents, and features at row index are their
+    # isotopic children
+    matched_parents = col_idx
+    matched_children = row_idx
     matched_charges = charge_mult_pairs[delta_indices, 1]
     matched_multiples = charge_mult_pairs[delta_indices, 0]
     matched_deltas = expected_deltas[delta_indices]
@@ -311,12 +317,12 @@ def detect(
     isotopes = pd.DataFrame(
         {
             "mz": mz_values[matched_parents],
-            "intensity": features["intensity"].values[matched_parents],
+            "intensity": intensity_values[matched_parents],
             "charge": matched_charges.astype(float),
             "multiple": matched_multiples.astype(float),
             "dx": matched_deltas,
             "mz_iso": mz_values[matched_children],
-            "intensity_iso": features["intensity"].values[matched_children],
+            "intensity_iso": intensity_values[matched_children],
             "idx": features["original_idx"].values[matched_parents],
             "idx_iso": features["original_idx"].values[matched_children],
         }
@@ -339,16 +345,7 @@ def detect(
             .sort_index()
         )
 
-    # Step 6: Apply filters
-    # Conditionally filter by intensity decay pattern
-    if require_lower_intensity:
-        # Remove non-decreasing intensity (parent must be more intense than isotope)
-        isotopes = isotopes.loc[isotopes["intensity"] > isotopes["intensity_iso"], :]
-
-    # Remove high mass error matches
-    isotopes = isotopes.loc[isotopes["error"] < max_error, :]
-
-    # Remove children (features that are themselves isotopes of other features)
+    # Step 6: Remove children (features that are themselves isotopes of other features)
     # This ensures we only report parent features
     if not return_all_patterns:
         isotopes = isotopes.loc[~isotopes["idx"].isin(isotopes["idx_iso"]), :]

@@ -62,22 +62,74 @@ def test_detect_finds_largest_spacing_at_tolerance_edge():
 def test_detect_finds_low_mz_child_at_window_edge():
     """Test that a child exactly at the window edge is found at low m/z.
 
-    Below twice the window width, differences between m/z values round, and
-    without its padding the window would end just short of this child.
+    This pair lies within the tolerance after rounding, and without its padding
+    the window would end just short of the parent.
     """
-    features = pd.DataFrame(
-        {
-            "mz": [1.03, 1.03 + 4 * 1.003355 + 0.1],
-            "intensity": [1000.0, 100.0],
-        }
-    )
+    features = pd.DataFrame({"mz": [7.95, 9.053355], "intensity": [1000.0, 100.0]})
 
     isotopes = deimos.isotopes.detect(
         features, dims=["mz"], tol=[0.1], max_isotopes=4, max_error=0.1
     )
 
     assert len(isotopes) == 1
-    assert isotopes.iloc[0]["multiple"] == [4.0]
+    assert isotopes.iloc[0]["multiple"] == [1.0]
+
+
+def test_detect_excludes_child_inside_padding_but_outside_tolerance():
+    """Test that a pair within the window padding but beyond the tolerance is excluded.
+
+    The pair lies 0.1000005 from M+1, inside the window's 1e-6 padding and outside
+    the 0.1 tolerance.
+    """
+    features = pd.DataFrame({"mz": [300.0, 301.1033555], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(features, dims=["mz"], tol=[0.1], max_error=1e-3)
+
+    assert isotopes.empty
+
+
+@pytest.mark.parametrize(
+    ("max_error", "expected"),
+    [(0.004, 0), (0.0041, 1)],
+    ids=["at-max-error", "below-max-error"],
+)
+def test_detect_max_error_excludes_pair_at_the_limit(max_error, expected):
+    """Test that a pair's relative error must lie below `max_error`.
+
+    The pair lies 0.5 from the 2.0 spacing, with a child at 125.0, so its relative
+    error is 0.004.
+    """
+    features = pd.DataFrame({"mz": [122.5, 125.0], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.6],
+        delta=2.0,
+        max_isotopes=1,
+        max_error=max_error,
+    )
+
+    assert len(isotopes) == expected
+
+
+@pytest.mark.parametrize(
+    ("require_lower_intensity", "expected"),
+    [(True, 0), (False, 1)],
+    ids=["required", "not-required"],
+)
+def test_detect_require_lower_intensity(require_lower_intensity, expected):
+    """Test that a child as intense as its parent is reported only on request."""
+    features = pd.DataFrame({"mz": [300.0, 301.003355], "intensity": [1000.0, 1000.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.1],
+        require_lower_intensity=require_lower_intensity,
+    )
+
+    assert len(isotopes) == expected
 
 
 def test_detect_candidates_respect_other_dimensions():
@@ -102,9 +154,10 @@ def test_detect_candidates_respect_other_dimensions():
 def test_detect_many_candidates_in_one_window():
     """Test detection when the m/z window holds millions of candidate pairs.
 
-    3,000 features lie within 4.1 m/z of each other, so the search covers
-    about 4.5 million pairs. Each parent shares its retention time only with
-    its own M+1 isotope, so exactly those 1,500 pairs are reported.
+    3,000 features lie within 4.1 m/z of each other, so a 10 m/z tolerance covers
+    about 4.5 million pairs around M+1, more than one block of candidates. Each
+    parent shares its retention time only with its own M+1 isotope, so exactly
+    those 1,500 pairs are reported.
     """
     k = np.arange(1500)
     features = pd.DataFrame(
@@ -116,7 +169,11 @@ def test_detect_many_candidates_in_one_window():
     )
 
     isotopes = deimos.isotopes.detect(
-        features, dims=["mz", "retention_time"], tol=[0.1, 0.3], max_isotopes=4
+        features,
+        dims=["mz", "retention_time"],
+        tol=[10.0, 0.3],
+        max_isotopes=1,
+        max_error=1.0,
     )
 
     pairs = sorted(
@@ -147,6 +204,141 @@ def test_detect_memory_does_not_grow_with_all_pairs():
     tracemalloc.stop()
 
     assert peak < 200 * 2**20
+
+
+def test_detect_memory_does_not_grow_with_pairs_between_spacings():
+    """Test that detect does not allocate for pairs far from every spacing.
+
+    With 200 features per m/z, 20,000 features have about 32 million pairs within
+    the largest spacing of SPACINGS, which would need over 2 GB as a matrix of
+    pairs by 8 expected differences. Only about 1% of the m/z range around 150 lies
+    within the default 50 ppm error of an expected difference.
+    """
+    rng = np.random.default_rng(0)
+    features = pd.DataFrame(
+        {
+            "mz": rng.uniform(100, 200, 20000),
+            "intensity": rng.uniform(1e3, 1e5, 20000),
+        }
+    )
+
+    tracemalloc.start()
+    deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], delta=deimos.isotopes.SPACINGS
+    )
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+
+    assert peak < 200 * 2**20
+
+
+@pytest.mark.parametrize(
+    ("child_mz", "dtype"),
+    [(310.0, object), (301.1, float)],
+    ids=["no-pair-within-tolerance", "pair-beyond-max-error"],
+)
+def test_detect_empty_result_columns(child_mz, dtype):
+    """Test the empty frame for a pair outside tolerance and outside max_error.
+
+    At 301.1, the pair lies 0.0966 from M+1, within the 0.1 tolerance and about
+    320 ppm beyond the default 50 ppm error, so the search around M+1 passes over it.
+    """
+    features = pd.DataFrame({"mz": [300.0, child_mz], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(features, dims=["mz"], tol=[0.1])
+
+    assert isotopes.empty
+    assert set(isotopes.columns) >= {"mz", "idx", "dx", "idx_iso", "n"}
+    assert isotopes["dx"].dtype == dtype
+
+
+def test_detect_finds_pair_whose_float32_mz_difference_rounds_to_the_spacing():
+    """Test that the search reaches a pair matched only after rounding in float32.
+
+    The difference rounds to exactly the spacing in float32, so its error is zero,
+    although its exact difference lies 0.03 mDa from the spacing, beyond a `max_error`
+    of 1e-9 of the child's m/z (0.0009 mDa).
+    """
+    features = pd.DataFrame(
+        {"mz": np.array([300.1, 900.3], dtype=np.float32), "intensity": [1000.0, 100.0]}
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.1],
+        delta=600.199951171875,
+        max_isotopes=1,
+        max_error=1e-9,
+    )
+
+    row = isotopes.iloc[0]
+    assert row["idx_iso"] == [1]
+    assert row["error"] == [0.0]
+
+
+def test_detect_accepts_integer_mz():
+    """Test that integer m/z values are searched."""
+    features = pd.DataFrame({"mz": [300, 301], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(features, dims=["mz"], tol=[0.1], delta=1.0)
+
+    row = isotopes.iloc[0]
+    assert row["idx_iso"] == [1]
+    assert row["error"] == [0.0]
+
+
+def test_detect_negative_child_mz_passes_max_error():
+    """Test that a negative child m/z is limited by the tolerance only.
+
+    The pair lies 0.0466 from M+1, and dividing by the negative child m/z gives a
+    negative relative error, which passes the default 50 ppm.
+    """
+    features = pd.DataFrame({"mz": [-5.0, -3.95], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(features, dims=["mz"], tol=[0.1])
+
+    assert isotopes.iloc[0]["idx_iso"] == [1]
+
+
+def test_detect_reports_each_expected_difference_a_pair_matches():
+    """Test that one pair is reported at each expected difference within tolerance.
+
+    A 1.5 m/z difference lies 0.5 from the first and second multiples of 1.0,
+    within the 0.6 tolerance, and 0.5 / 301.5 is below `max_error`.
+    """
+    features = pd.DataFrame({"mz": [300.0, 301.5], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.6], delta=1.0, max_isotopes=2, max_error=0.01
+    )
+
+    row = isotopes.iloc[0]
+    assert row["multiple"] == [1.0, 2.0]
+    assert row["dx"] == [1.0, 2.0]
+
+
+def test_detect_pairs_only_lower_mz_parents_with_wide_tolerance():
+    """Test that a tolerance wider than the spacing forms no reversed or self pairs.
+
+    The window around 0.1 below each child spans 0.6 in each direction, reaching the
+    child itself and the feature above it, which must not be treated as parents.
+    """
+    features = pd.DataFrame({"mz": [300.0, 300.2], "intensity": [1000.0, 100.0]})
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.6],
+        delta=0.1,
+        max_isotopes=1,
+        max_error=1.0,
+        require_lower_intensity=False,
+        return_all_patterns=True,
+    )
+
+    assert isotopes["idx"].tolist() == [0]
+    assert isotopes.iloc[0]["idx_iso"] == [1]
 
 
 def test_detect_return_all_patterns():
@@ -276,6 +468,24 @@ def test_detect_spacings_find_chlorine_isotope():
     )
 
     assert carbon_isotopes.iloc[0]["idx_iso"] == [1]
+    row = isotopes.iloc[0]
+    assert row["idx_iso"] == [1, 2]
+    assert row["dx"] == [1.003355, 1.996874]
+
+
+def test_detect_lists_isotopes_by_child_mz_for_any_spacing_order():
+    """Test that list columns follow child m/z, not the order of the spacings."""
+    features = pd.DataFrame(
+        {
+            "mz": [150.0, 151.0035, 151.9971],
+            "intensity": [1000.0, 100.0, 320.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features, dims=["mz"], tol=[0.1], delta=[1.996874, 1.003355], max_isotopes=1
+    )
+
     row = isotopes.iloc[0]
     assert row["idx_iso"] == [1, 2]
     assert row["dx"] == [1.003355, 1.996874]
