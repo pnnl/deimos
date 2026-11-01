@@ -206,6 +206,8 @@ class MS2Deconvolution:
         -------
         :obj:`~pandas.DataFrame`
             All MS1:MS2 pairings and associated agreement scores per requested dimension.
+            ``index_ms1`` and ``index_ms2`` contain the index labels of the features,
+            which must be unique.
 
         """
 
@@ -228,6 +230,12 @@ class MS2Deconvolution:
         # Check collision energy is supplied
         if ce is None:
             raise ValueError("Collision energy must be specified.")
+
+        # Check index labels are unique, as they identify features in the output
+        if not (
+            self.ms1_features.index.is_unique and self.ms2_features.index.is_unique
+        ):
+            raise ValueError("Feature index labels must be unique.")
 
         # Copy match vectors, which are normalized in place
         v_ms1 = self.ms1_features[dims].to_numpy(copy=True)
@@ -254,9 +262,13 @@ class MS2Deconvolution:
             ms2_tree, 1, p=np.inf, output_type="coo_matrix"
         )
 
-        # Pairs within tolerance
-        ms1_matches = self.ms1_features.loc[sdm.row, :].reset_index()
-        ms2_matches = self.ms2_features.loc[sdm.col, :].reset_index()
+        # Pairs within tolerance, by position in each table
+        ms1_matches = (
+            self.ms1_features.iloc[sdm.row, :].rename_axis(index="index").reset_index()
+        )
+        ms2_matches = (
+            self.ms2_features.iloc[sdm.col, :].rename_axis(index="index").reset_index()
+        )
 
         # Correct drift time
         if "drift_time" in dims:
@@ -447,8 +459,11 @@ class MS2Deconvolution:
 
         # Enumerate MS1 featres
         for name, grp in self.decon_pairs.groupby(by=["index_ms1"], as_index=False):
-            # MS1 feature index; grouping by a list yields tuple names
-            idx_i = int(cast("tuple[Any, ...]", name)[0])
+            # MS1 feature position; grouping by a list yields tuple names
+            idx_i = cast(
+                int,
+                self.ms1_features.index.get_loc(cast("tuple[Any, ...]", name)[0]),
+            )
 
             # Extracted ion
             ms1_xi = ms1_xis[idx_i]
@@ -485,8 +500,8 @@ class MS2Deconvolution:
 
             # Enumerate MS2 features
             for j, row in grp.reset_index().iterrows():
-                # MS2 feature index
-                idx_j = int(row["index_ms2"])
+                # MS2 feature position
+                idx_j = cast(int, self.ms2_features.index.get_loc(row["index_ms2"]))
 
                 # Extracted ion
                 ms2_xi = ms2_xis[idx_j].copy()
