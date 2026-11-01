@@ -229,9 +229,9 @@ class MS2Deconvolution:
         if ce is None:
             raise ValueError("Collision energy must be specified.")
 
-        # Match vectors
-        v_ms1 = self.ms1_features[dims].values
-        v_ms2 = self.ms2_features[dims].values
+        # Copy match vectors, which are normalized in place
+        v_ms1 = self.ms1_features[dims].to_numpy(copy=True)
+        v_ms2 = self.ms2_features[dims].to_numpy(copy=True)
 
         # Normalize dims for query
         for i, dim in enumerate(dims):
