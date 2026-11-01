@@ -300,10 +300,10 @@ def detect(
     if not return_all_patterns:
         isotopes = isotopes.loc[~isotopes["idx"].isin(isotopes["idx_iso"]), :]
 
-    # Keep the candidate closest in mass at each isotope position
+    # Retain the candidate closest in mass at each expected m/z difference
     isotopes = (
         isotopes.sort_values("error", kind="stable")
-        .drop_duplicates(subset=["idx", "charge", "multiple"])
+        .drop_duplicates(subset=["idx", "charge", "dx"])
         .sort_index()
     )
 
