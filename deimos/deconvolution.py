@@ -419,7 +419,9 @@ class MS2Deconvolution:
         Returns
         -------
         :obj:`~pandas.DataFrame`
-            All MS1:MS2 pairings and associated agreement scores.
+            All MS1:MS2 pairings and associated agreement scores. A score is NaN when
+            either profile is all zero, such as for a feature with no data in its
+            profile window.
 
         """
 
@@ -450,9 +452,11 @@ class MS2Deconvolution:
         # Recast as dictionaries indexed by dimension
         self.profile_resolution = {k: v for k, v in zip(dims, resolution)}
 
-        # Extracted ions
+        # Extracted ions, with no rows for a feature without data in its window
         ms1_xis = self.profiler(self.ms1_features, self.ms1_data)
         ms2_xis = self.profiler(self.ms2_features, self.ms2_data)
+        ms1_xis = [self.ms1_data.iloc[:0] if x is None else x for x in ms1_xis]
+        ms2_xis = [self.ms2_data.iloc[:0] if x is None else x for x in ms2_xis]
 
         # Container for profile similarity scores
         scores = {dim: [] for dim in dims}

@@ -840,3 +840,27 @@ class TestMS2Deconvolution:
         result = decon.apply(dims="retention_time", resolution=1.0)
 
         assert result["retention_time_score"].tolist() == pytest.approx(expected)
+
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")
+    @pytest.mark.parametrize("missing", ["ms1", "ms2"])
+    def test_apply_scores_nan_for_a_feature_without_data(self, missing):
+        # The second feature of one table has no data, and the first pair still scores
+        ms1_features, ms2_features = _pair_features()
+        ms1_data = _profile_data(500.0, PRECURSOR_PROFILE)
+        ms2_data = _profile_data(100.0, 2 * PRECURSOR_PROFILE)
+        pairs = {
+            "index_ms1": [0, 1] if missing == "ms1" else [0, 0],
+            "index_ms2": [0, 1] if missing == "ms2" else [0, 0],
+            "retention_time_ms1": [10.0, 10.0],
+            "retention_time_ms2": [10.0, 10.0],
+        }
+        decon = _configured_decon(
+            ms1_features, ms1_data, ms2_features, ms2_data, "retention_time", pairs
+        )
+
+        scores = decon.apply(dims="retention_time", resolution=1.0)[
+            "retention_time_score"
+        ].to_numpy()
+
+        assert scores[0] == pytest.approx(1.0)
+        assert np.isnan(scores[1])
