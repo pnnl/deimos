@@ -398,6 +398,73 @@ class TestMS2Deconvolution:
         pd.testing.assert_frame_equal(ms1_features, ms1_before)
         pd.testing.assert_frame_equal(ms2_features, ms2_before)
 
+    @pytest.mark.parametrize(
+        "ms1_index,ms2_index,expected_ms1,expected_ms2",
+        [
+            (pd.Index([1, 0]), pd.Index([0, 1]), [0, 1], [1, 0]),
+            (pd.Index(["b", "a"]), pd.Index(["x", "y"]), ["a", "b"], ["y", "x"]),
+            (pd.Index([7, 9], name="peak"), pd.Index([3, 5]), [7, 9], [3, 5]),
+        ],
+        ids=["shuffled", "strings", "named"],
+    )
+    def test_construct_putative_pairs_reports_index_labels(
+        self, ms1_index, ms2_index, expected_ms1, expected_ms2
+    ):
+        # The first features pair at retention time 10 and the second at 50, wherever
+        # their labels sort
+        ms1_features = pd.DataFrame(
+            {
+                "mz": [500.0, 800.0],
+                "retention_time": [10.0, 50.0],
+                "intensity": [100.0, 100.0],
+            },
+            index=ms1_index,
+        )
+        ms2_features = pd.DataFrame(
+            {
+                "mz": [100.0, 200.0],
+                "retention_time": [10.0, 50.0],
+                "intensity": [10.0, 10.0],
+            },
+            index=ms2_index,
+        )
+        decon = deimos.deconvolution.MS2Deconvolution(
+            ms1_features, None, ms2_features, None
+        )
+
+        pairs = decon.construct_putative_pairs(
+            dims="retention_time", low=-1.0, high=1.0, ce=20
+        )
+
+        assert pairs["index_ms1"].tolist() == expected_ms1
+        assert pairs["index_ms2"].tolist() == expected_ms2
+        assert (pairs["retention_time_ms1"] == pairs["retention_time_ms2"]).all()
+
+    @pytest.mark.parametrize(
+        "ms1_index,ms2_index",
+        [([0, 0], [0, 1]), ([0, 1], [0, 0])],
+        ids=["ms1", "ms2"],
+    )
+    def test_construct_putative_pairs_requires_unique_labels(
+        self, ms1_index, ms2_index
+    ):
+        features = {
+            "mz": [500.0, 800.0],
+            "retention_time": [10.0, 50.0],
+            "intensity": [100.0, 100.0],
+        }
+        decon = deimos.deconvolution.MS2Deconvolution(
+            pd.DataFrame(features, index=ms1_index),
+            None,
+            pd.DataFrame(features, index=ms2_index),
+            None,
+        )
+
+        with pytest.raises(ValueError, match="unique"):
+            decon.construct_putative_pairs(
+                dims="retention_time", low=-1.0, high=1.0, ce=20
+            )
+
     def test_configure_profile_extraction(self):
         # Peaks with a float64 column beside float32 coordinates, as peak picking
         # returns them
@@ -726,3 +793,50 @@ class TestMS2Deconvolution:
 
         with pytest.raises(ValueError, match="same dimension"):
             decon.apply(dims=["drift_time", "retention_time"], resolution=[0.01])
+
+    @pytest.mark.parametrize(
+        "ms1_labels,ms2_labels,expected",
+        [
+            ([1, 0], [0, 1], [3 / np.sqrt(19), 1.0, 1.0, 3 / np.sqrt(19)]),
+            ([0, 1], [1, 0], [3 / np.sqrt(19), 1.0, 1.0, 3 / np.sqrt(19)]),
+            (["b", "a"], ["y", "x"], [1.0, 3 / np.sqrt(19), 3 / np.sqrt(19), 1.0]),
+        ],
+        ids=["ms1-shuffled", "ms2-shuffled", "strings"],
+    )
+    def test_apply_finds_features_by_index_label(
+        self, ms1_labels, ms2_labels, expected
+    ):
+        # The first feature in each table is the precursor profile or its scaled copy,
+        # and pairs are in sorted label order
+        ms1_features, ms2_features = _pair_features()
+        ms1_features.index = pd.Index(ms1_labels)
+        ms2_features.index = pd.Index(ms2_labels)
+        ms1_data = pd.concat(
+            [
+                _profile_data(500.0, PRECURSOR_PROFILE),
+                _profile_data(800.0, PARTIAL_PROFILE),
+            ]
+        )
+        ms2_data = pd.concat(
+            [
+                _profile_data(100.0, 2 * PRECURSOR_PROFILE),
+                _profile_data(200.0, PARTIAL_PROFILE),
+            ]
+        )
+        decon = _configured_decon(
+            ms1_features,
+            ms1_data,
+            ms2_features,
+            ms2_data,
+            "retention_time",
+            {
+                "index_ms1": sorted(ms1_labels * 2),
+                "index_ms2": sorted(ms2_labels) * 2,
+                "retention_time_ms1": [10.0] * 4,
+                "retention_time_ms2": [10.0] * 4,
+            },
+        )
+
+        result = decon.apply(dims="retention_time", resolution=1.0)
+
+        assert result["retention_time_score"].tolist() == pytest.approx(expected)
