@@ -5,6 +5,109 @@ import pytest
 import deimos
 
 
+@pytest.fixture()
+def precursor_profile():
+    # Profile on the integer axis from 5 to 14, with a squared norm of 19
+    return np.array([0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0])
+
+
+@pytest.fixture()
+def partial_profile():
+    # Profile with a cosine of 3 / sqrt(19) against the precursor profile
+    return np.array([0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+
+def _profile_data(mz, intensity):
+    """Build one ion's data on the integer retention time axis beginning at 5."""
+    return pd.DataFrame(
+        {
+            "mz": mz,
+            "retention_time": 5.0 + np.arange(len(intensity), dtype=float),
+            "intensity": intensity,
+        }
+    )
+
+
+@pytest.fixture()
+def ms1_features():
+    return pd.DataFrame(
+        {
+            "mz": [500.0, 800.0],
+            "retention_time": [10.0, 10.0],
+            "intensity": [100.0, 100.0],
+        }
+    )
+
+
+@pytest.fixture()
+def ms2_features():
+    return pd.DataFrame(
+        {
+            "mz": [100.0, 200.0],
+            "retention_time": [10.0, 10.0],
+            "intensity": [10.0, 10.0],
+        }
+    )
+
+
+@pytest.fixture()
+def ms1_data(precursor_profile, partial_profile):
+    return pd.concat(
+        [
+            _profile_data(500.0, precursor_profile),
+            _profile_data(800.0, partial_profile),
+        ]
+    )
+
+
+@pytest.fixture()
+def ms2_data(precursor_profile, partial_profile):
+    # Fragment 0 is a scaled copy of precursor 0, and fragment 1 is a copy of
+    # precursor 1, which overlaps precursor 0 at one point
+    return pd.concat(
+        [
+            _profile_data(100.0, 2 * precursor_profile),
+            _profile_data(200.0, partial_profile),
+        ]
+    )
+
+
+@pytest.fixture()
+def decon(ms1_features, ms1_data, ms2_features, ms2_data):
+    # Profile windows of 5 on either side in retention time
+    decon = deimos.deconvolution.MS2Deconvolution(
+        ms1_features, ms1_data, ms2_features, ms2_data
+    )
+    decon.configure_profile_extraction(
+        dims=["mz", "retention_time"],
+        low=[-100e-6, -5.0],
+        high=[400e-6, 5.0],
+        relative=[True, False],
+    )
+    return decon
+
+
+@pytest.fixture()
+def drift_time_decon(ms1_features, ms1_data, ms2_features, ms2_data):
+    # The same features and data along drift time, with fragments one unit early
+    to_drift_time = {"retention_time": "drift_time"}
+    decon = deimos.deconvolution.MS2Deconvolution(
+        ms1_features.rename(columns=to_drift_time),
+        ms1_data.rename(columns=to_drift_time),
+        ms2_features.rename(columns=to_drift_time).assign(drift_time=9.0),
+        ms2_data.rename(columns=to_drift_time).assign(
+            drift_time=lambda x: x["drift_time"] - 1
+        ),
+    )
+    decon.configure_profile_extraction(
+        dims=["mz", "drift_time"],
+        low=[-100e-6, -5.0],
+        high=[400e-6, 5.0],
+        relative=[True, False],
+    )
+    return decon
+
+
 @pytest.mark.parametrize(
     "b,expected",
     [
@@ -142,50 +245,6 @@ def test_cosine_is_nan_for_a_zero_array():
     assert np.isnan(distance)
 
 
-# Precursor profile on the integer axis from 5 to 14, with a squared norm of 19
-PRECURSOR_PROFILE = np.array([0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0, 0.0, 0.0])
-
-# Fragment profile with a cosine of 3 / sqrt(19) against the precursor profile
-PARTIAL_PROFILE = np.array([0.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-
-
-def _profile_data(mz, intensity, dim="retention_time", start=5.0):
-    """Build one ion's data along `dim`, on an integer axis beginning at `start`."""
-    return pd.DataFrame(
-        {
-            "mz": mz,
-            dim: start + np.arange(len(intensity), dtype=float),
-            "intensity": intensity,
-        }
-    )
-
-
-def _pair_features(dim="retention_time"):
-    """Build MS1 features at m/z 500 and 800 and MS2 features at m/z 100 and 200."""
-    ms1_features = pd.DataFrame(
-        {"mz": [500.0, 800.0], dim: [10.0, 10.0], "intensity": [3.0, 3.0]}
-    )
-    ms2_features = pd.DataFrame(
-        {"mz": [100.0, 200.0], dim: [10.0, 10.0], "intensity": [6.0, 3.0]}
-    )
-    return ms1_features, ms2_features
-
-
-def _configured_decon(ms1_features, ms1_data, ms2_features, ms2_data, dim, pairs):
-    """Build a deconvolution with the given pairs, windowed 5 on either side in `dim`."""
-    decon = deimos.deconvolution.MS2Deconvolution(
-        ms1_features, ms1_data, ms2_features, ms2_data
-    )
-    decon.decon_pairs = pd.DataFrame(pairs)
-    decon.configure_profile_extraction(
-        dims=["mz", dim],
-        low=[-100e-6, -5.0],
-        high=[400e-6, 5.0],
-        relative=[True, False],
-    )
-    return decon
-
-
 class TestMS2Deconvolution:
     def test_init(self):
         ms1_features, ms1_data = pd.DataFrame(), pd.DataFrame()
@@ -200,16 +259,10 @@ class TestMS2Deconvolution:
         assert decon.ms2_features is ms2_features
         assert decon.ms2_data is ms2_data
 
-    def test_construct_putative_pairs(self):
+    def test_construct_putative_pairs(self, ms1_features):
         # Offsets of MS1 minus MS2: 0.5, 1.5, 2.5, -0.5, and -1.5 from the first MS1
         # feature, and far from the second
-        ms1_features = pd.DataFrame(
-            {
-                "mz": [500.0, 800.0],
-                "retention_time": [10.0, 50.0],
-                "intensity": [100.0, 100.0],
-            }
-        )
+        ms1_features = ms1_features.assign(retention_time=[10.0, 50.0])
         ms2_features = pd.DataFrame(
             {
                 "mz": [100.0, 110.0, 120.0, 130.0, 140.0],
@@ -373,15 +426,11 @@ class TestMS2Deconvolution:
 
         assert pairs["index_ms2"].tolist() == list(range(n_features))
 
-    def test_construct_putative_pairs_returns_no_rows_without_a_match(self):
-        ms1_features = pd.DataFrame(
-            {"mz": [500.0], "retention_time": [10.0], "intensity": [100.0]}
-        )
-        ms2_features = pd.DataFrame(
-            {"mz": [100.0], "retention_time": [99.0], "intensity": [10.0]}
-        )
+    def test_construct_putative_pairs_returns_no_rows_without_a_match(
+        self, ms1_features, ms2_features
+    ):
         decon = deimos.deconvolution.MS2Deconvolution(
-            ms1_features, None, ms2_features, None
+            ms1_features, None, ms2_features.assign(retention_time=99.0), None
         )
 
         pairs = decon.construct_putative_pairs(
@@ -391,13 +440,9 @@ class TestMS2Deconvolution:
         assert len(pairs) == 0
         assert {"index_ms1", "index_ms2", "mz_ms1", "mz_ms2"} <= set(pairs.columns)
 
-    def test_construct_putative_pairs_leaves_features_unchanged(self):
-        ms1_features = pd.DataFrame(
-            {"mz": [500.0], "retention_time": [10.0], "intensity": [100.0]}
-        )
-        ms2_features = pd.DataFrame(
-            {"mz": [100.0], "retention_time": [10.0], "intensity": [10.0]}
-        )
+    def test_construct_putative_pairs_leaves_features_unchanged(
+        self, ms1_features, ms2_features
+    ):
         ms1_before, ms2_before = ms1_features.copy(), ms2_features.copy()
         decon = deimos.deconvolution.MS2Deconvolution(
             ms1_features, None, ms2_features, None
@@ -418,28 +463,22 @@ class TestMS2Deconvolution:
         ids=["shuffled", "strings", "named"],
     )
     def test_construct_putative_pairs_reports_index_labels(
-        self, ms1_index, ms2_index, expected_ms1, expected_ms2
+        self,
+        ms1_features,
+        ms2_features,
+        ms1_index,
+        ms2_index,
+        expected_ms1,
+        expected_ms2,
     ):
         # The first features pair at retention time 10 and the second at 50, wherever
         # their labels sort
-        ms1_features = pd.DataFrame(
-            {
-                "mz": [500.0, 800.0],
-                "retention_time": [10.0, 50.0],
-                "intensity": [100.0, 100.0],
-            },
-            index=ms1_index,
-        )
-        ms2_features = pd.DataFrame(
-            {
-                "mz": [100.0, 200.0],
-                "retention_time": [10.0, 50.0],
-                "intensity": [10.0, 10.0],
-            },
-            index=ms2_index,
-        )
+        retention_time = [10.0, 50.0]
         decon = deimos.deconvolution.MS2Deconvolution(
-            ms1_features, None, ms2_features, None
+            ms1_features.assign(retention_time=retention_time).set_axis(ms1_index),
+            None,
+            ms2_features.assign(retention_time=retention_time).set_axis(ms2_index),
+            None,
         )
 
         pairs = decon.construct_putative_pairs(
@@ -456,17 +495,12 @@ class TestMS2Deconvolution:
         ids=["ms1", "ms2"],
     )
     def test_construct_putative_pairs_requires_unique_labels(
-        self, ms1_index, ms2_index
+        self, ms1_features, ms2_features, ms1_index, ms2_index
     ):
-        features = {
-            "mz": [500.0, 800.0],
-            "retention_time": [10.0, 50.0],
-            "intensity": [100.0, 100.0],
-        }
         decon = deimos.deconvolution.MS2Deconvolution(
-            pd.DataFrame(features, index=ms1_index),
+            ms1_features.set_axis(ms1_index),
             None,
-            pd.DataFrame(features, index=ms2_index),
+            ms2_features.set_axis(ms2_index),
             None,
         )
 
@@ -572,34 +606,14 @@ class TestMS2Deconvolution:
         with pytest.raises(ValueError, match="similarity"):
             decon.apply(dims="drift_time", resolution=0.01, similarity="spearman")
 
-    def test_apply(self):
-        # Fragment 0 is a scaled copy of precursor 0, and fragment 1 is a copy of
-        # precursor 1, which overlaps precursor 0 at one point
-        ms1_features, ms2_features = _pair_features()
-        ms1_data = pd.concat(
-            [
-                _profile_data(500.0, PRECURSOR_PROFILE),
-                _profile_data(800.0, PARTIAL_PROFILE),
-            ]
-        )
-        ms2_data = pd.concat(
-            [
-                _profile_data(100.0, 2 * PRECURSOR_PROFILE),
-                _profile_data(200.0, PARTIAL_PROFILE),
-            ]
-        )
-        decon = _configured_decon(
-            ms1_features,
-            ms1_data,
-            ms2_features,
-            ms2_data,
-            "retention_time",
+    def test_apply(self, decon):
+        decon.decon_pairs = pd.DataFrame(
             {
                 "index_ms1": [0, 0, 1],
                 "index_ms2": [0, 1, 1],
                 "retention_time_ms1": [10.0, 10.0, 10.0],
                 "retention_time_ms2": [10.0, 10.0, 10.0],
-            },
+            }
         )
 
         result = decon.apply(dims="retention_time", resolution=1.0)
@@ -609,26 +623,19 @@ class TestMS2Deconvolution:
             [1.0, 3 / np.sqrt(19), 1.0]
         )
 
-    def test_apply_shifts_fragment_by_the_drift_time_correction(self):
+    def test_apply_shifts_fragment_by_the_drift_time_correction(self, drift_time_decon):
         # A fragment one unit early matches the precursor only after its correction
-        ms1_features, ms2_features = _pair_features("drift_time")
-        ms2_features["drift_time"] = 9.0
-        decon = _configured_decon(
-            ms1_features,
-            _profile_data(500.0, PRECURSOR_PROFILE, "drift_time"),
-            ms2_features,
-            _profile_data(100.0, PRECURSOR_PROFILE, "drift_time", start=4.0),
-            "drift_time",
+        drift_time_decon.decon_pairs = pd.DataFrame(
             {
                 "index_ms1": [0],
                 "index_ms2": [0],
                 "drift_time_ms1": [10.0],
                 "drift_time_ms2": [10.0],
                 "drift_time_raw_ms2": [9.0],
-            },
+            }
         )
 
-        result = decon.apply(dims="drift_time", resolution=1.0)
+        result = drift_time_decon.apply(dims="drift_time", resolution=1.0)
 
         assert result["drift_time_score"].tolist() == pytest.approx([1.0])
 
@@ -637,19 +644,12 @@ class TestMS2Deconvolution:
         [(-5.0, 5.0, False), (-0.5, 0.5, True)],
         ids=["absolute", "relative"],
     )
-    def test_apply_profile_window(self, low, high, relative):
+    def test_apply_profile_window(self, decon, low, high, relative):
         # The score depends on the points in a window from 5 up to 15
-        ms1_features, ms2_features = _pair_features()
-        decon = deimos.deconvolution.MS2Deconvolution(
-            ms1_features,
-            _profile_data(500.0, PRECURSOR_PROFILE),
-            ms2_features,
-            _profile_data(100.0, PARTIAL_PROFILE),
-        )
         decon.decon_pairs = pd.DataFrame(
             {
                 "index_ms1": [0],
-                "index_ms2": [0],
+                "index_ms2": [1],
                 "retention_time_ms1": [10.0],
                 "retention_time_ms2": [10.0],
             }
@@ -667,12 +667,12 @@ class TestMS2Deconvolution:
             [3 / np.sqrt(19)]
         )
 
-    def test_apply_default_dims(self):
+    def test_apply_default_dims(self, precursor_profile):
         # Scaled copies agree at every point of the default 0.01 resolution
-        ms1_data = _profile_data(500.0, PRECURSOR_PROFILE).assign(
+        ms1_data = _profile_data(500.0, precursor_profile).assign(
             drift_time=lambda x: x["retention_time"]
         )
-        ms2_data = _profile_data(100.0, 2 * PRECURSOR_PROFILE).assign(
+        ms2_data = _profile_data(100.0, 2 * precursor_profile).assign(
             drift_time=lambda x: x["retention_time"]
         )
         ms1_features = pd.DataFrame(
@@ -717,32 +717,14 @@ class TestMS2Deconvolution:
         assert result["drift_time_score"].tolist() == pytest.approx([1.0])
         assert result["retention_time_score"].tolist() == pytest.approx([1.0])
 
-    def test_apply_returns_no_rows_without_pairs(self):
-        ms1_features, ms2_features = _pair_features()
-        ms1_data = pd.concat(
-            [
-                _profile_data(500.0, PRECURSOR_PROFILE),
-                _profile_data(800.0, PARTIAL_PROFILE),
-            ]
-        )
-        ms2_data = pd.concat(
-            [
-                _profile_data(100.0, PRECURSOR_PROFILE),
-                _profile_data(200.0, PARTIAL_PROFILE),
-            ]
-        )
-        decon = _configured_decon(
-            ms1_features,
-            ms1_data,
-            ms2_features,
-            ms2_data,
-            "retention_time",
+    def test_apply_returns_no_rows_without_pairs(self, decon):
+        decon.decon_pairs = pd.DataFrame(
             {
                 "index_ms1": pd.Series(dtype=int),
                 "index_ms2": pd.Series(dtype=int),
                 "retention_time_ms1": pd.Series(dtype=float),
                 "retention_time_ms2": pd.Series(dtype=float),
-            },
+            }
         )
 
         result = decon.apply(dims="retention_time", resolution=1.0)
@@ -750,41 +732,17 @@ class TestMS2Deconvolution:
         assert len(result) == 0
         assert "retention_time_score" in result.columns
 
-    def test_apply_scores_constructed_pairs(self):
+    def test_apply_scores_constructed_pairs(self, drift_time_decon):
         # A model adds the one unit that the fragment arrives early
-        ms1_features, ms2_features = _pair_features("drift_time")
-        ms2_features["drift_time"] = 9.0
-        ms1_data = pd.concat(
-            [
-                _profile_data(500.0, PRECURSOR_PROFILE, "drift_time"),
-                _profile_data(800.0, PARTIAL_PROFILE, "drift_time"),
-            ]
-        )
-        ms2_data = pd.concat(
-            [
-                _profile_data(100.0, 2 * PRECURSOR_PROFILE, "drift_time", start=4.0),
-                _profile_data(200.0, PARTIAL_PROFILE, "drift_time", start=4.0),
-            ]
-        )
-        decon = deimos.deconvolution.MS2Deconvolution(
-            ms1_features, ms1_data, ms2_features, ms2_data
-        )
-        decon.construct_putative_pairs(
+        drift_time_decon.construct_putative_pairs(
             dims="drift_time",
             low=-2.0,
             high=2.0,
             ce=20,
             model=lambda dt, mz_ms2, mz_ms1, ce: dt + 1,
-            require_ms1_greater_than_ms2=False,
-        )
-        decon.configure_profile_extraction(
-            dims=["mz", "drift_time"],
-            low=[-100e-6, -5.0],
-            high=[400e-6, 5.0],
-            relative=[True, False],
         )
 
-        result = decon.apply(dims="drift_time", resolution=1.0)
+        result = drift_time_decon.apply(dims="drift_time", resolution=1.0)
 
         assert result["index_ms1"].tolist() == [0, 0, 1, 1]
         assert result["index_ms2"].tolist() == [0, 1, 0, 1]
@@ -814,37 +772,19 @@ class TestMS2Deconvolution:
         ids=["ms1-shuffled", "ms2-shuffled", "strings"],
     )
     def test_apply_finds_features_by_index_label(
-        self, ms1_labels, ms2_labels, expected
+        self, decon, ms1_labels, ms2_labels, expected
     ):
         # The first feature in each table is the precursor profile or its scaled copy,
         # and pairs are in sorted label order
-        ms1_features, ms2_features = _pair_features()
-        ms1_features.index = pd.Index(ms1_labels)
-        ms2_features.index = pd.Index(ms2_labels)
-        ms1_data = pd.concat(
-            [
-                _profile_data(500.0, PRECURSOR_PROFILE),
-                _profile_data(800.0, PARTIAL_PROFILE),
-            ]
-        )
-        ms2_data = pd.concat(
-            [
-                _profile_data(100.0, 2 * PRECURSOR_PROFILE),
-                _profile_data(200.0, PARTIAL_PROFILE),
-            ]
-        )
-        decon = _configured_decon(
-            ms1_features,
-            ms1_data,
-            ms2_features,
-            ms2_data,
-            "retention_time",
+        decon.ms1_features = decon.ms1_features.set_axis(ms1_labels)
+        decon.ms2_features = decon.ms2_features.set_axis(ms2_labels)
+        decon.decon_pairs = pd.DataFrame(
             {
                 "index_ms1": sorted(ms1_labels * 2),
                 "index_ms2": sorted(ms2_labels) * 2,
                 "retention_time_ms1": [10.0] * 4,
                 "retention_time_ms2": [10.0] * 4,
-            },
+            }
         )
 
         result = decon.apply(dims="retention_time", resolution=1.0)
@@ -853,19 +793,19 @@ class TestMS2Deconvolution:
 
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     @pytest.mark.parametrize("missing", ["ms1", "ms2"])
-    def test_apply_scores_nan_for_a_feature_without_data(self, missing):
+    def test_apply_scores_nan_for_a_feature_without_data(
+        self, decon, precursor_profile, missing
+    ):
         # The second feature of one table has no data, and the first pair still scores
-        ms1_features, ms2_features = _pair_features()
-        ms1_data = _profile_data(500.0, PRECURSOR_PROFILE)
-        ms2_data = _profile_data(100.0, 2 * PRECURSOR_PROFILE)
-        pairs = {
-            "index_ms1": [0, 1] if missing == "ms1" else [0, 0],
-            "index_ms2": [0, 1] if missing == "ms2" else [0, 0],
-            "retention_time_ms1": [10.0, 10.0],
-            "retention_time_ms2": [10.0, 10.0],
-        }
-        decon = _configured_decon(
-            ms1_features, ms1_data, ms2_features, ms2_data, "retention_time", pairs
+        decon.ms1_data = _profile_data(500.0, precursor_profile)
+        decon.ms2_data = _profile_data(100.0, 2 * precursor_profile)
+        decon.decon_pairs = pd.DataFrame(
+            {
+                "index_ms1": [0, 1] if missing == "ms1" else [0, 0],
+                "index_ms2": [0, 1] if missing == "ms2" else [0, 0],
+                "retention_time_ms1": [10.0, 10.0],
+                "retention_time_ms2": [10.0, 10.0],
+            }
         )
 
         scores = decon.apply(dims="retention_time", resolution=1.0)[
