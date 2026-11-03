@@ -179,7 +179,7 @@ class MS2Deconvolution:
 
     def __init__(self, ms1_features, ms1_data, ms2_features, ms2_data):
         """
-        Initializes :obj:`~deimos.calibration.ArrivalTimeCalibration` object.
+        Initializes :obj:`~deimos.deconvolution.MS2Deconvolution` object.
 
         Parameters
         ----------
@@ -190,7 +190,7 @@ class MS2Deconvolution:
         ms2_features : :obj:`~pandas.DataFrame`
             MS2 peak locations and intensities.
         ms2_data : :obj:`~pandas.DataFrame`
-            Complete MS1 data.
+            Complete MS2 data.
 
         """
 
@@ -435,13 +435,13 @@ class MS2Deconvolution:
 
     def apply(self, dims=None, resolution=None, similarity="cosine"):
         """
-        Perform deconvolution according to mathed features and their
+        Perform deconvolution according to matched features and their
         extracted profiles.
 
         Parameters
         ----------
         dims : str or list, optional
-            Dimensions(s) for which to calculate MS1:MS2 correspondence
+            Dimension(s) for which to calculate MS1:MS2 correspondence
             by 1D profile agreement (i.e. non-m/z).
             Default is ``["drift_time", "retention_time"]``.
         resolution : float or list, optional
@@ -497,7 +497,7 @@ class MS2Deconvolution:
         # Container for profile similarity scores
         scores = {dim: [] for dim in dims}
 
-        # Enumerate MS1 featres
+        # Enumerate MS1 features
         for name, grp in self.decon_pairs.groupby(by=["index_ms1"], as_index=False):
             # MS1 feature position; grouping by a list yields tuple names
             idx_i = cast(
@@ -550,7 +550,7 @@ class MS2Deconvolution:
                     # Determine offset
                     offset = row["drift_time_ms2"] - row["drift_time_raw_ms2"]
 
-                    # Apply ofset
+                    # Apply offset
                     ms2_xi["drift_time"] += offset
 
                 # Build MS2 profile
