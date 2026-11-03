@@ -105,6 +105,38 @@ def get_1D_profiles(features, dims=None):
 
 
 def offset_correction_model(dt_ms2, mz_ms2, mz_ms1, ce, params=None):
+    """
+    Correct MS2 drift times for their offset from the MS1 precursor.
+
+    Each corrected drift time is ``factor * dt_ms2``, where ``factor`` is
+    ``p0 + p1 * sqrt(mz_ms2 / mz_ms1) + p2 * ln(ce)``.
+
+    Parameters
+    ----------
+    dt_ms2 : :obj:`~numpy.array`
+        MS2 drift times.
+    mz_ms2 : :obj:`~numpy.array`
+        MS2 m/z values, in the same order as `dt_ms2`.
+    mz_ms1 : :obj:`~numpy.array`
+        MS1 precursor m/z values, in the same order as `dt_ms2`.
+    ce : float
+        Collision energy of MS2 collection. Must be positive.
+    params : list, optional
+        Model coefficients ``[p0, p1, p2]``.
+        Default is ``[1.02067031, -0.02062323, 0.00176694]``.
+
+    Returns
+    -------
+    :obj:`~numpy.array`
+        Corrected MS2 drift times.
+
+    Raises
+    ------
+    ValueError
+        If `ce` is zero or negative.
+
+    """
+
     # Check collision energy is positive, as the model uses its logarithm
     if np.any(np.less_equal(ce, 0)):
         raise ValueError("Collision energy must be positive.")
