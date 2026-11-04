@@ -83,8 +83,7 @@ def detect(
     1. Finds candidate pairs by binary search in m/z order around each expected mass
        difference, across all charge states and isotope multiples, and retains those
        within tolerance in every dimension
-    2. Filters pairs by mass accuracy and intensity decay (parent > isotope),
-       keeping the candidate closest in mass at each isotope position
+    2. Filters pairs by mass accuracy and intensity decay (parent > isotope)
     3. Groups isotopes by their parent feature
 
     The function supports both multi-dimensional data (LC-IMS-MS) and single-dimension
@@ -136,7 +135,9 @@ def detect(
     -------
     :obj:`~pandas.DataFrame`
         Features grouped by isotopic pattern, sorted by intensity and number of isotopes.
-        Each row represents one parent feature with columns:
+        Each row represents one parent feature and lists every candidate that passes
+        the filters, so one expected mass difference can repeat when several features
+        match it. List columns are aligned, with one entry per candidate. Columns:
 
         - mz: Parent m/z
         - intensity: Parent intensity
@@ -144,13 +145,14 @@ def detect(
         - idx: Parent feature index
         - multiple: List of multiples of the matched spacing (e.g., [1, 2, 3] for
           13C M+1, M+2, M+3)
-        - dx: List of expected mass differences
+        - dx: List of expected mass differences matched by each candidate
         - mz_iso: List of isotope m/z values
         - intensity_iso: List of isotope intensities
         - idx_iso: List of isotope feature indices
-        - error: List of relative errors
+        - error: List of relative errors, as fractions (6.7e-06 is 6.7 ppm)
         - decay: List of intensity ratios (isotope/parent)
-        - n: Number of isotopes detected
+        - n: Number of distinct expected mass differences matched, which is below the
+          list length when several candidates match one difference
 
     Examples
     --------
@@ -350,23 +352,16 @@ def detect(
     if not return_all_patterns:
         isotopes = isotopes.loc[~isotopes["idx"].isin(isotopes["idx_iso"]), :]
 
-    # Retain the candidate closest in mass at each expected m/z difference
-    isotopes = (
-        isotopes.sort_values("error", kind="stable")
-        .drop_duplicates(subset=["idx", "charge", "dx"])
-        .sort_index()
-    )
-
     # Step 7: Group isotopes by parent feature
-    # Keep one list entry per isotope so the list columns stay aligned
+    # List one entry per candidate so the list columns stay aligned
     grouped = cast(
         pd.DataFrame,
         isotopes.groupby(by=["mz", "charge", "idx", "intensity"], as_index=False).agg(
             list
         ),
     )
-    # Count number of isotopes per parent
-    grouped["n"] = [len(x) for x in grouped["multiple"].values]
+    # Count distinct expected differences per parent, since candidates can share one
+    grouped["n"] = [len(set(x)) for x in grouped["dx"].values]
 
     if grouped.empty:
         return grouped

@@ -35,7 +35,7 @@ def test_detect(ms1_peaks):
     assert abs(isotopes["mz"] - 387.024353) <= 1e-3
     assert isotopes["n"] == 4
     assert all(x <= 50e-6 for x in isotopes["error"])
-    assert isotopes["dx"] == [1.003355, 2.00671, 3.010065, 4.01342]
+    assert sorted(set(isotopes["dx"])) == [1.003355, 2.00671, 3.010065, 4.01342]
 
 
 def test_detect_finds_largest_spacing_at_tolerance_edge():
@@ -693,13 +693,12 @@ def test_detect_list_columns_keep_repeated_values():
     assert row["decay"] == [0.5, 0.5]
 
 
-def test_detect_keeps_closest_candidate_per_isotope():
-    """Test that each isotope position reports the candidate closest in mass.
+def test_detect_lists_every_candidate_per_isotope():
+    """Test that each isotope position reports every candidate within tolerance.
 
-    Two features fall within tolerance of the parent's M+1 position. The one
-    at 301.0035 is 0.145 mDa from the expected spacing and the one at
-    301.0025 is 0.855 mDa away, so only the first is reported as M+1, and
-    every list column stays aligned with ``multiple``.
+    Two features fall within tolerance of the parent's M+1 position, 0.855 and
+    0.145 mDa from the expected spacing. Both are listed, every list column stays
+    aligned with ``idx_iso``, and ``n`` counts the two positions.
     """
     features = pd.DataFrame(
         {
@@ -715,10 +714,40 @@ def test_detect_keeps_closest_candidate_per_isotope():
     row = isotopes.iloc[0]
     assert len(isotopes) == 1
     assert row["n"] == 2
-    assert row["multiple"] == [1.0, 2.0]
-    assert row["dx"] == [1.003355, 2.00671]
-    assert row["idx_iso"] == [2, 3]
-    assert row["mz_iso"] == [301.0035, 302.00671]
-    assert row["intensity_iso"] == [400.0, 100.0]
-    assert row["decay"] == [0.4, 0.1]
-    assert row["error"] == pytest.approx([0.000145 / 301.0035, 0.0], abs=1e-12)
+    assert row["multiple"] == [1.0, 1.0, 2.0]
+    assert row["dx"] == [1.003355, 1.003355, 2.00671]
+    assert row["idx_iso"] == [1, 2, 3]
+    assert row["mz_iso"] == [301.0025, 301.0035, 302.00671]
+    assert row["intensity_iso"] == [450.0, 400.0, 100.0]
+    assert row["decay"] == [0.45, 0.4, 0.1]
+    assert row["error"] == pytest.approx(
+        [0.000855 / 301.0025, 0.000145 / 301.0035, 0.0], abs=1e-12
+    )
+
+
+def test_detect_n_counts_expected_differences_across_spacings():
+    """Test that ``n`` counts expected differences, not candidates or multiples.
+
+    One candidate lies at 13C and two at the second spacing in SPACINGS, so the row
+    has three candidates of one multiple at two expected differences.
+    """
+    features = pd.DataFrame(
+        {
+            "mz": [150.0, 151.0035, 151.9968, 151.9971],
+            "intensity": [1000.0, 100.0, 320.0, 300.0],
+        }
+    )
+
+    isotopes = deimos.isotopes.detect(
+        features,
+        dims=["mz"],
+        tol=[0.1],
+        delta=deimos.isotopes.SPACINGS,
+        max_isotopes=1,
+    )
+
+    row = isotopes.iloc[0]
+    assert row["idx_iso"] == [1, 2, 3]
+    assert row["dx"] == [1.003355, 1.996874, 1.996874]
+    assert row["multiple"] == [1.0, 1.0, 1.0]
+    assert row["n"] == 2
