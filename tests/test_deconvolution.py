@@ -238,6 +238,44 @@ def test_cosine_flattens_arrays():
     assert deimos.deconvolution.cosine(a, b) == pytest.approx(1 - 1 / np.sqrt(2))
 
 
+def test_cosine_along_an_axis_gives_one_distance_per_row():
+    rows = np.array([[1.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0], [1.0, 0.0, 0.0, 0.0]])
+    profile = np.array([1.0, 1.0, 0.0, 0.0])
+
+    distances = deimos.deconvolution.cosine(rows, profile, axis=-1)
+
+    assert distances == pytest.approx([0.0, 1.0, 1 - 1 / np.sqrt(2)])
+
+
+@pytest.mark.parametrize("function", ["cosine", "pearson"])
+@pytest.mark.parametrize("axis", [0, 1, -1])
+def test_similarity_along_an_axis_matches_flattened_calls(function, axis):
+    rng = np.random.default_rng(0)
+    a = rng.random((3, 4, 5))
+    b = rng.random((3, 4, 5))
+    distance = getattr(deimos.deconvolution, function)
+
+    out = distance(a, b, axis=axis)
+
+    a_moved, b_moved = np.moveaxis(a, axis, -1), np.moveaxis(b, axis, -1)
+    expected = [
+        distance(a_moved[i], b_moved[i]) for i in np.ndindex(a_moved.shape[:-1])
+    ]
+    assert out.shape == a_moved.shape[:-1]
+    assert out.ravel() == pytest.approx(expected)
+
+
+def test_pearson_along_an_axis_centers_each_row_separately():
+    rows = np.array([[1.0, 2.0, 3.0], [13.0, 12.0, 11.0], [5.0, 5.0, 5.0]])
+    profile = np.array([0.0, 1.0, 2.0])
+
+    with pytest.warns(RuntimeWarning):
+        distances = deimos.deconvolution.pearson(rows, profile, axis=-1)
+
+    assert distances[:2] == pytest.approx([0.0, 2.0])
+    assert np.isnan(distances[2])
+
+
 def test_cosine_is_nan_for_a_zero_array():
     with pytest.warns(RuntimeWarning):
         distance = deimos.deconvolution.cosine(np.zeros(3), np.ones(3))
