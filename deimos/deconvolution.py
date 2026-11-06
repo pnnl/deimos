@@ -8,29 +8,47 @@ from scipy.spatial import KDTree
 import deimos
 
 
-def cosine(a, b):
+def cosine(a, b, axis=None):
     """
     Cosine distance (1 - similarity) between two arrays.
+
+    By default `a` and `b` are flattened and compared as one vector each.
+    With `axis`, the arrays are broadcast against each other and compared
+    along that axis, so a 2D array of profiles against one 1D profile gives
+    one distance per row.
 
     Parameters
     ----------
     a, b : :obj:`~numpy.array`
-        N-dimensional arrays.
+        N-dimensional arrays. With `axis`, they must broadcast to a common
+        shape.
+    axis : int, optional
+        Axis along which to compare. Default is None, which flattens `a`
+        and `b`.
 
     Returns
     -------
-    float
-        Cosine distance.
+    float or :obj:`~numpy.array`
+        Cosine distance, or with `axis`, one distance per position of the
+        other axes. A distance is NaN where a compared vector is all zero.
 
     """
 
-    a_ = a.flatten()
-    b_ = b.flatten()
+    if axis is None:
+        a_ = a.flatten()
+        b_ = b.flatten()
 
-    return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
+        return 1 - np.dot(a_, b_) / np.sqrt(a_.dot(a_) * b_.dot(b_))
+
+    # Compare along the axis after broadcasting the arrays together
+    a_, b_ = np.broadcast_arrays(np.asarray(a, dtype=float), np.asarray(b, dtype=float))
+    num = (a_ * b_).sum(axis=axis)
+    denom = np.sqrt((a_ * a_).sum(axis=axis) * (b_ * b_).sum(axis=axis))
+
+    return 1 - num / denom
 
 
-def pearson(a, b):
+def pearson(a, b, axis=None):
     """
     Pearson correlation distance (1 - correlation) between two arrays.
 
@@ -38,19 +56,38 @@ def pearson(a, b):
     such as a baseline under a profile, does not change the distance. The
     distance is undefined (NaN) when either array is constant.
 
+    By default `a` and `b` are flattened and compared as one vector each.
+    With `axis`, each array is centered along that axis, and the arrays are
+    compared along it as :func:`cosine` does.
+
     Parameters
     ----------
     a, b : :obj:`~numpy.array`
-        N-dimensional arrays.
+        N-dimensional arrays. With `axis`, they must broadcast to a common
+        shape.
+    axis : int, optional
+        Axis along which to center and compare. Default is None, which
+        flattens `a` and `b`.
 
     Returns
     -------
-    float
-        Pearson correlation distance.
+    float or :obj:`~numpy.array`
+        Pearson correlation distance, or with `axis`, one distance per
+        position of the other axes.
 
     """
 
-    return cosine(a - a.mean(), b - b.mean())
+    if axis is None:
+        return cosine(a - a.mean(), b - b.mean())
+
+    a_ = np.asarray(a, dtype=float)
+    b_ = np.asarray(b, dtype=float)
+
+    return cosine(
+        a_ - a_.mean(axis=axis, keepdims=True),
+        b_ - b_.mean(axis=axis, keepdims=True),
+        axis=axis,
+    )
 
 
 def get_1D_profiles(features, dims=None):
