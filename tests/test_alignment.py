@@ -485,7 +485,9 @@ def test_agglomerative_clustering_none():
 def _boxes(rows):
     return pd.DataFrame(
         rows,
-        columns=["mz_min", "mz_max", "retention_time_min", "retention_time_max"],
+        columns=pd.Index(
+            ["mz_min", "mz_max", "retention_time_min", "retention_time_max"]
+        ),
     )
 
 
