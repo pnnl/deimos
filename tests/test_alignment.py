@@ -480,3 +480,111 @@ def test_agglomerative_clustering_none():
         )
         is None
     )
+
+
+def _boxes(rows):
+    return pd.DataFrame(
+        rows,
+        columns=["mz_min", "mz_max", "retention_time_min", "retention_time_max"],
+    )
+
+
+def test_within_pairs_each_feature_with_every_box_that_contains_it():
+    features = pd.DataFrame(
+        {"mz": [100.0, 200.0, 300.0], "retention_time": [1.0, 5.0, 2.0]}
+    )
+    boxes = _boxes(
+        [
+            [99.0, 101.0, 0.0, 2.0],
+            [99.5, 100.5, 0.5, 1.5],
+            [199.0, 201.0, 0.0, 2.0],
+            [290.0, 310.0, 1.0, 3.0],
+        ]
+    )
+
+    a, b = deimos.alignment.within(features, boxes, dims=["mz", "retention_time"])
+
+    assert a is not None and b is not None
+    assert a.index.tolist() == [0, 0, 2]
+    assert b.index.tolist() == [0, 1, 3]
+
+
+def test_within_includes_the_bounds():
+    features = pd.DataFrame({"mz": [99.0, 101.0], "retention_time": [0.0, 2.0]})
+    boxes = _boxes([[99.0, 101.0, 0.0, 2.0]])
+
+    a, _ = deimos.alignment.within(features, boxes, dims=["mz", "retention_time"])
+
+    assert a is not None
+    assert a.index.tolist() == [0, 1]
+
+
+def test_within_reads_named_bound_columns():
+    features = pd.DataFrame({"mz": [100.0, 102.0]})
+    boxes = pd.DataFrame({"lo": [99.0], "hi": [101.0]})
+
+    a, _ = deimos.alignment.within(features, boxes, dims="mz", low="lo", high="hi")
+
+    assert a is not None
+    assert a.index.tolist() == [0]
+
+
+def test_within_returns_none_without_a_containing_box():
+    features = pd.DataFrame({"mz": [50.0]})
+    boxes = pd.DataFrame({"mz_min": [99.0], "mz_max": [101.0]})
+
+    a, b = deimos.alignment.within(features, boxes, dims="mz")
+
+    assert a is None
+    assert b is None
+
+
+def test_within_never_matches_nan_values_or_bounds():
+    features = pd.DataFrame({"mz": [np.nan, 100.0]})
+    boxes = pd.DataFrame({"mz_min": [np.nan, 99.0], "mz_max": [101.0, np.nan]})
+
+    a, _ = deimos.alignment.within(features, boxes, dims="mz")
+
+    assert a is None
+
+
+def test_within_finds_a_box_with_an_infinite_bound():
+    features = pd.DataFrame({"mz": [100.0, 5000.0], "retention_time": [1.0, 1.0]})
+    boxes = _boxes([[99.0, np.inf, 0.0, 2.0], [99.0, 101.0, 0.0, 2.0]])
+
+    a, b = deimos.alignment.within(features, boxes, dims=["mz", "retention_time"])
+
+    assert a is not None and b is not None
+    assert list(zip(a.index, b.index)) == [(0, 0), (0, 1), (1, 0)]
+
+
+def test_within_matches_a_dense_comparison():
+    rng = np.random.default_rng(0)
+    features = pd.DataFrame(
+        {"mz": rng.uniform(100, 110, 2000), "retention_time": rng.uniform(0, 30, 2000)}
+    )
+    lo_mz, lo_rt = rng.uniform(100, 110, 500), rng.uniform(0, 30, 500)
+    boxes = _boxes(
+        np.column_stack(
+            [
+                lo_mz,
+                lo_mz + rng.uniform(0, 0.05, 500),
+                lo_rt,
+                lo_rt + rng.exponential(2.0, 500),
+            ]
+        )
+    )
+
+    a, b = deimos.alignment.within(features, boxes, dims=["mz", "retention_time"])
+
+    v = features.to_numpy()[:, None, :]
+    inside = (
+        (v[..., 0] >= boxes["mz_min"].to_numpy())
+        & (v[..., 0] <= boxes["mz_max"].to_numpy())
+        & (v[..., 1] >= boxes["retention_time_min"].to_numpy())
+        & (v[..., 1] <= boxes["retention_time_max"].to_numpy())
+    )
+    expected_i, expected_j = np.nonzero(inside)
+    assert a is not None and b is not None
+    assert a.index.tolist() == expected_i.tolist()
+    assert b.index.tolist() == expected_j.tolist()

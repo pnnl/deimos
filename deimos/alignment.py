@@ -169,6 +169,174 @@ def tolerance(
     return a, b
 
 
+def within(features, boxes, dims=None, low=None, high=None):
+    """
+    Identify the boxes in `boxes` that contain each feature in `features`.
+
+    Each box has a lower and an upper bound per dimension, stored as columns,
+    and contains a feature when every coordinate of the feature lies within
+    the box's bounds, inclusive. Matches are many-to-many.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates.
+    boxes : :obj:`~pandas.DataFrame`
+        Bounds of each box.
+    dims : str or list, optional
+        Dimensions of `features` to test.
+        Default is ``["mz", "drift_time", "retention_time"]``.
+    low, high : str or list, optional
+        Columns of `boxes` with the lower and upper bound in each dimension,
+        in the order of `dims`. Default is each dimension with ``_min`` and
+        ``_max`` appended.
+
+    Returns
+    -------
+    a, b : :obj:`~pandas.DataFrame`
+        Features and the boxes that contain them, row for row, ordered by
+        position in `features` and then in `boxes`. None, None if no box
+        contains a feature.
+
+    Examples
+    --------
+    >>> features = pd.DataFrame({"mz": [100.0, 300.0], "retention_time": [1.5, 2.0]})
+    >>> boxes = pd.DataFrame(
+    ...     {"mz_min": [99.9], "mz_max": [100.1], "retention_time_min": [1.0],
+    ...      "retention_time_max": [2.0]}
+    ... )
+    >>> a, b = within(features, boxes, dims=["mz", "retention_time"])
+    >>> a["mz"].tolist(), b.index.tolist()
+    ([100.0], [0])
+
+    """
+
+    # Default to the three standard dimensions
+    if dims is None:
+        dims = ["mz", "drift_time", "retention_time"]
+
+    if features is None or boxes is None:
+        return None, None
+
+    # Safely cast to list
+    dims = deimos.utils.safelist(dims)
+    low = [f"{d}_min" for d in dims] if low is None else deimos.utils.safelist(low)
+    high = [f"{d}_max" for d in dims] if high is None else deimos.utils.safelist(high)
+
+    # Check dims
+    deimos.utils.check_length([dims, low, high])
+
+    # Per-dataset indices
+    ii, jj = _pairs_within_bounds(
+        [features[d].to_numpy() for d in dims],
+        [boxes[c].to_numpy() for c in low],
+        [boxes[c].to_numpy() for c in high],
+    )
+
+    if len(ii) < 1:
+        return None, None
+
+    return features.iloc[ii], boxes.iloc[jj]
+
+
+def _pairs_within_bounds(values, low, high, chunk_size=2**20):
+    """
+    Find all pairs of a feature and a box that contains it, without forming
+    the dense feature by box comparison.
+
+    In one dimension, a box can contain a value only when its lower bound
+    lies between the value minus the widest box and the value. Candidate
+    boxes come from that window in the dimension that yields the fewest of
+    them, and each candidate is then checked in every dimension.
+
+    Parameters
+    ----------
+    values : list of :obj:`~numpy.array`
+        Feature coordinates in each dimension.
+    low, high : list of :obj:`~numpy.array`
+        Box bounds in each dimension.
+    chunk_size : int
+        Approximate number of candidate pairs checked at once.
+
+    Returns
+    -------
+    ii, jj : :obj:`~numpy.array`
+        Positional indices of matched features and boxes, ordered by `ii`,
+        then `jj`.
+
+    """
+
+    n = len(values[0])
+    m = len(low[0])
+
+    if n < 1 or m < 1:
+        return np.zeros(0, dtype=int), np.zeros(0, dtype=int)
+
+    # Window each feature in the dimension with the fewest candidates
+    start, stop, order = np.zeros(n, dtype=int), np.full(n, m), np.arange(m)
+    for v, lo, hi in zip(values, low, high):
+        v = v.astype(np.float64)
+        lo = lo.astype(np.float64)
+        widths = hi.astype(np.float64) - lo
+
+        # An unbounded box can contain any value, so this dimension cannot
+        # window; boxes with a NaN bound contain no value
+        if np.isposinf(widths).any():
+            continue
+        valid = np.isfinite(widths)
+        if not valid.any():
+            continue
+        width = widths[valid].max()
+        if width < 0:
+            continue
+
+        # Sort boxes by lower bound, and widen each window by the rounding of
+        # its bounds so no box that contains the value is missed
+        o = np.argsort(lo, kind="stable")
+        sorted_lo = lo[o]
+        pad = 8 * np.finfo(np.float64).eps * (np.abs(v) + width)
+        first = np.searchsorted(sorted_lo, v - width - pad, side="left")
+        last = np.searchsorted(sorted_lo, v + pad, side="right")
+
+        # A non-finite value lies in no box
+        last[~np.isfinite(v)] = first[~np.isfinite(v)]
+        if (last - first).sum() < (stop - start).sum():
+            start, stop, order = first, last, o
+
+    # Count candidates per feature, and their running total
+    counts = stop - start
+    total = np.cumsum(counts)
+
+    # Check candidates in chunks of whole features, each holding about
+    # `chunk_size` pairs, to bound memory
+    pairs = []
+    begin = 0
+    while begin < n:
+        done = total[begin - 1] if begin > 0 else 0
+        end = int(np.searchsorted(total, done + chunk_size, side="right"))
+        end = max(end, begin + 1)
+
+        # Expand windows to candidate pairs
+        c = counts[begin:end]
+        ii = np.repeat(np.arange(begin, end), c)
+        offset = np.arange(len(ii)) - np.repeat(np.cumsum(c) - c, c)
+        jj = order[start[ii] + offset]
+
+        # Check the bounds in each dimension
+        idx = np.ones(len(ii), dtype=bool)
+        for v, lo, hi in zip(values, low, high):
+            idx &= (v[ii] >= lo[jj]) & (v[ii] <= hi[jj])
+
+        # Encode each pair as one sortable integer
+        pairs.append(ii[idx] * m + jj[idx])
+        begin = end
+
+    # Order by feature, then box
+    pairs = np.sort(np.concatenate(pairs))
+
+    return pairs // m, pairs % m
+
+
 def _pairs_within_tolerance(a, b, dims, tol, relative, chunk_size=2**20):
     """
     Find all pairs of features in `a` and `b` within tolerance in every
