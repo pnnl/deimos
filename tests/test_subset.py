@@ -832,7 +832,7 @@ def unsorted_features():
             "scan": [2, 0, 1, 2],
             "intensity": [4.0, 7.0, 5.0, 3.0],
         },
-        index=["d", "a", "c", "b"],
+        index=pd.Index(["d", "a", "c", "b"]),
     )
 
 
