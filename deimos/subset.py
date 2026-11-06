@@ -1237,3 +1237,307 @@ def multi_sample_partition(features, split_on="mz", size=500, tol=25e-6):
     """
 
     return MultiSamplePartitions(features, split_on, size, tol)
+
+
+class SortedFeatures:
+    """
+    Features sorted once by one dimension, for many windowed lookups.
+
+    :func:`slice` and :func:`locate` check the sort order and copy columns on
+    every call, which dominates their cost when a large table is searched
+    many times. This class sorts the table and stores its columns as NumPy
+    arrays once, so each lookup costs a binary search plus the rows it
+    returns.
+
+    Bounds are inclusive at the lower and upper end and compared in float64, as
+    :func:`slice` compares them. A relative tolerance `tol` around a
+    location `x` gives the bounds ``x * (1 - tol)`` and ``x * (1 + tol)``,
+    as in :func:`locate_asym`.
+
+    Parameters
+    ----------
+    features : :obj:`~pandas.DataFrame`
+        Input feature coordinates and intensities.
+    by : str
+        Dimension to sort by and search. Default is ``"mz"``.
+    columns : list, optional
+        Columns to store. Default is every column.
+
+    Attributes
+    ----------
+    by : str
+        Dimension the features are sorted by.
+    values : dict of str to :obj:`~numpy.array`
+        Each stored column in sorted order.
+    index : :obj:`~numpy.array`
+        Index labels of `features` in sorted order.
+
+    Raises
+    ------
+    ValueError
+        If the `by` column contains NaN.
+
+    Examples
+    --------
+    >>> features = pd.DataFrame(
+    ...     {"mz": [300.0, 100.0, 100.0005], "scan": [0, 1, 2], "intensity": [5.0, 7.0, 3.0]}
+    ... )
+    >>> sf = SortedFeatures(features, by="mz")
+    >>> sf.extract([100.0], tol=10e-6, relative=True, along="scan", start=0, stop=3).tolist()
+    [[0.0, 7.0, 3.0]]
+
+    """
+
+    def __init__(self, features, by="mz", columns=None):
+        if columns is None:
+            columns = list(features.columns)
+        if by not in columns:
+            columns = [by, *columns]
+
+        # Sort once and stably, so equal values retain their input order
+        key = features[by].to_numpy()
+        if np.issubdtype(key.dtype, np.floating) and np.isnan(key).any():
+            raise ValueError(
+                f"Column '{by}' contains NaN, which has no sorted position."
+            )
+        order = np.argsort(key, kind="stable")
+
+        self.by = by
+        self.values = {
+            c: np.ascontiguousarray(features[c].to_numpy()[order]) for c in columns
+        }
+        self.index = features.index.to_numpy()[order]
+
+        # Search a float64 copy of a narrower float column, so bounds compare as in slice
+        key = self.values[by]
+        is_narrow = np.issubdtype(key.dtype, np.floating) and key.dtype != np.float64
+        self._key = key.astype(np.float64) if is_narrow else key
+
+    def __len__(self):
+        return len(self.index)
+
+    def window(self, low, high):
+        """
+        Find the run of sorted rows within inclusive bounds on `by`.
+
+        Parameters
+        ----------
+        low, high : float or array-like
+            Lower and upper bound(s), one pair per window.
+
+        Returns
+        -------
+        start, stop : int or :obj:`~numpy.array`
+            First position and one past the last position of each window.
+
+        """
+
+        low = np.asarray(low, dtype=np.float64)
+        high = np.asarray(high, dtype=np.float64)
+        return (
+            np.searchsorted(self._key, low, side="left"),
+            np.searchsorted(self._key, high, side="right"),
+        )
+
+    def window_around(self, loc, tol, relative=False):
+        """
+        Find the run of sorted rows within `tol` of each location on `by`.
+
+        Parameters
+        ----------
+        loc : float or array-like
+            Location(s) on `by`.
+        tol : float
+            Tolerance, the same for every location.
+        relative : bool
+            Whether `tol` is relative to each location.
+
+        Returns
+        -------
+        start, stop : int or :obj:`~numpy.array`
+            First position and one past the last position of each window.
+
+        """
+
+        loc = np.asarray(loc, dtype=float)
+        if relative:
+            return self.window(loc * (1 + -tol), loc * (1 + tol))
+        return self.window(loc - tol, loc + tol)
+
+    def extract(
+        self,
+        loc,
+        tol,
+        relative=False,
+        along="scan",
+        start=0,
+        stop=None,
+        value="intensity",
+        how="max",
+        fill=0.0,
+    ):
+        """
+        Aggregate the rows within `tol` of each location onto a dense axis.
+
+        For extracted-ion chromatograms, `by` is m/z, `along` is the scan
+        number, and each row of the output is the chromatogram of one m/z.
+
+        Parameters
+        ----------
+        loc : float or array-like
+            Location(s) on `by`.
+        tol : float
+            Tolerance, the same for every location.
+        relative : bool
+            Whether `tol` is relative to each location.
+        along : str
+            Integer column that gives each row's position on the output axis.
+        start, stop : int, optional
+            Range of `along` values to retain, end exclusive. `stop` defaults
+            to one past the largest value.
+        value : str
+            Column to aggregate.
+        how : {"max", "sum"}
+            Aggregation of the rows that share a location and position.
+        fill : float
+            Value of positions without rows.
+
+        Returns
+        -------
+        :obj:`~numpy.array`
+            Float array of shape ``(len(loc), stop - start)``.
+
+        Raises
+        ------
+        ValueError
+            If `how` is not ``"max"`` or ``"sum"``, or `along` is not an
+            integer column.
+
+        """
+
+        if how not in ("max", "sum"):
+            raise ValueError(f"how must be 'max' or 'sum', not {how!r}.")
+        axis = self.values[along]
+        if not np.issubdtype(axis.dtype, np.integer):
+            raise ValueError(
+                f"Column '{along}' must hold integers to index the output axis."
+            )
+        if stop is None:
+            stop = int(axis.max()) + 1 if len(axis) else start
+
+        # Gather every row of every window, labeled by its location
+        lo, hi = self.window_around(np.atleast_1d(loc), tol, relative=relative)
+        owner, rows = _expand_windows(lo, hi)
+
+        # Drop rows outside the axis range, when any lie outside it
+        pos = axis[rows]
+        if len(pos) and (pos.min() < start or pos.max() >= stop):
+            keep = (pos >= start) & (pos < stop)
+            owner, rows, pos = owner[keep], rows[keep], pos[keep]
+        pos = pos - start
+
+        # Combine the rows of each flat cell (location and position)
+        width = stop - start
+        n_cells = len(lo) * width
+        cells = owner * width + pos
+        vals = self.values[value][rows].astype(float, copy=False)
+        if how == "sum":
+            out = np.bincount(cells, weights=vals, minlength=n_cells)
+            if fill != 0:
+                out[np.bincount(cells, minlength=n_cells) == 0] = fill
+        elif not len(vals) or vals.min() >= fill:
+            # Starting every cell at `fill` is exact when no value is below it
+            out = (
+                np.zeros(n_cells) if fill == 0 else np.full(n_cells, fill, dtype=float)
+            )
+            np.maximum.at(out, cells, vals)
+        else:
+            out = np.full(n_cells, -np.inf)
+            np.maximum.at(out, cells, vals)
+            seen = np.zeros(n_cells, dtype=bool)
+            seen[cells] = True
+            out[~seen] = fill
+
+        return out.reshape(len(lo), width)
+
+    def weighted_mean(
+        self,
+        loc,
+        tol,
+        relative=False,
+        of=None,
+        weights="intensity",
+        along=None,
+        start=None,
+        stop=None,
+    ):
+        """
+        Average a column over the rows within `tol` of each location, weighted by another.
+
+        Parameters
+        ----------
+        loc : float or array-like
+            Location(s) on `by`.
+        tol : float
+            Tolerance, the same for every location.
+        relative : bool
+            Whether `tol` is relative to each location.
+        of : str, optional
+            Column to average. Default is `by`.
+        weights : str
+            Column of weights.
+        along : str, optional
+            Column whose values `start` and `stop` restrict, end exclusive.
+        start, stop : float, optional
+            Range of `along` to retain. `start` or `stop` can be None for no limit.
+
+        Returns
+        -------
+        :obj:`~numpy.array`
+            One mean per location, NaN where no row has positive total weight.
+
+        """
+
+        if of is None:
+            of = self.by
+        lo, hi = self.window_around(np.atleast_1d(loc), tol, relative=relative)
+        owner, rows = _expand_windows(lo, hi)
+
+        # Drop rows outside the range of `along`
+        if along is not None:
+            pos = self.values[along][rows]
+            keep = np.ones(len(rows), dtype=bool)
+            if start is not None:
+                keep &= pos >= start
+            if stop is not None:
+                keep &= pos < stop
+            owner, rows = owner[keep], rows[keep]
+
+        w = self.values[weights][rows].astype(float)
+        x = self.values[of][rows].astype(float)
+        total = np.bincount(owner, weights=w, minlength=len(lo))
+        num = np.bincount(owner, weights=w * x, minlength=len(lo))
+        return np.divide(num, total, out=np.full(len(lo), np.nan), where=total > 0)
+
+
+def _expand_windows(start, stop):
+    """
+    List the positions of every window with the window each belongs to.
+
+    Parameters
+    ----------
+    start, stop : :obj:`~numpy.array`
+        First position and one past the last position of each window.
+
+    Returns
+    -------
+    owner, rows : :obj:`~numpy.array`
+        Window and position of each row, ordered by window, then position.
+
+    """
+
+    start = np.asarray(start)
+    counts = np.maximum(np.asarray(stop) - start, 0)
+    owner = np.repeat(np.arange(len(counts)), counts)
+    rows = np.arange(len(owner)) + (start - (np.cumsum(counts) - counts))[owner]
+    return owner, rows
