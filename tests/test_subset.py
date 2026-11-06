@@ -822,3 +822,160 @@ def test_collapse_list_without_data(features):
     xics = deimos.collapse(features, keep="retention_time")
 
     assert xics == features
+
+
+@pytest.fixture()
+def unsorted_features():
+    return pd.DataFrame(
+        {
+            "mz": [300.0, 100.0, 200.0, 100.0005],
+            "scan": [2, 0, 1, 2],
+            "intensity": [4.0, 7.0, 5.0, 3.0],
+        },
+        index=["d", "a", "c", "b"],
+    )
+
+
+def test_sorted_features_sort_once_and_keep_index_labels(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    assert sf.values["mz"].tolist() == [100.0, 100.0005, 200.0, 300.0]
+    assert sf.values["scan"].tolist() == [0, 2, 1, 2]
+    assert sf.index.tolist() == ["a", "b", "c", "d"]
+    assert len(sf) == 4
+
+
+def test_sorted_features_reject_nan_in_the_sorted_column():
+    features = pd.DataFrame({"mz": [100.0, np.nan], "intensity": [1.0, 2.0]})
+
+    with pytest.raises(ValueError, match="NaN"):
+        deimos.subset.SortedFeatures(features, by="mz")
+
+
+def test_sorted_features_window_includes_both_bounds(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    start, stop = sf.window([100.0, 150.0], [200.0, 160.0])
+
+    assert start.tolist() == [0, 2]
+    assert stop.tolist() == [3, 2]
+
+
+@pytest.mark.parametrize("bound", [0.1, float(np.float32(0.1))])
+def test_sorted_features_window_agrees_with_slice_on_float32(bound):
+    # float32(0.1) is just above 0.1, so only the second bound reaches it
+    features = pd.DataFrame(
+        {"mz": np.array([0.1], dtype=np.float32), "intensity": [1.0]}
+    )
+    sf = deimos.subset.SortedFeatures(features, by="mz")
+
+    start, stop = sf.window(bound, bound)
+    sliced = deimos.slice(features, by="mz", low=bound, high=bound)
+
+    assert stop - start == (0 if sliced is None else len(sliced))
+    assert stop - start == (bound == float(np.float32(0.1)))
+
+
+def test_sorted_features_relative_window_scales_with_each_location(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    # 10 ppm is 0.001 at m/z 100 and 0.003 at m/z 300
+    start, stop = sf.window_around([100.0, 299.998], 10e-6, relative=True)
+
+    assert start.tolist() == [0, 3]
+    assert stop.tolist() == [2, 4]
+
+
+def test_sorted_features_extract_takes_the_largest_value_per_position(
+    unsorted_features,
+):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    out = sf.extract([100.0, 250.0], tol=0.001, along="scan", start=0, stop=3)
+
+    assert out.tolist() == [[7.0, 0.0, 3.0], [0.0, 0.0, 0.0]]
+
+
+def test_sorted_features_extract_sums_rows_that_share_a_position():
+    features = pd.DataFrame(
+        {"mz": [50.0, 50.001, 50.002], "scan": [4, 4, 5], "intensity": [1.0, 2.0, 4.0]}
+    )
+    sf = deimos.subset.SortedFeatures(features, by="mz")
+
+    out = sf.extract(
+        50.001, tol=0.002, along="scan", start=4, stop=7, how="sum", fill=-1.0
+    )
+
+    assert out.tolist() == [[3.0, 4.0, -1.0]]
+
+
+def test_sorted_features_extract_drops_rows_outside_the_axis_range(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    out = sf.extract([100.0], tol=0.001, along="scan", start=1, stop=2)
+
+    assert out.tolist() == [[0.0]]
+
+
+def test_sorted_features_extract_reports_values_below_the_fill():
+    features = pd.DataFrame(
+        {"mz": [10.0, 10.0], "scan": [0, 0], "intensity": [-5.0, -7.0]}
+    )
+    sf = deimos.subset.SortedFeatures(features, by="mz")
+
+    out = sf.extract(10.0, tol=0.0, along="scan", start=0, stop=2)
+
+    assert out.tolist() == [[-5.0, 0.0]]
+
+
+def test_sorted_features_extract_matches_batch_slice_then_collapse(ms1):
+    # Number the frames so retention time becomes an integer axis
+    ms1 = ms1.assign(frame=pd.factorize(ms1["retention_time"], sort=True)[0])
+    sf = deimos.subset.SortedFeatures(ms1, by="mz")
+    mzs = np.array([150.0, 212.0, 255.5])
+    tol = 20e-6
+
+    out = sf.extract(
+        mzs, tol, relative=True, along="frame", stop=ms1["frame"].max() + 1
+    )
+
+    low, high = mzs * (1 + -tol), mzs * (1 + tol)
+    slices = deimos.slice(ms1, by="mz", low=low[:, None], high=high[:, None])
+    for k, frames in enumerate(deimos.collapse(slices, keep="frame", how="max")):
+        expected = np.zeros(out.shape[1])
+        if frames is not None:
+            expected[frames["frame"].to_numpy()] = frames["intensity"].to_numpy()
+        assert np.array_equal(out[k], expected)
+
+
+def test_sorted_features_extract_rejects_unknown_aggregation_and_float_axis(
+    unsorted_features,
+):
+    sf = deimos.subset.SortedFeatures(
+        unsorted_features.assign(rt=[1.0, 2.0, 3.0, 4.0]), by="mz"
+    )
+
+    with pytest.raises(ValueError, match="how"):
+        sf.extract(100.0, 0.001, how="mean")
+    with pytest.raises(ValueError, match="integers"):
+        sf.extract(100.0, 0.001, along="rt")
+
+
+def test_sorted_features_extract_with_no_locations_is_empty(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    out = sf.extract(np.array([]), 0.001, along="scan", start=0, stop=3)
+
+    assert out.shape == (0, 3)
+
+
+def test_sorted_features_weighted_mean_within_window_and_axis_range(unsorted_features):
+    sf = deimos.subset.SortedFeatures(unsorted_features, by="mz")
+
+    # Weights 7 at 100.0 and 3 at 100.0005 give 100.00015; scans from 1 leave only 100.0005
+    means = sf.weighted_mean([100.0, 100.0, 150.0], 0.001)
+    late = sf.weighted_mean(100.0, 0.001, along="scan", start=1)
+
+    assert means[:2] == pytest.approx([100.00015, 100.00015], abs=1e-12)
+    assert np.isnan(means[2])
+    assert late.tolist() == [100.0005]
